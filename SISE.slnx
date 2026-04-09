@@ -81,8 +81,8 @@
     <File Path=".env.example" />
     <File Path=".gitignore" />
     <File Path="agent_schedule.md" />
+    <File Path="DesOfSys.md" />
     <File Path="docker-compose.yaml" />
-    <File Path="raw_md.txt" />
     <File Path="README.md" />
   </Folder>
 </Solution>
