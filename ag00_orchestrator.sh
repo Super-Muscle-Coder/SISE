@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/ag00_orchestrator.sh
+# ag00_orchestrator.sh
 # Run as SecretaryAgent (AG-00). Responsibilities: initialize baseline, audit, and append schedule.
 set -euo pipefail
 
@@ -8,10 +8,9 @@ cd "$ROOT_DIR"
 
 echo "[AG-00] Starting orchestration..."
 
-# 1. Ensure .context exists and agent_boundaries.json is present
-mkdir -p .context
-if [ ! -f .context/agent_boundaries.json ]; then
-  cat > .context/agent_boundaries.json <<'JSON'
+# 1. Ensure agent_boundaries.json is present at the repository root
+if [ ! -f agent_boundaries.json ]; then
+  cat > agent_boundaries.json <<'JSON'
 {
   "system_name": "SISE",
   "version": "1.0",
@@ -24,17 +23,17 @@ if [ ! -f .context/agent_boundaries.json ]; then
   "agents": []
 }
 JSON
-  echo "[AG-00] Created placeholder .context/agent_boundaries.json. Please replace with canonical file."
+  echo "[AG-00] Created placeholder agent_boundaries.json. Please replace with canonical file."
 fi
 
 # 2. Validate JSON syntax
 python3 - <<PY
 import json,sys
 try:
-    json.load(open('.context/agent_boundaries.json'))
-    print("[AG-00] .context/agent_boundaries.json is valid JSON")
+    json.load(open('agent_boundaries.json'))
+    print("[AG-00] agent_boundaries.json is valid JSON")
 except Exception as e:
-    print("[AG-00] ERROR: invalid JSON in .context/agent_boundaries.json:", e)
+    print("[AG-00] ERROR: invalid JSON in agent_boundaries.json:", e)
     sys.exit(2)
 PY
 
@@ -42,7 +41,7 @@ PY
 echo "[AG-00] Scanning working tree for uncommitted cross-scope edits..."
 python3 - <<PY
 import json, subprocess, sys
-rules = json.load(open('.context/agent_boundaries.json'))
+rules = json.load(open('agent_boundaries.json'))
 agents = [a.get('working_dir','') for a in rules.get('agents',[])]
 changed = subprocess.check_output(['git','status','--porcelain']).decode().strip().splitlines()
 violations = []
@@ -55,7 +54,7 @@ for line in changed:
         if wd and path.startswith(wd):
             allowed = True
             break
-    if path.startswith('.context') or path.startswith('agents') or path == 'agents.md' or path == 'agent_schedule.md':
+    if path.startswith('.github/agents') or path == '.agents.md' or path == 'agent_schedule.md' or path in ['agent_boundaries.json','openapi.yaml','data_schema.json','system_architecture.md']:
         allowed = True
     if not allowed:
         violations.append(path)
@@ -68,22 +67,21 @@ print("[AG-00] No immediate scope violations detected.")
 PY
 
 # 4. Validate openapi if present
-if [ -f .context/openapi.yaml ]; then
-  echo "[AG-00] Validating .context/openapi.yaml..."
+if [ -f openapi.yaml ]; then
+  echo "[AG-00] Validating openapi.yaml..."
   python3 - <<PY
 from openapi_spec_validator import validate_spec
 import yaml,sys
-spec = yaml.safe_load(open('.context/openapi.yaml'))
+spec = yaml.safe_load(open('openapi.yaml'))
 validate_spec(spec)
 print("[AG-00] openapi.yaml valid")
 PY
 else
-  echo "[AG-00] .context/openapi.yaml not found; skipping"
+  echo "[AG-00] openapi.yaml not found; skipping"
 fi
 
 # 5. Append audit summary to agent_schedule.md
 TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-mkdir -p agents
 if [ ! -f agent_schedule.md ]; then
   cat > agent_schedule.md <<'MD'
 # Agent Schedule
