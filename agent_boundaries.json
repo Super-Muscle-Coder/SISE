@@ -1,0 +1,87 @@
+{
+  "system_name": "SISE",
+  "version": "1.1",
+  "global_constraints": {
+    "enforced_python_version": "3.13",
+    "allowed_tech_stack": [
+      "python",
+      "fastapi",
+      "pytorch",
+      "react",
+      "tailwind",
+      "milvus",
+      "postgres",
+      "minio",
+      "docker",
+      "pytest"
+    ],
+    "forbidden_libraries": [
+      "pandas",
+      "tensorflow",
+      "flask"
+    ],
+    "no_secrets_in_repo": true,
+    "default_timeout_ms": 10000,
+    "default_retries": 2,
+    "retry_backoff_ms": 500
+  },
+  "agents": [
+    {
+      "id": "AG-00",
+      "name": "SecretaryAgent",
+      "working_dir": "projects/SecretaryAgent/",
+      "allowed_outbound_calls": [ "*" ],
+      "forbidden_actions": [ "write_feature_code" ],
+      "privileges": [
+        "modify_.context",
+        "modify_agents_manifest",
+        "audit_logs",
+        "block_unauthorized_commits"
+      ]
+    },
+    {
+      "id": "AG-01",
+      "name": "AIModule",
+      "working_dir": "projects/AIModule/",
+      "allowed_outbound_calls": [ "AG-00" ],
+      "forbidden_actions": [
+        "direct_db_access",
+        "write_to_common",
+        "modify_docker_compose"
+      ],
+      "responsibilities": [ "CLIP inference", "Feature extraction", "Vector normalization" ]
+    },
+    {
+      "id": "AG-02",
+      "name": "StorageModule",
+      "working_dir": "projects/StorageModule/",
+      "allowed_outbound_calls": [ "AG-00" ],
+      "forbidden_actions": [ "implement_business_logic" ],
+      "services": [ "milvus", "postgres", "minio" ]
+    },
+    {
+      "id": "AG-03",
+      "name": "BackendModule",
+      "working_dir": "projects/BackendModule/",
+      "allowed_outbound_calls": [ "AG-01", "AG-02", "AG-00" ],
+      "forbidden_actions": [ "heavy_image_processing", "modify_other_projects" ],
+      "responsibilities": [ "API Gateway", "Business Logic", "Privacy Filtering", "Auth" ]
+    },
+    {
+      "id": "AG-04",
+      "name": "WebFrontend",
+      "working_dir": "projects/frontendweb/",
+      "allowed_outbound_calls": [ "AG-03" ],
+      "forbidden_actions": [ "call_AG-01_directly", "call_AG-02_directly" ],
+      "responsibilities": [ "React dashboard", "Search UI", "Image gallery" ]
+    },
+    {
+      "id": "AG-05",
+      "name": "MobileFrontend",
+      "working_dir": "projects/FrontendMobile/",
+      "allowed_outbound_calls": [ "AG-03" ],
+      "forbidden_actions": [ "call_AG-01_directly", "call_AG-02_directly" ],
+      "responsibilities": [ "React Native client", "Camera integration", "Mobile search" ]
+    }
+  ]
+}

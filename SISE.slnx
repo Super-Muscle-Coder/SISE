@@ -1,0 +1,88 @@
+<Solution>
+  <Folder Name="/.context/">
+    <File Path="agent_boundaries.json" />
+    <File Path="data_schema.json" />
+    <File Path="openapi.yaml" />
+    <File Path="system_architecture.md" />
+  </Folder>
+  <Folder Name="/.githooks/">
+    <File Path="pre-commit.txt" />
+  </Folder>
+  <Folder Name="/agents/">
+    <File Path=".agents.md" />
+  </Folder>
+  <Folder Name="/common/" />
+  <Folder Name="/projects/">
+    <Project Path="AIModule/AIModule.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="763ee05e-2f26-4323-a767-328762ea75bc">
+      <Build Project="false" />
+    </Project>
+    <Project Path="BackendModule/BackendModule.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="55f6cd32-a6e2-46f5-aacd-082e228b603c">
+      <Build Project="false" />
+    </Project>
+    <Project Path="FrontendWeb/frontendweb.esproj">
+      <Build />
+      <Deploy />
+    </Project>
+    <Project Path="SecretaryAgent/SecretaryAgent.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="717b4198-19b6-4a80-a63b-22170b6df2f1">
+      <Build Project="false" />
+    </Project>
+    <Project Path="StorageModule/StorageModule.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="c7422bdc-f9b6-4651-afb5-a9e3d81b6b7c">
+      <Build Project="false" />
+    </Project>
+  </Folder>
+  <Folder Name="/projects/FrontendMobile/">
+    <File Path="FrontendMobile/.gitignore" />
+    <File Path="FrontendMobile/app.json" />
+    <File Path="FrontendMobile/eslint.config.js" />
+    <File Path="FrontendMobile/expo-env.d.ts" />
+    <File Path="FrontendMobile/package-lock.json" />
+    <File Path="FrontendMobile/package.json" />
+    <File Path="FrontendMobile/README.md" />
+    <File Path="FrontendMobile/tsconfig.json" />
+  </Folder>
+  <Folder Name="/projects/FrontendMobile/app/">
+    <File Path="FrontendMobile/app/modal.tsx" />
+    <File Path="FrontendMobile/app/_layout.tsx" />
+  </Folder>
+  <Folder Name="/projects/FrontendMobile/app/(tabs)/">
+    <File Path="FrontendMobile/app/(tabs)/explore.tsx" />
+    <File Path="FrontendMobile/app/(tabs)/index.tsx" />
+    <File Path="FrontendMobile/app/(tabs)/_layout.tsx" />
+  </Folder>
+  <Folder Name="/projects/FrontendMobile/components/">
+    <File Path="FrontendMobile/components/external-link.tsx" />
+    <File Path="FrontendMobile/components/haptic-tab.tsx" />
+    <File Path="FrontendMobile/components/hello-wave.tsx" />
+    <File Path="FrontendMobile/components/parallax-scroll-view.tsx" />
+    <File Path="FrontendMobile/components/themed-text.tsx" />
+    <File Path="FrontendMobile/components/themed-view.tsx" />
+  </Folder>
+  <Folder Name="/projects/FrontendMobile/components/ui/">
+    <File Path="FrontendMobile/components/ui/collapsible.tsx" />
+    <File Path="FrontendMobile/components/ui/icon-symbol.ios.tsx" />
+    <File Path="FrontendMobile/components/ui/icon-symbol.tsx" />
+  </Folder>
+  <Folder Name="/projects/FrontendMobile/constants/">
+    <File Path="FrontendMobile/constants/theme.ts" />
+  </Folder>
+  <Folder Name="/projects/FrontendMobile/hooks/">
+    <File Path="FrontendMobile/hooks/use-color-scheme.ts" />
+    <File Path="FrontendMobile/hooks/use-color-scheme.web.ts" />
+    <File Path="FrontendMobile/hooks/use-theme-color.ts" />
+  </Folder>
+  <Folder Name="/projects/FrontendMobile/scripts/">
+    <File Path="FrontendMobile/scripts/reset-project.js" />
+  </Folder>
+  <Folder Name="/scripts/">
+    <File Path="ag00_orchestrator.sh" />
+    <File Path="scope_check.sh" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".env.example" />
+    <File Path=".gitignore" />
+    <File Path="agent_schedule.md" />
+    <File Path="docker-compose.yaml" />
+    <File Path="raw_md.txt" />
+    <File Path="README.md" />
+  </Folder>
+</Solution>

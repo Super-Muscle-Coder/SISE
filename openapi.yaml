@@ -1,0 +1,748 @@
+openapi: 3.0.3
+info:
+  title: SISE - Multimodal Retrieval & Privacy-Aware Search API
+  description: >
+    Production-ready contract for SISE. v1.3.4 includes:
+    - flexible vector dimensions with server-side validation and explicit error codes,
+    - recursive structured filters with canonical examples,
+    - presigned upload flow with idempotency semantics,
+    - standardized error responses and operation examples,
+    - dependency-aware health probes exposing expected vector dimension.
+  version: 1.3.4
+
+servers:
+  - url: http://localhost:8000
+    description: Local development gateway (FastAPI)
+
+security:
+  - BearerAuth: []
+
+paths:
+  # --- SYSTEM & HEALTH ---
+  /health/liveness:
+    get:
+      operationId: getLiveness
+      summary: Service liveness probe
+      tags: [System]
+      responses:
+        '200':
+          description: Service process is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '500':
+          $ref: '#/components/responses/StandardError'
+
+  /health/readiness:
+    get:
+      operationId: getReadiness
+      summary: Comprehensive readiness check (dependencies)
+      tags: [System]
+      responses:
+        '200':
+          description: All dependencies are ready
+          headers:
+            X-Expected-Vector-Dim:
+              description: The vector dimension expected by this deployment (clients should validate before sending).
+              schema:
+                type: integer
+                example: 512
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: One or more dependencies are unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '500':
+          $ref: '#/components/responses/StandardError'
+
+  # --- AUTHENTICATION ---
+  /auth/register:
+    post:
+      operationId: registerUser
+      summary: Register a new user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                username: { type: string }
+                email: { type: string, format: email }
+                password: { type: string }
+            examples:
+              basic:
+                value:
+                  username: "alice"
+                  email: "alice@example.com"
+                  password: "P@ssw0rd!"
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '500':
+          $ref: '#/components/responses/StandardError'
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      summary: Authenticate and obtain JWT
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+            examples:
+              basic:
+                value:
+                  username: "alice"
+                  password: "P@ssw0rd!"
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '400':
+          $ref: '#/components/responses/StandardError'
+
+  # --- MEDIA & INGESTION ---
+  /media/upload-url:
+    post:
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for direct upload to MinIO
+      tags: [Media]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename, content_type]
+              properties:
+                filename: { type: string, example: "vacation.jpg" }
+                content_type: { type: string, example: "image/jpeg" }
+                expected_size_mb:
+                  type: integer
+                  description: Optional hint of expected file size in MB (server may validate)
+            examples:
+              request:
+                value:
+                  filename: "vacation.jpg"
+                  content_type: "image/jpeg"
+                  expected_size_mb: 5
+      responses:
+        '200':
+          description: Presigned URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignedUploadResponse'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Duplicate idempotent request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+
+  /media/upload:
+    post:
+      operationId: uploadLegacy
+      summary: Legacy multipart upload proxied through backend (fallback)
+      tags: [Media]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                album_id: { type: integer }
+                privacy_level: { $ref: '#/components/schemas/PrivacyLevel' }
+            encoding:
+              file:
+                contentType: image/*
+      responses:
+        '201':
+          description: File uploaded and metadata registered (indexing may be pending)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /media/{image_id}:
+    get:
+      operationId: getMediaMetadata
+      summary: Retrieve image metadata and signed GET URL (if authorized)
+      tags: [Media]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: image_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Image metadata and access URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageMetadata'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # --- AI & INFERENCE ---
+  /inference/embed/image:
+    post:
+      operationId: embedImage
+      summary: Extract visual features using CLIP encoder
+      tags: [AIModule]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: Vector embedding returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VectorEmbeddingResponse'
+              example:
+                vector: [0.01, -0.02, 0.5, 0.0]
+                dim: 512
+                model: "clip-vit-b-32"
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/StandardError'
+
+
+  /inference/embed/text:
+    post:
+      operationId: embedText
+      summary: Tokenize and encode text for cross-modal alignment
+      tags: [AIModule]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query_text]
+              properties:
+                query_text: { type: string }
+            example:
+              query_text: "sunset over a mountain"
+      responses:
+        '200':
+          description: Text vector returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VectorEmbeddingResponse'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/StandardError'
+
+
+  # --- VECTOR INDEXING & SEARCH ---
+  /vector/index:
+    post:
+      operationId: indexVector
+      summary: Index a vector into the vector DB and associate with image metadata
+      tags: [StorageModule]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [image_id, vector]
+              properties:
+                image_id: { type: string, format: uuid }
+                vector: { $ref: '#/components/schemas/VectorEmbedding' }
+                metadata: { $ref: '#/components/schemas/ImageMetadata' }
+            example:
+              image_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+              vector: [0.01, -0.02, 0.5]
+      responses:
+        '201':
+          description: Vector indexed successfully (may be async)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "accepted" }
+                  job_id: { type: string }
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/StandardError'
+
+
+  /vector/search/hybrid:
+    post:
+      operationId: searchHybrid
+      summary: Privacy-aware hybrid ANN search (vector + structured metadata filter)
+      tags: [StorageModule]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vector]
+              properties:
+                vector: { $ref: '#/components/schemas/VectorEmbedding' }
+                top_k: { type: integer, default: 10 }
+                metric: { $ref: '#/components/schemas/MetricType' }
+                filter: { $ref: '#/components/schemas/FilterExpression' }
+            example:
+              vector: [0.1, -0.2, 0.5]
+              top_k: 5
+              filter:
+                or:
+                  - field: "privacy_level"
+                    op: "in"
+                    value: [2]
+                  - field: "user_id"
+                    op: "eq"
+                    value: 101
+      responses:
+        '200':
+          description: Top-K nearest neighbors retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          description: Bad request (e.g., vector dim mismatch or invalid filter)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/StandardError'
+
+
+
+  # --- EVALUATION & ADMIN ---
+  /eval/metrics:
+    get:
+      operationId: getEvaluationMetrics
+      summary: Retrieve performance benchmarking indices (MRR, HitRate, Precision, Recall)
+      tags: [EvaluationService]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Metric report generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mrr: { type: number }
+                  hit_rate: { type: number }
+                  precision: { type: number }
+                  recall: { type: number }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/StandardError'
+
+  /admin/reindex:
+    post:
+      operationId: triggerReindex
+      summary: Trigger reindexing of media into vector DB (admin only)
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                batch_size: { type: integer, default: 100 }
+                resume_from: { type: string }
+      responses:
+        '202':
+          description: Reindex job accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/StandardError'
+        '500':
+          $ref: '#/components/responses/StandardError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: >
+        Unique key to prevent duplicate processing of the same upload/index request.
+        Server stores idempotency keys for a configurable TTL (recommended 24h). Keys are scoped per authenticated user.
+
+  responses:
+    StandardError:
+      description: Standard error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    # --- CORE ENUMS ---
+    PrivacyLevel:
+      type: integer
+      enum: [0, 1, 2]
+      description: "0: Private, 1: Friends, 2: Public"
+
+    MetricType:
+      type: string
+      enum: [L2, IP, COSINE]
+      default: COSINE
+
+    # --- VECTOR & EMBEDDING ---
+    VectorEmbedding:
+      type: array
+      items:
+        type: number
+        format: float
+      description: >
+        Latent vector. Dimension is validated server-side against deployment config.
+        Clients should call GET /health/readiness to read header X-Expected-Vector-Dim before sending vectors.
+        If mismatched, server returns 400 with Error.code = ERR_VECTOR_DIM_MISMATCH.
+
+    VectorEmbeddingResponse:
+      type: object
+      properties:
+        vector:
+          $ref: '#/components/schemas/VectorEmbedding'
+        dim:
+          type: integer
+          description: Actual vector dimension returned by the model
+        model:
+          type: string
+          description: Model identifier (e.g., "clip-vit-b-32")
+
+    # --- FILTER (RECURSIVE) ---
+    FilterExpression:
+      description: Recursive boolean filter for metadata. Use 'and'/'or' arrays or a leaf {field, op, value}.
+      oneOf:
+        - type: object
+          properties:
+            and:
+              type: array
+              items:
+                $ref: '#/components/schemas/FilterExpression'
+        - type: object
+          properties:
+            or:
+              type: array
+              items:
+                $ref: '#/components/schemas/FilterExpression'
+        - type: object
+          properties:
+            field:
+              type: string
+              description: Field name in metadata (e.g., privacy_level, user_id, tags)
+            op:
+              type: string
+              enum: [eq, in, gt, lt, contains]
+              description: Operator. Use 'contains' for JSONB array membership (tags).
+            value:
+              oneOf:
+                - type: integer
+                - type: string
+                - type: array
+                  items:
+                    oneOf:
+                      - type: integer
+                      - type: string
+      example:
+        privacy_only:
+          value:
+            field: privacy_level
+            op: in
+            value: [2]
+        user_or_public:
+          value:
+            or:
+              - field: privacy_level
+                op: in
+                value: [2]
+              - field: user_id
+                op: eq
+                value: 123
+        tags_and_public:
+          value:
+            and:
+              - field: tags
+                op: contains
+                value: ["nature"]
+              - field: privacy_level
+                op: in
+                value: [2]
+
+    # --- MEDIA & METADATA ---
+    PresignedUploadResponse:
+      type: object
+      properties:
+        upload_url:
+          type: string
+          format: uri
+        object_key:
+          type: string
+        expires_in_sec:
+          type: integer
+          example: 3600
+        max_file_size_mb:
+          type: integer
+          example: 20
+        allowed_content_types:
+          type: array
+          items:
+            type: string
+          example: ["image/jpeg", "image/png"]
+        note:
+          type: string
+          description: "Client should upload within expires_in_sec and respect allowed_content_types."
+
+    UploadResponse:
+      type: object
+      properties:
+        image_id:
+          type: string
+          format: uuid
+        minio_url:
+          type: string
+          format: uri
+        status:
+          type: string
+          example: "pending"
+        index_status:
+          type: string
+          example: "pending"
+
+    ImageMetadata:
+      type: object
+      properties:
+        image_id: { type: string, format: uuid }
+        user_id: { type: integer }
+        album_id: { type: integer }
+        minio_url: { type: string, format: uri }
+        privacy_level: { $ref: '#/components/schemas/PrivacyLevel' }
+        tags:
+          type: array
+          items: { type: string }
+        created_at:
+          type: string
+          format: date-time
+        index_status:
+          type: string
+          example: "ready"
+
+    # --- SEARCH RESPONSE ---
+    SearchResultItem:
+      type: object
+      properties:
+        image_id: { type: string, format: uuid }
+        score: { type: number }
+        minio_url: { type: string, format: uri }
+        metadata:
+          $ref: '#/components/schemas/ImageMetadata'
+
+    SearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResultItem'
+        latency_ms:
+          type: number
+          description: Query latency in milliseconds
+        top_k:
+          type: integer
+
+    # --- AUTH MODELS ---
+    AuthRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string }
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, example: "bearer" }
+        expires_in: { type: integer, example: 3600 }
+
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        email: { type: string, format: email }
+        created_at: { type: string, format: date-time }
+
+    Album:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        is_public: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    # --- HEALTH & ERROR ---
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ready"
+        timestamp:
+          type: string
+          format: date-time
+        dependencies:
+          type: object
+          properties:
+            postgres: { type: string, example: "connected" }
+            milvus: { type: string, example: "ready" }
+            minio: { type: string, example: "reachable" }
+            ai_service: { type: string, example: "warm" }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: "ERR_VECTOR_DIM_MISMATCH"
+        message:
+          type: string
+          example: "Expected 512 items, received 768"
+        details:
+          type: object
+          description: Optional structured details for debugging
+
+tags:
+  - name: System
+    description: System-level endpoints (health, readiness)
+  - name: Auth
+    description: Authentication endpoints (register, login)
+  - name: Media
+    description: Upload and media retrieval
+  - name: AIModule
+    description: Embedding extraction endpoints
+  - name: StorageModule
+    description: Vector DB indexing and search
+  - name: EvaluationService
+    description: Metrics and evaluation endpoints
+  - name: Admin
+    description: Admin operations (reindex, maintenance)

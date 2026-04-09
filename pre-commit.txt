@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# .githooks/pre-commit
+# Install: git config core.hooksPath .githooks
+set -euo pipefail
+
+# Run scope check
+scripts/scope_check.sh
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+
+# Optional fast tests (uncomment if desired)
+# pytest -q --maxfail=1
+
+exit 0
