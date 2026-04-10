@@ -18,29 +18,29 @@ security:
   - BearerAuth: []
 
 paths:
-  # --- SYSTEM & HEALTH ---
-  /health/liveness:
+  # --- SYSTEM & HEALTH ----------------------------------------------------------------------------------------------
+  /health/liveness:  # Tôi còn sống không? Nó chỉ trả lời một câu duy nhất: "Backend có đang chạy không?".
     get:
       operationId: getLiveness
       summary: Service liveness probe
       tags: [System]
       responses:
-        '200':
+        '200': # Status 200: OK, có nghĩa là service process đang chạy và có thể nhận request. Đây là tín hiệu cho orchestrator rằng container này "còn sống" và không cần khởi động lại.
           description: Service process is running
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
-        '500':
+        '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình kiểm tra liveness, có thể do lỗi code hoặc sự cố môi trường.
           $ref: '#/components/responses/StandardError'
-
-  /health/readiness:
+  # ------------------------------------------------------------------------------------------------------------------
+  /health/readiness: # Đây là bài kiểm tra sâu và quan trọng hơn nhiều. Một dịch vụ có thể "sống" nhưng chưa chắc đã "làm việc" được.
     get:
       operationId: getReadiness
       summary: Comprehensive readiness check (dependencies)
       tags: [System]
       responses:
-        '200':
+        '200': # Status 200: OK, mọi thứ đã sẵn sàng. Đây là tín hiệu cho orchestrator rằng dịch vụ có thể nhận traffic.
           description: All dependencies are ready
           headers:
             X-Expected-Vector-Dim:
@@ -52,17 +52,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
-        '503':
+        '503': # Status 503: Service Unavailable, có nghĩa là một hoặc nhiều phụ thuộc quan trọng chưa sẵn sàng. Dịch vụ có thể đang khởi động hoặc gặp sự cố kết nối với DB, vector store, AI service, v.v.
           description: One or more dependencies are unavailable
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
-        '500':
+        '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình kiểm tra sẵn sàng, có thể do lỗi code hoặc sự cố môi trường.
           $ref: '#/components/responses/StandardError'
 
-  # --- AUTHENTICATION ---
-  /auth/register:
+  # --- AUTHENTICATION --------------------------------------------------------------------------------------
+  /auth/register: # Đăng ký người dùng mới. Đây là endpoint công khai, không yêu cầu xác thực. Người dùng cung cấp username, email và password để tạo tài khoản mới.
     post:
       operationId: registerUser
       summary: Register a new user
@@ -81,22 +81,22 @@ paths:
             examples:
               basic:
                 value:
-                  username: "alice"
-                  email: "alice@example.com"
-                  password: "P@ssw0rd!"
+                  username: "alice" # Đây là tên người dùng mới. Nếu username đã tồn tại, server sẽ trả về lỗi 400 Bad Request.
+                  email: "alice@example.com" # Đây là email của người dùng mới. Nếu email đã tồn tại hoặc định dạng sai, server sẽ trả về lỗi 400 Bad Request.
+                  password: "P@ssw0rd!" # Đây là mật khẩu của người dùng mới. Nếu mật khẩu không hợp lệ, server sẽ trả về lỗi 400 Bad Request.
       responses:
-        '201':
+        '201': # Status 201: Created, có nghĩa là người dùng mới đã được tạo thành công. Phản hồi thường bao gồm thông tin người dùng (không bao gồm mật khẩu) và có thể kèm theo token xác thực nếu đăng ký cũng thực hiện đăng nhập.
           description: User created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
-        '400':
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ, ví dụ thiếu trường bắt buộc, định dạng email sai, hoặc username đã tồn tại.
           $ref: '#/components/responses/StandardError'
-        '500':
+        '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình xử lý yêu cầu, có thể do lỗi code hoặc sự cố môi trường.
           $ref: '#/components/responses/StandardError'
-
-  /auth/login:
+  # ------------------------------------------------------------------------------------------------------------------
+  /auth/login: # Xác thực người dùng và lấy JWT token. Đây là endpoint công khai, không yêu cầu xác thực. Người dùng cung cấp username và password để nhận được access token (JWT) nếu thông tin đăng nhập hợp lệ.
     post:
       operationId: loginUser
       summary: Authenticate and obtain JWT
@@ -110,22 +110,22 @@ paths:
             examples:
               basic:
                 value:
-                  username: "alice"
-                  password: "P@ssw0rd!"
+                  username: "alice" # Đây là tên người dùng đã đăng ký trước đó. Nếu username không tồn tại trong hệ thống, server sẽ trả về lỗi 401 Unauthorized.
+                  password: "P@ssw0rd!" # Đây là mật khẩu của người dùng. Nếu mật khẩu không đúng, server sẽ trả về lỗi 401 Unauthorized.
       responses:
-        '200':
+        '200': # Status 200: OK, có nghĩa là xác thực thành công và access token đã được trả về trong phản hồi. Token này sẽ được sử dụng cho các yêu cầu tiếp theo đến các endpoint bảo vệ.
           description: Authentication successful
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
-        '401':
+        '401': # Status 401: Unauthorized, có nghĩa là thông tin đăng nhập không hợp lệ (username không tồn tại hoặc password sai).
           $ref: '#/components/responses/Unauthorized'
-        '400':
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ, ví dụ thiếu trường bắt buộc hoặc định dạng sai.
           $ref: '#/components/responses/StandardError'
 
-  # --- MEDIA & INGESTION ---
-  /media/upload-url:
+  # --- MEDIA & INGESTION -----------------------------------------------------------------------------------------
+  /media/upload-url: # Request a presigned URL for direct upload to MinIO. Endpoint này yêu cầu xác thực (Bearer token) và cho phép client yêu cầu một URL có chữ ký để tải tệp trực tiếp lên MinIO mà không cần đi qua backend. Client cung cấp filename, content_type và optional expected_size_mb để server có thể tạo URL phù hợp với chính sách lưu trữ và bảo mật.
     post:
       operationId: requestUploadUrl
       summary: Request a presigned URL for direct upload to MinIO
@@ -142,8 +142,8 @@ paths:
               type: object
               required: [filename, content_type]
               properties:
-                filename: { type: string, example: "vacation.jpg" }
-                content_type: { type: string, example: "image/jpeg" }
+                filename: { type: string, example: "vacation.jpg" } # Đây là tên tệp mà client dự định tải lên. Server có thể sử dụng thông tin này để tạo object key trong MinIO hoặc áp dụng chính sách đặt tên.
+                content_type: { type: string, example: "image/jpeg" } # Đây là loại nội dung của tệp. Server có thể sử dụng thông tin này để xác định cách xử lý tệp hoặc áp dụng chính sách bảo mật.
                 expected_size_mb:
                   type: integer
                   description: Optional hint of expected file size in MB (server may validate)
@@ -154,24 +154,24 @@ paths:
                   content_type: "image/jpeg"
                   expected_size_mb: 5
       responses:
-        '200':
+        '200': # Status 200: OK, có nghĩa là URL có chữ ký đã được tạo thành công và trả về trong phản hồi. Client có thể sử dụng URL này để tải tệp trực tiếp lên MinIO. Phản hồi bao gồm upload_url (URL có chữ ký), object_key (khóa đối tượng trong MinIO), expires_in_sec (thời gian hiệu lực của URL), max_file_size_mb (kích thước tệp tối đa được phép) và allowed_content_types (danh sách loại nội dung được phép).
           description: Presigned URL generated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PresignedUploadResponse'
-        '400':
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ, ví dụ thiếu trường bắt buộc hoặc định dạng sai.
           $ref: '#/components/responses/StandardError'
-        '401':
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
-        '409':
+        '409': # Status 409: Conflict, có nghĩa là có xung đột với yêu cầu hiện tại, ví dụ idempotency key đã tồn tại và đang được xử lý. Đây là tín hiệu cho client rằng yêu cầu này có thể đã được xử lý trước đó và nên tránh gửi lại.
           description: Duplicate idempotent request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UploadResponse'
-
-  /media/upload:
+  # ------------------------------------------------------------------------------------------------------------------
+  /media/upload: # Legacy multipart upload proxied through backend (fallback). Endpoint này cũng cho phép tải tệp lên thông qua backend bằng cách gửi multipart/form-data. Đây là phương thức cũ và không được khuyến khích, nhưng vẫn tồn tại như một fallback nếu client không thể sử dụng presigned URL. Client gửi tệp cùng với metadata như album_id và privacy_level. Server xử lý tải lên, lưu trữ tệp vào MinIO, và trả về metadata của ảnh đã lưu.
     post:
       operationId: uploadLegacy
       summary: Legacy multipart upload proxied through backend (fallback)
@@ -195,24 +195,24 @@ paths:
               file:
                 contentType: image/*
       responses:
-        '201':
+        '201': # Status 201: Created, có nghĩa là tệp đã được tải lên thành công và metadata đã được đăng ký. Phản hồi bao gồm image_id (UUID của ảnh), minio_url (URL truy cập ảnh trong MinIO), status (trạng thái hiện tại của ảnh, ví dụ "pending" nếu đang chờ xử lý), và index_status (trạng thái của việc lập chỉ mục vào vector DB, ví dụ "pending" hoặc "ready"). Lưu ý rằng lập chỉ mục có thể là một quá trình bất đồng bộ, vì vậy ngay cả khi tệp đã được tải lên thành công, nó có thể vẫn đang chờ để được lập chỉ mục.
           description: File uploaded and metadata registered (indexing may be pending)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UploadResponse'
-        '400':
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ, ví dụ thiếu trường bắt buộc, định dạng sai, hoặc tệp không hợp lệ.
           $ref: '#/components/responses/StandardError'
-        '401':
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
-        '413':
+        '413': # Status 413: Payload Too Large, có nghĩa là tệp được gửi vượt quá giới hạn kích thước tối đa mà server cho phép. Phản hồi sẽ bao gồm mã lỗi và thông điệp giải thích rằng tệp quá lớn.
           description: Payload too large
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  /media/{image_id}:
+  # ------------------------------------------------------------------------------------------------------------------
+  /media/{image_id}: # Retrieve image metadata and signed GET URL (if authorized). Endpoint này yêu cầu xác thực và cho phép client truy xuất metadata của ảnh cùng với URL có chữ ký để truy cập ảnh nếu client có quyền. Client cung cấp image_id trong đường dẫn, và server kiểm tra quyền truy cập dựa trên metadata (ví dụ user_id, album_id, privacy_level) trước khi trả về thông tin.
     get:
       operationId: getMediaMetadata
       summary: Retrieve image metadata and signed GET URL (if authorized)
@@ -227,21 +227,21 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        '200': # Status 200: OK, có nghĩa là metadata của ảnh đã được truy xuất thành công và trả về trong phản hồi. Phản hồi bao gồm image_id (UUID của ảnh), user_id (ID người sở hữu ảnh), album_id (ID album chứa ảnh), minio_url (URL có chữ ký để truy cập ảnh trong MinIO), privacy_level (mức độ riêng tư của ảnh), tags (danh sách thẻ liên quan đến ảnh), created_at (thời gian tạo ảnh), và index_status (trạng thái lập chỉ mục vào vector DB). Lưu ý rằng URL có chữ ký chỉ được trả về nếu client có quyền truy cập dựa trên metadata của ảnh.
           description: Image metadata and access URL
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImageMetadata'
-        '403':
+        '403': # Status 403: Forbidden, có nghĩa là client không có quyền truy cập vào ảnh này dựa trên metadata (ví dụ privacy_level hoặc user_id không khớp). Phản hồi sẽ bao gồm mã lỗi và thông điệp giải thích rằng quyền truy cập bị từ chối.
           $ref: '#/components/responses/StandardError'
-        '404':
+        '404': # Status 404: Not Found, có nghĩa là không tìm thấy ảnh với image_id được cung cấp. Phản hồi sẽ bao gồm mã lỗi và thông điệp giải thích rằng ảnh không tồn tại.
           $ref: '#/components/responses/StandardError'
-        '401':
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
 
-  # --- AI & INFERENCE ---
-  /inference/embed/image:
+  # --- AI & INFERENCE ----------------------------------------------------------------------------------------------------
+  /inference/embed/image: # Extract visual features using CLIP encoder. Endpoint này yêu cầu xác thực và cho phép client gửi một tệp hình ảnh để trích xuất đặc trưng trực quan bằng bộ mã hóa CLIP. Client gửi tệp dưới dạng multipart/form-data, và server trả về vector embedding cùng với thông tin về mô hình đã sử dụng. Lưu ý rằng server sẽ kiểm tra kích thước vector trả về so với kỳ vọng (được cung cấp trong header X-Expected-Vector-Dim của endpoint /health/readiness) và nếu không khớp, server sẽ trả về lỗi 400 với mã lỗi ERR_VECTOR_DIM_MISMATCH.
     post:
       operationId: embedImage
       summary: Extract visual features using CLIP encoder
@@ -258,7 +258,7 @@ paths:
               properties:
                 file: { type: string, format: binary }
       responses:
-        '200':
+        '200': # Status 200: OK, có nghĩa là vector embedding đã được trích xuất thành công và trả về trong phản hồi. Phản hồi bao gồm vector (mảng số thực), dim (kích thước thực tế của vector), và model (tên mô hình đã sử dụng để trích xuất đặc trưng). Lưu ý rằng nếu kích thước vector không khớp với kỳ vọng, server sẽ trả về lỗi 400 với mã lỗi ERR_VECTOR_DIM_MISMATCH.
           description: Vector embedding returned
           content:
             application/json:
@@ -268,15 +268,15 @@ paths:
                 vector: [0.01, -0.02, 0.5, 0.0]
                 dim: 512
                 model: "clip-vit-b-32"
-        '400':
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ, ví dụ thiếu tệp, tệp không phải là hình ảnh, hoặc kích thước vector trả về không khớp với kỳ vọng. Phản hồi sẽ bao gồm mã lỗi và thông điệp giải thích vấn đề.
           $ref: '#/components/responses/StandardError'
-        '401':
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
-        '500':
+        '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình xử lý yêu cầu, có thể do lỗi code hoặc sự cố môi trường.
           $ref: '#/components/responses/StandardError'
 
-
-  /inference/embed/text:
+  # ------------------------------------------------------------------------------------------------------------------
+  /inference/embed/text: # Tokenize and encode text for cross-modal alignment. Endpoint này yêu cầu xác thực và cho phép client gửi một chuỗi văn bản để mã hóa thành vector embedding phù hợp cho việc căn chỉnh đa phương tiện (ví dụ như tìm kiếm hình ảnh dựa trên mô tả văn bản). Client gửi văn bản dưới dạng JSON, và server trả về vector embedding cùng với thông tin về mô hình đã sử dụng. Lưu ý rằng server sẽ kiểm tra kích thước vector trả về so với kỳ vọng (được cung cấp trong header X-Expected-Vector-Dim của endpoint /health/readiness) và nếu không khớp, server sẽ trả về lỗi 400 với mã lỗi ERR_VECTOR_DIM_MISMATCH.
     post:
       operationId: embedText
       summary: Tokenize and encode text for cross-modal alignment
@@ -295,22 +295,22 @@ paths:
             example:
               query_text: "sunset over a mountain"
       responses:
-        '200':
+        '200': # Status 200: OK, có nghĩa là vector embedding đã được mã hóa thành công và trả về trong phản hồi. Phản hồi bao gồm vector (mảng số thực), dim (kích thước thực tế của vector), và model (tên mô hình đã sử dụng để mã hóa văn bản). Lưu ý rằng nếu kích thước vector không khớp với kỳ vọng, server sẽ trả về lỗi 400 với mã lỗi ERR_VECTOR_DIM_MISMATCH.
           description: Text vector returned
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/VectorEmbeddingResponse'
-        '400':
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ, ví dụ thiếu trường query_text hoặc kích thước vector trả về không khớp với kỳ vọng. Phản hồi sẽ bao gồm mã lỗi và thông điệp giải thích vấn đề.
           $ref: '#/components/responses/StandardError'
-        '401':
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
-        '500':
+        '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình xử lý yêu cầu, có thể do lỗi code hoặc sự cố môi trường.
           $ref: '#/components/responses/StandardError'
 
 
-  # --- VECTOR INDEXING & SEARCH ---
-  /vector/index:
+  # --- VECTOR INDEXING & SEARCH -------------------------------------------------------------------------------------------------
+  /vector/index: # Index a vector into the vector DB and associate with image metadata. Endpoint này yêu cầu xác thực và cho phép client gửi một vector embedding cùng với image_id để lập chỉ mục vào vector DB. Client cũng có thể gửi metadata bổ sung nếu cần. Server sẽ lưu vector vào vector DB và liên kết nó với metadata của ảnh. Lưu ý rằng quá trình lập chỉ mục có thể là bất đồng bộ, vì vậy ngay cả khi yêu cầu trả về thành công, vector có thể vẫn đang chờ để được lập chỉ mục.
     post:
       operationId: indexVector
       summary: Index a vector into the vector DB and associate with image metadata
@@ -334,7 +334,7 @@ paths:
               image_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
               vector: [0.01, -0.02, 0.5]
       responses:
-        '201':
+        '201': # Status 201: Created, có nghĩa là vector đã được chấp nhận để lập chỉ mục thành công. Phản hồi có thể bao gồm thông tin về trạng thái hiện tại của vector (ví dụ "accepted" nếu đang chờ lập chỉ mục) và một job_id nếu quá trình lập chỉ mục là bất đồng bộ. Lưu ý rằng ngay cả khi trả về 201, vector có thể vẫn đang chờ để được lập chỉ mục vào vector DB.
           description: Vector indexed successfully (may be async)
           content:
             application/json:
@@ -343,15 +343,15 @@ paths:
                 properties:
                   status: { type: string, example: "accepted" }
                   job_id: { type: string }
-        '400':
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ, ví dụ thiếu trường bắt buộc, định dạng sai, hoặc kích thước vector không khớp với kỳ vọng. Phản hồi sẽ bao gồm mã lỗi và thông điệp giải thích vấn đề.
           $ref: '#/components/responses/StandardError'
-        '401':
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
-        '500':
+        '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình xử lý yêu cầu, có thể do lỗi code hoặc sự cố môi trường.
           $ref: '#/components/responses/StandardError'
 
-
-  /vector/search/hybrid:
+  # ------------------------------------------------------------------------------------------------------------------
+  /vector/search/hybrid: # Privacy-aware hybrid ANN search (vector + structured metadata filter). Endpoint này yêu cầu xác thực và cho phép client thực hiện tìm kiếm gần đúng (ANN) kết hợp giữa vector embedding và bộ lọc metadata có cấu trúc. Client gửi một vector truy vấn cùng với top_k, metric, và một biểu thức lọc để giới hạn kết quả dựa trên metadata (ví dụ privacy_level, user_id, tags). Server sẽ thực hiện tìm kiếm ANN trong vector DB dựa trên vector truy vấn và sau đó áp dụng bộ lọc metadata để trả về các kết quả phù hợp nhất. Phản hồi bao gồm danh sách các mục kết quả với image_id, score, minio_url, và metadata liên quan.
     post:
       operationId: searchHybrid
       summary: Privacy-aware hybrid ANN search (vector + structured metadata filter)
@@ -382,35 +382,35 @@ paths:
                     op: "eq"
                     value: 101
       responses:
-        '200':
+        '200': # Status 200: OK, có nghĩa là tìm kiếm đã được thực hiện thành công và trả về kết quả phù hợp. Phản hồi bao gồm results (danh sách các mục kết quả, mỗi mục có image_id, score, minio_url, và metadata), latency_ms (thời gian thực hiện truy vấn tính bằng milliseconds), và top_k (số lượng kết quả trả về). Lưu ý rằng nếu kích thước vector truy vấn không khớp với kỳ vọng, server sẽ trả về lỗi 400 với mã lỗi ERR_VECTOR_DIM_MISMATCH.
           description: Top-K nearest neighbors retrieved
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SearchResponse'
-        '400':
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ, ví dụ thiếu trường bắt buộc, định dạng sai, kích thước vector không khớp với kỳ vọng, hoặc biểu thức lọc không hợp lệ. Phản hồi sẽ bao gồm mã lỗi và thông điệp giải thích vấn đề.
           description: Bad request (e.g., vector dim mismatch or invalid filter)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '401':
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
-        '500':
+        '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình xử lý yêu cầu, có thể do lỗi code hoặc sự cố môi trường.
           $ref: '#/components/responses/StandardError'
 
 
 
-  # --- EVALUATION & ADMIN ---
-  /eval/metrics:
-    get:
+  # --- EVALUATION & ADMIN -------------------------------------------------------------------------------------------------
+  /eval/metrics: # Retrieve performance benchmarking indices (MRR, HitRate, Precision, Recall). Endpoint này yêu cầu xác thực và cho phép client truy xuất các chỉ số đánh giá hiệu suất của hệ thống, bao gồm MRR (Mean Reciprocal Rank), HitRate, Precision, và Recall. Các chỉ số này được tính toán dựa trên các truy vấn đánh giá đã được thực hiện trước đó và phản hồi của hệ thống. Phản hồi bao gồm các chỉ số này để giúp đánh giá chất lượng của mô hình tìm kiếm và lập chỉ mục.
+    get: 
       operationId: getEvaluationMetrics
       summary: Retrieve performance benchmarking indices (MRR, HitRate, Precision, Recall)
       tags: [EvaluationService]
       security:
         - BearerAuth: []
       responses:
-        '200':
+        '200': # Status 200: OK, có nghĩa là các chỉ số đánh giá đã được truy xuất thành công và trả về trong phản hồi. Phản hồi bao gồm mrr (Mean Reciprocal Rank), hit_rate (tỷ lệ truy vấn có kết quả đúng trong top K), precision (độ chính xác của kết quả trả về), và recall (độ bao phủ của kết quả trả về). Các chỉ số này giúp đánh giá hiệu suất của hệ thống tìm kiếm và lập chỉ mục.
           description: Metric report generated
           content:
             application/json:
@@ -421,16 +421,16 @@ paths:
                   hit_rate: { type: number }
                   precision: { type: number }
                   recall: { type: number }
-        '401':
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
-        '500':
+        '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình xử lý yêu cầu, có thể do lỗi code hoặc sự cố môi trường.
           $ref: '#/components/responses/StandardError'
-
-  /admin/reindex:
+  # ------------------------------------------------------------------------------------------------------------------
+  /admin/reindex: # Trigger reindexing of media into vector DB (admin only). Endpoint này yêu cầu xác thực và chỉ dành cho admin. Nó cho phép kích hoạt lại quá trình lập chỉ mục của tất cả media vào vector DB, có thể được sử dụng sau khi cập nhật mô hình embedding hoặc thay đổi cấu trúc dữ liệu. Client có thể gửi các tham số như batch_size để kiểm soát tốc độ lập chỉ mục và resume_from để tiếp tục từ một job_id trước đó nếu quá trình lập chỉ mục bị gián đoạn. Phản hồi bao gồm job_id của quá trình lập chỉ mục mới được kích hoạt.
     post:
       operationId: triggerReindex
       summary: Trigger reindexing of media into vector DB (admin only)
-      tags: [Admin]
+      tags: [Admin] # Đây là tag dành riêng cho các endpoint quản trị, chỉ admin mới có quyền truy cập. Điều này giúp phân loại rõ ràng các endpoint liên quan đến quản lý hệ thống và bảo mật.
       security:
         - BearerAuth: []
       requestBody:
@@ -442,8 +442,8 @@ paths:
               properties:
                 batch_size: { type: integer, default: 100 }
                 resume_from: { type: string }
-      responses:
-        '202':
+      responses: 
+        '202': # Status 202: Accepted, có nghĩa là yêu cầu kích hoạt lập chỉ mục đã được chấp nhận thành công và quá trình lập chỉ mục đang được thực hiện. Phản hồi bao gồm job_id để theo dõi tiến trình của quá trình lập chỉ mục. Lưu ý rằng quá trình lập chỉ mục có thể mất thời gian tùy thuộc vào số lượng media và cấu hình hệ thống, vì vậy trả về 202 là phù hợp để cho biết rằng yêu cầu đã được nhận và đang được xử lý.
           description: Reindex job accepted
           content:
             application/json:
@@ -451,11 +451,11 @@ paths:
                 type: object
                 properties:
                   job_id: { type: string }
-        '401':
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
-        '403':
+        '403': # Status 403: Forbidden, có nghĩa là người dùng đã xác thực nhưng không có quyền admin để thực hiện hành động này. Phản hồi sẽ bao gồm mã lỗi và thông điệp giải thích rằng quyền truy cập bị từ chối.
           $ref: '#/components/responses/StandardError'
-        '500':
+        '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình xử lý yêu cầu, có thể do lỗi code hoặc sự cố môi trường.
           $ref: '#/components/responses/StandardError'
 
 components:
@@ -492,19 +492,19 @@ components:
             $ref: '#/components/schemas/Error'
 
   schemas:
-    # --- CORE ENUMS ---
-    PrivacyLevel:
+    # --- CORE ENUMS -----------------------------------------
+    PrivacyLevel: # Privacy level of media (0: Private, 1: Friends, 2: Public)
       type: integer
       enum: [0, 1, 2]
       description: "0: Private, 1: Friends, 2: Public"
 
-    MetricType:
+    MetricType: # Similarity metric for ANN search
       type: string
       enum: [L2, IP, COSINE]
       default: COSINE
 
-    # --- VECTOR & EMBEDDING ---
-    VectorEmbedding:
+    # --- VECTOR & EMBEDDING ---------------------------------
+    VectorEmbedding: # Latent vector representation of media
       type: array
       items:
         type: number
@@ -514,7 +514,7 @@ components:
         Clients should call GET /health/readiness to read header X-Expected-Vector-Dim before sending vectors.
         If mismatched, server returns 400 with Error.code = ERR_VECTOR_DIM_MISMATCH.
 
-    VectorEmbeddingResponse:
+    VectorEmbeddingResponse: # Response schema for vector embedding endpoints
       type: object
       properties:
         vector:
@@ -526,8 +526,8 @@ components:
           type: string
           description: Model identifier (e.g., "clip-vit-b-32")
 
-    # --- FILTER (RECURSIVE) ---
-    FilterExpression:
+    # --- FILTER (RECURSIVE) ---------------------------------
+    FilterExpression: # Recursive boolean filter for metadata
       description: Recursive boolean filter for metadata. Use 'and'/'or' arrays or a leaf {field, op, value}.
       oneOf:
         - type: object
@@ -585,8 +585,8 @@ components:
                 op: in
                 value: [2]
 
-    # --- MEDIA & METADATA ---
-    PresignedUploadResponse:
+    # --- MEDIA & METADATA ---------------------------------
+    PresignedUploadResponse: # Response schema for presigned upload URL endpoint
       type: object
       properties:
         upload_url:
@@ -609,7 +609,7 @@ components:
           type: string
           description: "Client should upload within expires_in_sec and respect allowed_content_types."
 
-    UploadResponse:
+    UploadResponse: # Response schema for media upload endpoint (legacy)
       type: object
       properties:
         image_id:
@@ -625,7 +625,7 @@ components:
           type: string
           example: "pending"
 
-    ImageMetadata:
+    ImageMetadata: # Metadata associated with an image, used for access control and search filtering
       type: object
       properties:
         image_id: { type: string, format: uuid }
@@ -643,8 +643,8 @@ components:
           type: string
           example: "ready"
 
-    # --- SEARCH RESPONSE ---
-    SearchResultItem:
+    # --- SEARCH RESPONSE --------------------------------------
+    SearchResultItem: # Individual search result item returned from hybrid search endpoint
       type: object
       properties:
         image_id: { type: string, format: uuid }
@@ -653,7 +653,7 @@ components:
         metadata:
           $ref: '#/components/schemas/ImageMetadata'
 
-    SearchResponse:
+    SearchResponse: # Response schema for hybrid search endpoint
       type: object
       properties:
         results:
@@ -666,22 +666,22 @@ components:
         top_k:
           type: integer
 
-    # --- AUTH MODELS ---
-    AuthRequest:
+    # --- AUTH MODELS -----------------------------------------
+    AuthRequest: # Request schema for authentication endpoints (register, login)
       type: object
       required: [username, password]
       properties:
         username: { type: string }
         password: { type: string }
 
-    AuthResponse:
+    AuthResponse: # Response schema for authentication endpoints (register, login)
       type: object
       properties:
         access_token: { type: string }
         token_type: { type: string, example: "bearer" }
         expires_in: { type: integer, example: 3600 }
 
-    User:
+    User: # User model representing a registered user in the system
       type: object
       properties:
         id: { type: integer }
@@ -689,7 +689,7 @@ components:
         email: { type: string, format: email }
         created_at: { type: string, format: date-time }
 
-    Album:
+    Album: # Album model representing a collection of media items, associated with a user
       type: object
       properties:
         id: { type: integer }
@@ -699,8 +699,8 @@ components:
         is_public: { type: boolean }
         created_at: { type: string, format: date-time }
 
-    # --- HEALTH & ERROR ---
-    HealthStatus:
+    # --- HEALTH & ERROR -----------------------------------
+    HealthStatus: # Response schema for health and readiness endpoints, including dependency status
       type: object
       properties:
         status:
@@ -717,7 +717,7 @@ components:
             minio: { type: string, example: "reachable" }
             ai_service: { type: string, example: "warm" }
 
-    Error:
+    Error: # Standard error response schema for all endpoints
       type: object
       required: [code, message]
       properties:
@@ -731,18 +731,18 @@ components:
           type: object
           description: Optional structured details for debugging
 
-tags:
-  - name: System
+tags: # Logical grouping of endpoints for better organization and documentation
+  - name: System # System-level endpoints (health, readiness)
     description: System-level endpoints (health, readiness)
-  - name: Auth
+  - name: Auth   # Authentication endpoints (register, login)
     description: Authentication endpoints (register, login)
-  - name: Media
+  - name: Media  # Media upload and retrieval endpoints
     description: Upload and media retrieval
-  - name: AIModule
+  - name: AIModule # AI inference endpoints (embedding extraction)
     description: Embedding extraction endpoints
-  - name: StorageModule
+  - name: StorageModule # Vector DB indexing and search endpoints
     description: Vector DB indexing and search
-  - name: EvaluationService
+  - name: EvaluationService  # Metrics and evaluation endpoints
     description: Metrics and evaluation endpoints
-  - name: Admin
+  - name: Admin # Admin-only endpoints for maintenance and reindexing
     description: Admin operations (reindex, maintenance)
