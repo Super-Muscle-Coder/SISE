@@ -5,7 +5,7 @@ description: Mobile UI agent for the SISE Expo application.
 
 # AG-05 MobileFrontend
 
-**Working Directory:** /FrontendMobile/
+**Working Directory:** /modules/FrontendMobile/
 **Tech Stack:** React Native, Expo, TypeScript
 **Scope:** Mobile application (iOS/Android).
 **Dependencies:** Consumes API from [AG-03] BackendModule; uses repository contract files for shared shapes.
@@ -18,7 +18,7 @@ description: Mobile UI agent for the SISE Expo application.
 
 ## Constraints
 - MUST NOT call AG‑01 or AG‑02 directly.
-- MUST NOT modify files outside `/FrontendMobile/`.
+- MUST NOT modify files outside `/modules/FrontendMobile/`.
 
 ## Verification
 - Run `expo test` for unit tests.
@@ -27,3 +27,5 @@ description: Mobile UI agent for the SISE Expo application.
 
 ## Healthcheck
 - `/health/mobile` endpoint returning `{status, version, ui_ok}`.
+
+

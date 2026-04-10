@@ -5,7 +5,7 @@ description: AI core agent for multimodal embedding generation in SISE.
 
 # AG-01 AIModule
 
-**Working Directory:** /AIModule/
+**Working Directory:** /modules/AIModule/
 **Tech Stack:** Python 3.13, PyTorch, FastAPI, CLIP (OpenAI)
 **Scope:** AI core — multimodal embedding generation.
 **Dependencies:** None (provides embeddings to AG‑03 BackendModule).
@@ -30,3 +30,5 @@ description: AI core agent for multimodal embedding generation in SISE.
 
 ## Healthcheck
 - `/health/aimodule` endpoint returning `{status, version, model_loaded}`.
+
+

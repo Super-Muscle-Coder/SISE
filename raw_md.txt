@@ -1,24 +1,24 @@
 AG00
 # AG-00 SecretaryAgent
 
-**Working Directory:** SecretaryAgent/
+**Working Directory:** modules/SecretaryAgent/
 **Tech Stack:** Python 3.13, Git automation, File I/O
 **Scope:** Full solution audit and orchestration.
 **Dependencies:** None (global auditor).
 **Endpoints:** `/scan`, `/update`, `/report` (internal scripts).
 
 ## Responsibilities
-- Maintain `agent_boundaries.json` and `.agents.md`.
-- Run audits, append `agent_schedule.md`, validate `openapi.yaml`.
+- Maintain `.context/agent_boundaries.json` and `.agents.md`.
+- Run audits, append `agent_schedule.md`, validate `.context/openapi.yaml`.
 - Block or flag scope violations.
 - Record architecture decisions in `architecture_decision.log`.
 
 ## Constraints
 - MUST NOT implement feature code for other agents.
-- MUST NOT modify files outside `SecretaryAgent/` except `.agents.md` and solution-level policy files.
+- MUST NOT modify files outside `modules/SecretaryAgent/` except `.agents.md` and solution-level policy files.
 
 ## Verification
-- Run `ag00_orchestrator.sh` for orchestration.
+- Run `scripts/ag00_orchestrator.sh` for orchestration.
 - Validate JSON and OpenAPI contracts.
 - Append audit logs to `agent_schedule.md`.
 
@@ -29,7 +29,7 @@ AG00
 AG01
 # AG-01 AIModule
 
-**Working Directory:** AIModule/
+**Working Directory:** modules/AIModule/
 **Tech Stack:** Python 3.13, PyTorch, FastAPI, CLIP (OpenAI)
 **Scope:** AI core — multimodal embedding generation.
 **Dependencies:** None (provides embeddings to AG‑03 BackendModule).
@@ -59,7 +59,7 @@ AG01
 AG02
 # AG-02 StorageModule
 
-**Working Directory:** StorageModule/
+**Working Directory:** modules/StorageModule/
 **Tech Stack:** Docker, Milvus/Qdrant, PostgreSQL, MinIO, Python (Migration Scripts)
 **Scope:** Infrastructure and data storage layer only.
 **Dependencies:** None (provides services to all other agents).
@@ -74,7 +74,7 @@ AG02
 
 ## Constraints
 - MUST NOT implement business logic or API orchestration.
-- MUST NOT modify files outside `StorageModule/`.
+- MUST NOT modify files outside `modules/StorageModule/`.
 - MUST NOT bypass AG‑00 SecretaryAgent for architecture changes.
 
 ## Verification
@@ -92,7 +92,7 @@ AG02
 AG03
 # AG-03 BackendModule
 
-**Working Directory:** BackendModule/
+**Working Directory:** modules/BackendModule/
 **Tech Stack:** Python 3.13, FastAPI, SQLAlchemy, Pydantic, JWT
 **Scope:** API Gateway, business logic, orchestration.
 **Dependencies:** Requires [AG-01] AIModule for embeddings and [AG-02] StorageModule for DB connections.
@@ -106,12 +106,12 @@ AG03
 
 ## Constraints
 - MUST NOT perform heavy image processing locally.
-- MUST NOT modify files outside `BackendModule/`.
+- MUST NOT modify files outside `modules/BackendModule/`.
 - MUST NOT bypass [AG-00] SecretaryAgent for contract changes.
 
 ## Verification
 - Run unit tests with `pytest tests/test_api.py`.
-- Validate OpenAPI contract against `openapi.yaml`.
+- Validate OpenAPI contract against `.context/openapi.yaml`.
 - Perform integration tests with AG‑01 and AG‑02 services.
 
 ## Healthcheck
@@ -121,7 +121,7 @@ AG03
 AG04
 # AG-04 WebFrontend
 
-**Working Directory:** frontendweb/
+**Working Directory:** modules/frontendweb/
 **Tech Stack:** React 18, TypeScript, Tailwind CSS, Vite
 **Scope:** Web user interface and admin dashboard.
 **Dependencies:** Consumes API from [AG-03] BackendModule; uses repository contract files for shared shapes.
@@ -134,7 +134,7 @@ AG04
 
 ## Constraints
 - MUST NOT call AG‑01 or AG‑02 directly.
-- MUST NOT modify files outside `frontendweb/`.
+- MUST NOT modify files outside `modules/frontendweb/`.
 
 ## Verification
 - Run `npm run test` for unit tests.
@@ -148,7 +148,7 @@ AG04
 AG05
 # AG-05 MobileFrontend
 
-**Working Directory:** FrontendMobile/
+**Working Directory:** modules/FrontendMobile/
 **Tech Stack:** React Native, Expo, TypeScript
 **Scope:** Mobile application (iOS/Android).
 **Dependencies:** Consumes API from [AG-03] BackendModule; uses repository contract files for shared shapes.
@@ -161,7 +161,7 @@ AG05
 
 ## Constraints
 - MUST NOT call AG‑01 or AG‑02 directly.
-- MUST NOT modify files outside `FrontendMobile/`.
+- MUST NOT modify files outside `modules/FrontendMobile/`.
 
 ## Verification
 - Run `expo test` for unit tests.
@@ -170,3 +170,5 @@ AG05
 
 ## Healthcheck
 - `/health/mobile` endpoint returning `{status, version, ui_ok}`.
+
+

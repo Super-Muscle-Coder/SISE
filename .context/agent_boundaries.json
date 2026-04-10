@@ -2,29 +2,29 @@
   "system_name": "SISE",
   "version": "1.1",
   "contract_files": [
-    "openapi.yaml",
-    "data_schema.json",
-    "agent_boundaries.json",
-    "system_architecture.md",
+    ".context/openapi.yaml",
+    ".context/data_schema.json",
+    ".context/agent_boundaries.json",
+    ".context/system_architecture.md",
     "DesOfSys.md"
   ],
   "shared_resources": {
     "read_only": [
       ".agents.md",
       "README.md",
-      "openapi.yaml",
-      "data_schema.json",
-      "system_architecture.md",
+      ".context/openapi.yaml",
+      ".context/data_schema.json",
+      ".context/system_architecture.md",
       "DesOfSys.md"
     ],
     "write_restricted_to_ag00": [
       ".github/agents/",
       ".agents.md",
       "agent_schedule.md",
-      "agent_boundaries.json",
-      "openapi.yaml",
-      "data_schema.json",
-      "system_architecture.md",
+      ".context/agent_boundaries.json",
+      ".context/openapi.yaml",
+      ".context/data_schema.json",
+      ".context/system_architecture.md",
       "DesOfSys.md"
     ]
   },
@@ -56,7 +56,7 @@
     {
       "id": "AG-00",
       "name": "SecretaryAgent",
-      "working_dir": "SecretaryAgent/",
+      "working_dir": "modules/SecretaryAgent/",
       "allowed_outbound_calls": [ "*" ],
       "forbidden_actions": [ "write_feature_code" ],
       "privileges": [
@@ -70,7 +70,7 @@
     {
       "id": "AG-01",
       "name": "AIModule",
-      "working_dir": "AIModule/",
+      "working_dir": "modules/AIModule/",
       "allowed_outbound_calls": [ "AG-00" ],
       "forbidden_actions": [
         "direct_db_access",
@@ -82,7 +82,7 @@
     {
       "id": "AG-02",
       "name": "StorageModule",
-      "working_dir": "StorageModule/",
+      "working_dir": "modules/StorageModule/",
       "allowed_outbound_calls": [ "AG-00" ],
       "forbidden_actions": [ "implement_business_logic" ],
       "services": [ "milvus", "postgres", "minio" ]
@@ -90,7 +90,7 @@
     {
       "id": "AG-03",
       "name": "BackendModule",
-      "working_dir": "BackendModule/",
+      "working_dir": "modules/BackendModule/",
       "allowed_outbound_calls": [ "AG-01", "AG-02", "AG-00" ],
       "forbidden_actions": [ "heavy_image_processing", "modify_other_projects" ],
       "responsibilities": [ "API Gateway", "Business Logic", "Privacy Filtering", "Auth" ]
@@ -98,7 +98,7 @@
     {
       "id": "AG-04",
       "name": "WebFrontend",
-      "working_dir": "frontendweb/",
+      "working_dir": "modules/frontendweb/",
       "allowed_outbound_calls": [ "AG-03" ],
       "forbidden_actions": [ "call_AG-01_directly", "call_AG-02_directly" ],
       "responsibilities": [ "React dashboard", "Search UI", "Image gallery" ]
@@ -106,10 +106,12 @@
     {
       "id": "AG-05",
       "name": "MobileFrontend",
-      "working_dir": "FrontendMobile/",
+      "working_dir": "modules/FrontendMobile/",
       "allowed_outbound_calls": [ "AG-03" ],
       "forbidden_actions": [ "call_AG-01_directly", "call_AG-02_directly" ],
       "responsibilities": [ "React Native client", "Camera integration", "Mobile search" ]
     }
   ]
 }
+
+

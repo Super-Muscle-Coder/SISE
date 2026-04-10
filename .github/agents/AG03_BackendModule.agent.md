@@ -5,7 +5,7 @@ description: Backend API agent for authentication, orchestration, and search wor
 
 # AG-03 BackendModule
 
-**Working Directory:** /BackendModule/
+**Working Directory:** /modules/BackendModule/
 **Tech Stack:** Python 3.13, FastAPI, SQLAlchemy, Pydantic, JWT
 **Scope:** API Gateway, business logic, orchestration.
 **Dependencies:** Requires [AG-01] AIModule for embeddings and [AG-02] StorageModule for DB connections.
@@ -19,13 +19,15 @@ description: Backend API agent for authentication, orchestration, and search wor
 
 ## Constraints
 - MUST NOT perform heavy image processing locally.
-- MUST NOT modify files outside `/BackendModule/`.
+- MUST NOT modify files outside `/modules/BackendModule/`.
 - MUST NOT bypass [AG-00] SecretaryAgent for contract changes.
 
 ## Verification
 - Run unit tests with `pytest tests/test_api.py`.
-- Validate OpenAPI contract against `openapi.yaml`.
+- Validate OpenAPI contract against `.context/openapi.yaml`.
 - Perform integration tests with AG‑01 and AG‑02 services.
 
 ## Healthcheck
 - `/health/backend` endpoint returning `{status, version, deps_ok}`.
+
+

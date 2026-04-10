@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/scope_check.sh
 # Enforce that staged files are within AGENT_DIR scope.
-# Usage: AGENT_DIR="BackendModule/" ./scope_check.sh
+# Usage: AGENT_DIR="modules/BackendModule/" ./scope_check.sh
 
 set -euo pipefail
 
@@ -26,7 +26,7 @@ if [ -z "${AGENT_DIR:-}" ]; then
     echo "MAINTAINER_BYPASS enabled; skipping scope check."
     exit 0
   fi
-  echo "❗ AGENT_DIR not set. Set AGENT_DIR to your working directory (e.g. BackendModule/)."
+  echo "❗ AGENT_DIR not set. Set AGENT_DIR to your working directory (e.g. modules/BackendModule/)."
   echo "If you are a maintainer and intentionally bypassing, set MAINTAINER_BYPASS=1."
   exit 1
 fi
@@ -41,7 +41,7 @@ while IFS= read -r -d '' FILE; do
   FILE="${FILE#./}"
 
   # allow edits to shared governance files only by SecretaryAgent (AG-00)
-  if [[ "$FILE" == ".github/agents/"* ]] || [[ "$FILE" == ".agents.md" ]] || [[ "$FILE" == "agent_schedule.md" ]] || [[ "$FILE" == "agent_boundaries.json" ]] || [[ "$FILE" == "openapi.yaml" ]] || [[ "$FILE" == "data_schema.json" ]] || [[ "$FILE" == "system_architecture.md" ]] || [[ "$FILE" == "DesOfSys.md" ]]; then
+  if [[ "$FILE" == ".github/agents/"* ]] || [[ "$FILE" == ".agents.md" ]] || [[ "$FILE" == "agent_schedule.md" ]] || [[ "$FILE" == ".context/agent_boundaries.json" ]] || [[ "$FILE" == ".context/openapi.yaml" ]] || [[ "$FILE" == ".context/data_schema.json" ]] || [[ "$FILE" == ".context/system_architecture.md" ]] || [[ "$FILE" == "DesOfSys.md" ]]; then
     if [[ "$AGENT_BASENAME" != "SecretaryAgent" && "$AGENT_BASENAME" != "ag00" && "$AGENT_BASENAME" != "AG-00" ]]; then
       echo "❌ ERROR: Only SecretaryAgent may modify $FILE (current AGENT_DIR basename: $AGENT_BASENAME)"
       VIOLATION=1
@@ -63,3 +63,5 @@ fi
 
 echo "Scope check passed."
 exit 0
+
+

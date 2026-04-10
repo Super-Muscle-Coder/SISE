@@ -5,7 +5,7 @@ description: Infrastructure agent for storage, vector index, and database servic
 
 # AG-02 StorageModule
 
-**Working Directory:** /StorageModule/
+**Working Directory:** /modules/StorageModule/
 **Tech Stack:** Docker, Milvus/Qdrant, PostgreSQL, MinIO, Python (Migration Scripts)
 **Scope:** Infrastructure and data storage layer only.
 **Dependencies:** None (provides services to all other agents).
@@ -20,7 +20,7 @@ description: Infrastructure agent for storage, vector index, and database servic
 
 ## Constraints
 - MUST NOT implement business logic or API orchestration.
-- MUST NOT modify files outside `/StorageModule/`.
+- MUST NOT modify files outside `/modules/StorageModule/`.
 - MUST NOT bypass AG‑00 SecretaryAgent for architecture changes.
 
 ## Verification
@@ -33,3 +33,5 @@ description: Infrastructure agent for storage, vector index, and database servic
 
 ## Healthcheck
 - `/health/storage` endpoint returning `{status, version, services_ok}`.
+
+

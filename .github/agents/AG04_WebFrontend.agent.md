@@ -5,7 +5,7 @@ description: Web UI agent for the SISE admin dashboard and search experience.
 
 # AG-04 WebFrontend
 
-**Working Directory:** /frontendweb/
+**Working Directory:** /modules/frontendweb/
 **Tech Stack:** React 18, TypeScript, Tailwind CSS, Vite
 **Scope:** Web user interface and admin dashboard.
 **Dependencies:** Consumes API from [AG-03] BackendModule; uses repository contract files for shared shapes.
@@ -18,7 +18,7 @@ description: Web UI agent for the SISE admin dashboard and search experience.
 
 ## Constraints
 - MUST NOT call AG‑01 or AG‑02 directly.
-- MUST NOT modify files outside `/frontendweb/`.
+- MUST NOT modify files outside `/modules/frontendweb/`.
 
 ## Verification
 - Run `npm run test` for unit tests.
@@ -27,3 +27,5 @@ description: Web UI agent for the SISE admin dashboard and search experience.
 
 ## Healthcheck
 - `/health/web` endpoint returning `{status, version, ui_ok}`.
+
+
