@@ -1,4 +1,3 @@
-AG00
 # AG-00 SecretaryAgent
 
 **Working Directory:** modules/SecretaryAgent/
@@ -26,7 +25,6 @@ AG00
 - `/health/secretary` endpoint returning `{status, version, audit_ok}`.
 
 
-AG01
 # AG-01 AIModule
 
 **Working Directory:** modules/AIModule/
@@ -56,7 +54,7 @@ AG01
 - `/health/aimodule` endpoint returning `{status, version, model_loaded}`.
 
 
-AG02
+
 # AG-02 StorageModule
 
 **Working Directory:** modules/StorageModule/
@@ -89,7 +87,7 @@ AG02
 - `/health/storage` endpoint returning `{status, version, services_ok}`.
 
 
-AG03
+
 # AG-03 BackendModule
 
 **Working Directory:** modules/BackendModule/
@@ -118,7 +116,7 @@ AG03
 - `/health/backend` endpoint returning `{status, version, deps_ok}`.
 
 
-AG04
+
 # AG-04 WebFrontend
 
 **Working Directory:** modules/frontendweb/
@@ -145,7 +143,7 @@ AG04
 - `/health/web` endpoint returning `{status, version, ui_ok}`.
 
 
-AG05
+
 # AG-05 MobileFrontend
 
 **Working Directory:** modules/FrontendMobile/

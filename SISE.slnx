@@ -79,6 +79,7 @@
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".env.example" />
+    <File Path=".gitattributes" />
     <File Path=".gitignore" />
     <File Path="agent_schedule.md" />
     <File Path="DesOfSys.md" />
