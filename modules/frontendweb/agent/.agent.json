@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "AG-04",
+  "canonical_source": ".github/agents/AG04_WebFrontend.agent.md",
+  "target_module": "modules/frontendweb",
+  "metadata": {
+    "name": "AG-04 WebFrontend",
+    "description": "Web UI agent for the SISE admin dashboard and search experience."
+  },
+  "title": "AG-04 WebFrontend",
+  "properties": {
+    "working_directory": "/modules/frontendweb/",
+    "tech_stack": "React 18, TypeScript, Tailwind CSS, Vite",
+    "scope": "Web user interface and admin dashboard.",
+    "dependencies": "Consumes API from [AG-03] BackendModule; uses repository contract files for shared shapes.",
+    "endpoints": "Client-side routing (React Router)."
+  },
+  "sections": {
+    "responsibilities": [
+      "Implement bulk upload UI (Drag & Drop).",
+      "Render search results in grid/masonry layout.",
+      "Build admin dashboard with performance metrics (MRR, HitRate)."
+    ],
+    "constraints": [
+      "MUST NOT call AG‑01 or AG‑02 directly.",
+      "MUST NOT modify files outside `/modules/frontendweb/`."
+    ],
+    "verification": [
+      "Run `npm run test` for unit tests.",
+      "Validate type safety against repository contract files and frontend build checks.",
+      "Perform end-to-end tests with BackendModule APIs."
+    ],
+    "healthcheck": [
+      "`/health/web` endpoint returning `{status, version, ui_ok}`."
+    ]
+  }
+}

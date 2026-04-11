@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "AG-05",
+  "canonical_source": ".github/agents/AG05_MobileFrontend.agent.md",
+  "target_module": "modules/FrontendMobile",
+  "metadata": {
+    "name": "AG-05 MobileFrontend",
+    "description": "Mobile UI agent for the SISE Expo application."
+  },
+  "title": "AG-05 MobileFrontend",
+  "properties": {
+    "working_directory": "/modules/FrontendMobile/",
+    "tech_stack": "React Native, Expo, TypeScript",
+    "scope": "Mobile application (iOS/Android).",
+    "dependencies": "Consumes API from [AG-03] BackendModule; uses repository contract files for shared shapes.",
+    "endpoints": "Mobile screens (React Navigation)."
+  },
+  "sections": {
+    "responsibilities": [
+      "Integrate native Camera and Image Picker.",
+      "Implement real-time search UX.",
+      "Manage offline cache for recent search results."
+    ],
+    "constraints": [
+      "MUST NOT call AG‑01 or AG‑02 directly.",
+      "MUST NOT modify files outside `/modules/FrontendMobile/`."
+    ],
+    "verification": [
+      "Run `expo test` for unit tests.",
+      "Validate type safety against repository contract files and mobile build checks.",
+      "Perform integration tests with BackendModule APIs."
+    ],
+    "healthcheck": [
+      "`/health/mobile` endpoint returning `{status, version, ui_ok}`."
+    ]
+  }
+}

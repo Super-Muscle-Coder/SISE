@@ -1,0 +1,135 @@
+{
+  "project": "SISE",
+  "generated_at": "2026-04-11T00:00:00Z",
+  "ledger_policy": "append-only",
+  "check_in_out_model": {
+    "check_in": "AG-XX announces start, scope, and target files before work begins.",
+    "check_out": "AG-XX reports completion, touched files, validation status, and blockers after work ends."
+  },
+  "agents": [
+    {
+      "id": "AG-00",
+      "name": "SecretaryAgent",
+      "role": "System Secretary",
+      "state": "ACTIVE",
+      "current_assignment": "Orchestration, audit, schedule writes, governance sync",
+      "directory_scope": "modules/SecretaryAgent/",
+      "owner": "team-infra",
+      "contact": "infra@your-org.example"
+    },
+    {
+      "id": "AG-01",
+      "name": "AIModule",
+      "role": "Feature Extraction",
+      "state": "READY",
+      "current_assignment": "CLIP interface and embedding contract",
+      "directory_scope": "modules/AIModule/",
+      "owner": "team-ml",
+      "contact": "ml@your-org.example"
+    },
+    {
+      "id": "AG-02",
+      "name": "StorageModule",
+      "role": "Infrastructure",
+      "state": "READY",
+      "current_assignment": "Storage topology and service contracts",
+      "directory_scope": "modules/StorageModule/",
+      "owner": "team-platform",
+      "contact": "platform@your-org.example"
+    },
+    {
+      "id": "AG-03",
+      "name": "BackendModule",
+      "role": "Service Interface",
+      "state": "READY",
+      "current_assignment": "OpenAPI contract and backend endpoints",
+      "directory_scope": "modules/BackendModule/",
+      "owner": "team-backend",
+      "contact": "backend@your-org.example"
+    },
+    {
+      "id": "AG-04",
+      "name": "WebFrontend",
+      "role": "Web Interface",
+      "state": "READY",
+      "current_assignment": "UI shell and dashboard contract",
+      "directory_scope": "modules/frontendweb/",
+      "owner": "team-frontend",
+      "contact": "frontend@your-org.example"
+    },
+    {
+      "id": "AG-05",
+      "name": "MobileFrontend",
+      "role": "Mobile Client",
+      "state": "READY",
+      "current_assignment": "Mobile shell and navigation contract",
+      "directory_scope": "modules/FrontendMobile/",
+      "owner": "team-mobile",
+      "contact": "mobile@your-org.example"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Infra",
+      "owner": "AG-02",
+      "status": "pending",
+      "description": "Confirm storage service placeholders and runtime endpoints."
+    },
+    {
+      "id": "M2",
+      "title": "API Contract",
+      "owner": "AG-03",
+      "status": "pending",
+      "description": "Publish backend skeleton aligned with .context/openapi.yaml."
+    },
+    {
+      "id": "M3",
+      "title": "ML Pipeline",
+      "owner": "AG-01",
+      "status": "pending",
+      "description": "Freeze embedding contract and test harness shape."
+    },
+    {
+      "id": "M4",
+      "title": "Frontend",
+      "owner": "AG-04, AG-05",
+      "status": "pending",
+      "description": "Deliver first web and mobile shells for review."
+    },
+    {
+      "id": "M5",
+      "title": "CI CD",
+      "owner": "AG-00",
+      "status": "pending",
+      "description": "Validate lint, unit, and contract checks under AG-00."
+    }
+  ],
+  "cadence": {
+    "daily": [
+      { "time": "09:00 UTC", "owner": "AG-00", "action": "Publish priorities and confirm scope" },
+      { "time": "10:00 UTC", "owner": "All agents", "action": "Report blockers and planned work" },
+      { "time": "14:00 UTC", "owner": "All agents", "action": "Midday progress check-in" },
+      { "time": "17:00 UTC", "owner": "AG-00", "action": "Consolidate changes and update schedule notes" }
+    ],
+    "weekly": [
+      { "day": "Monday", "action": "Scope review and task assignment" },
+      { "day": "Tuesday to Thursday", "action": "Implementation and integration" },
+      { "day": "Friday", "action": "Validation, boundary review, and schedule adjustment" }
+    ]
+  },
+  "audit": [
+    {
+      "ts": "2026-04-09T22:19:00Z",
+      "entry": "Baseline solution architecture established."
+    },
+    {
+      "ts": "2026-04-09T22:19:00Z",
+      "entry": "Initialized .context/agent_boundaries.json with default constraints."
+    },
+    {
+      "ts": "2026-04-11T00:00:00Z",
+      "entry": "Created .context/agent_schedule.json as the shared machine-readable check-in/check-out ledger."
+    }
+  ]
+}

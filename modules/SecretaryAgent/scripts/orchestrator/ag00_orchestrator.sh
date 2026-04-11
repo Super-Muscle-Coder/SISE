@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
-# ag00_orchestrator.sh
-# Run as SecretaryAgent (AG-00). Responsibilities: initialize baseline, audit, and append schedule.
+﻿#!/usr/bin/env bash
+# AG-00 orchestrator
+# Responsibilities: sync canonical agent specs, validate contracts, run scope scan, append audit.
 set -euo pipefail
 
 ROOT_DIR=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
@@ -8,7 +8,16 @@ cd "$ROOT_DIR"
 
 echo "[AG-00] Starting orchestration..."
 
-# 1. Ensure .context/agent_boundaries.json is present at the repository root
+# 0) Sync canonical agent specs to module-local .agent.md/.agent.json
+if [ -f modules/SecretaryAgent/scripts/orchestrator/sync_agent_specs.py ]; then
+  echo "[AG-00] Syncing canonical agent specs..."
+  python3 modules/SecretaryAgent/scripts/orchestrator/sync_agent_specs.py
+else
+  echo "[AG-00] ERROR: missing sync_agent_specs.py"
+  exit 2
+fi
+
+# 1) Ensure .context/agent_boundaries.json exists
 if [ ! -f .context/agent_boundaries.json ]; then
   cat > .context/agent_boundaries.json <<'JSON'
 {
@@ -26,25 +35,36 @@ JSON
   echo "[AG-00] Created placeholder .context/agent_boundaries.json. Please replace with canonical file."
 fi
 
-# 2. Validate JSON syntax
+# 2) Validate JSON syntax
 python3 - <<PY
 import json,sys
 try:
-    json.load(open('.context/agent_boundaries.json'))
-    print("[AG-00] .context/agent_boundaries.json is valid JSON")
+    json.load(open('.context/agent_boundaries.json', encoding='utf-8'))
+    print('[AG-00] .context/agent_boundaries.json is valid JSON')
 except Exception as e:
-    print("[AG-00] ERROR: invalid JSON in .context/agent_boundaries.json:", e)
+    print('[AG-00] ERROR: invalid JSON in .context/agent_boundaries.json:', e)
     sys.exit(2)
 PY
 
-# 3. Run scope scan (git status)
+# 3) Scan working tree for edits outside any declared working_dir or AG-00 governed files
 echo "[AG-00] Scanning working tree for uncommitted cross-scope edits..."
 python3 - <<PY
 import json, subprocess, sys
-rules = json.load(open('.context/agent_boundaries.json'))
+rules = json.load(open('.context/agent_boundaries.json', encoding='utf-8'))
 agents = [a.get('working_dir','') for a in rules.get('agents',[])]
 changed = subprocess.check_output(['git','status','--porcelain']).decode().strip().splitlines()
 violations = []
+ag00_controlled = {
+    'document/.agents.md',
+    'document/agent_schedule.md',
+    '.context/agent_boundaries.json',
+    '.context/openapi.yaml',
+    '.context/data_schema.json',
+    '.context/system_architecture.yaml',
+    'document/DesOfSys.md',
+    'document/README.md',
+    'document/system_architecture.md',
+}
 for line in changed:
     if not line:
         continue
@@ -54,36 +74,36 @@ for line in changed:
         if wd and path.startswith(wd):
             allowed = True
             break
-    if path.startswith('.github/agents') or path == '.agents.md' or path == 'agent_schedule.md' or path in ['.context/agent_boundaries.json','.context/openapi.yaml','.context/data_schema.json','.context/system_architecture.md']:
+    if path.startswith('.github/agents/') or path.startswith('document/') or path in ag00_controlled:
         allowed = True
     if not allowed:
         violations.append(path)
 if violations:
-    print("[AG-00] SCOPE VIOLATIONS FOUND:")
+    print('[AG-00] SCOPE VIOLATIONS FOUND:')
     for v in violations:
-        print(" -", v)
+        print(' -', v)
     sys.exit(2)
-print("[AG-00] No immediate scope violations detected.")
+print('[AG-00] No immediate scope violations detected.')
 PY
 
-# 4. Validate openapi if present
+# 4) Validate openapi if present
 if [ -f .context/openapi.yaml ]; then
   echo "[AG-00] Validating .context/openapi.yaml..."
   python3 - <<PY
 from openapi_spec_validator import validate_spec
-import yaml,sys
-spec = yaml.safe_load(open('.context/openapi.yaml'))
+import yaml
+spec = yaml.safe_load(open('.context/openapi.yaml', encoding='utf-8'))
 validate_spec(spec)
-print("[AG-00] .context/openapi.yaml valid")
+print('[AG-00] .context/openapi.yaml valid')
 PY
 else
   echo "[AG-00] .context/openapi.yaml not found; skipping"
 fi
 
-# 5. Append audit summary to agent_schedule.md
+# 5) Append audit summary to document/agent_schedule.md
 TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-if [ ! -f agent_schedule.md ]; then
-  cat > agent_schedule.md <<'MD'
+if [ ! -f document/agent_schedule.md ]; then
+  cat > document/agent_schedule.md <<'MD'
 # Agent Schedule
 - AG-01 AIModule: Not Started
 - AG-02 StorageModule: Not Started
@@ -94,8 +114,8 @@ if [ ! -f agent_schedule.md ]; then
 MD
 fi
 
-echo "- [$TS] AG-00: repository scanned; no critical violations." >> agent_schedule.md
-echo "[AG-00] Audit complete. agent_schedule.md updated."
+echo "- [$TS] AG-00: repository scanned; canonical agent specs synchronized." >> document/agent_schedule.md
+echo "[AG-00] Audit complete. document/agent_schedule.md updated."
 
 echo "[AG-00] Orchestration finished."
 exit 0

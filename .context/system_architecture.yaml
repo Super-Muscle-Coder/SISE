@@ -1,0 +1,117 @@
+system_name: SISE
+version: 1.3.4
+purpose: "Production-grade operational blueprint for the Smart Image Search Engine."
+primary_components:
+  ag00_orchestrator:
+    name: SecretaryAgent
+    role: orchestration_and_ops_automation
+  ag01_ai:
+    name: AIModule
+    role: clip_inference_workers
+  ag02_storage:
+    name: StorageModule
+    role: minio_milvus_postgresql_storage_layer
+  ag03_backend:
+    name: BackendModule
+    role: api_gateway_and_business_logic
+  queues:
+    broker: Redis
+    worker_model: Celery
+  design_principles:
+    - asynchronous_ingestion_for_heavy_ai_workloads
+    - idempotent_operations_for_safe_retries
+    - structured_filter_contract_for_privacy_enforcement
+    - explicit_transaction_semantics_and_compensating_actions
+    - observable_metrics_and_deterministic_runbooks
+sequence_flow:
+  upload_and_index:
+    - step: 1
+      actor: Client
+      action: "POST /media/upload-url to AG-03 with optional Idempotency-Key"
+    - step: 2
+      actor: AG-03
+      action: "Validate request and return PresignedUploadResponse"
+    - step: 3
+      actor: Client
+      action: "PUT file to MinIO via upload_url"
+    - step: 4
+      actor: Client_or_AG03
+      action: "Confirm upload completion and create images row with index_status=pending"
+    - step: 5
+      actor: AG-03
+      action: "Enqueue Celery job with image and privacy payload"
+    - step: 6
+      actor: AG-01
+      action: "Fetch object, run CLIP encoder, write vector to Milvus, update Postgres status"
+    - step: 7
+      actor: AG-03
+      action: "Return signed GET URL when ready or schedule retry when failed"
+  reindex:
+    - step: 1
+      actor: Admin
+      action: "POST /admin/reindex to AG-03 with batch_size and resume_token"
+    - step: 2
+      actor: AG-03
+      action: "Spawn batch jobs and monitor progress"
+transaction_semantics:
+  compensating_actions:
+    metadata_insert_failure: "Delete MinIO object and invalidate idempotency key"
+    milvus_index_failure: "Set images.index_status to failed and schedule retries"
+  idempotency:
+    header: Idempotency-Key
+    scope: per_authenticated_user
+    storage: Redis
+    ttl_hours: 24
+filter_expression:
+  schema: "Recursive JSON object using and/or arrays or leaf objects {field, op, value}"
+  supported_operators: [eq, in, gt, lt, contains]
+  enforcement:
+    backend_validation: true
+    storage_side_enforcement: true
+health_observability:
+  probes:
+    liveness: /health/liveness
+    readiness: /health/readiness
+  metrics:
+    - embedding_latency_ms
+    - index_latency_ms
+    - search_qps
+    - mrr_score
+    - hit_rate
+    - error_rate
+backup_and_dr:
+  postgres: daily logical dumps via pg_dump with WAL archiving
+  milvus: weekly collection snapshots
+  minio: lifecycle transition and replication policy
+security_and_secrets:
+  no_secrets_in_repo: true
+  secret_management: vault_or_cloud_secret_manager
+  required_env_vars:
+    - DATABASE_URL
+    - MINIO_ENDPOINT
+    - MINIO_ACCESS_KEY
+    - MINIO_SECRET_KEY
+    - MILVUS_HOST
+    - REDIS_URL
+    - JWT_SECRET
+    - AI_MODEL_PATH
+testing_and_ci:
+  unit_tests: pytest
+  contract_tests: OpenAPI validation
+  integration_tests: local stack with Postgres MinIO Milvus Redis
+  e2e_smoke: scripts/tests/e2e_smoke.sh
+  benchmarking: scripts/bench/mrr_benchmark.py
+operational_playbooks:
+  index_failure: "Inspect job trace, requeue with exponential backoff, mark failed on repeated errors"
+  minio_outage: "Degraded mode, queued retries, reconcile after recovery"
+  high_latency: "Check queue length, scale AG-01 workers, throttle non-critical jobs"
+appendix:
+  readiness_checks:
+    - "Postgres: SELECT 1 within 200ms"
+    - "Milvus: has_collection('sise_v1') and ping < 300ms"
+    - "MinIO: list_buckets() success"
+    - "Redis: PING"
+    - "AI service: model loaded and GPU memory available"
+  quick_commands:
+    validate_openapi: "npx @apidevtools/swagger-cli validate openapi.yaml"
+    run_e2e_smoke: "chmod +x scripts/tests/e2e_smoke.sh && ./scripts/tests/e2e_smoke.sh"

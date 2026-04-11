@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "AG-01",
+  "canonical_source": ".github/agents/AG01_AIModule.agent.md",
+  "target_module": "modules/AIModule",
+  "metadata": {
+    "name": "AG-01 AIModule",
+    "description": "AI core agent for multimodal embedding generation in SISE."
+  },
+  "title": "AG-01 AIModule",
+  "properties": {
+    "working_directory": "/modules/AIModule/",
+    "tech_stack": "Python 3.13, PyTorch, FastAPI, CLIP (OpenAI)",
+    "scope": "AI core — multimodal embedding generation.",
+    "dependencies": "None (provides embeddings to AG‑03 BackendModule).",
+    "endpoints": "`/embed`, `/health`, `/evaluate`."
+  },
+  "sections": {
+    "responsibilities": [
+      "Preprocess input data: resize images to 224x224, normalize pixel values, tokenize text.",
+      "Generate embeddings (Image-to-Vector, Text-to-Vector) using CLIP pretrained models.",
+      "Expose `/embed` endpoint for synchronous embedding requests.",
+      "Support Contrastive Learning pipeline for fine-tuning if required."
+    ],
+    "constraints": [
+      "MUST NOT access databases directly.",
+      "MUST NOT write to shared/common directories.",
+      "MUST NOT modify `docker-compose.yml`.",
+      "MUST NOT bypass [AG-00] SecretaryAgent for architecture or contract changes."
+    ],
+    "verification": [
+      "Run `pytest tests/test_embed.py` to validate embedding pipeline.",
+      "Perform integration tests with AG‑03 BackendModule calling `/embed`.",
+      "Benchmark embedding latency and throughput against defined SLA."
+    ],
+    "healthcheck": [
+      "`/health/aimodule` endpoint returning `{status, version, model_loaded}`."
+    ]
+  }
+}

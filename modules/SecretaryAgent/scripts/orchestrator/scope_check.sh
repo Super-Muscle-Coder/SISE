@@ -1,17 +1,16 @@
-#!/usr/bin/env bash
-# scripts/scope_check.sh
+﻿#!/usr/bin/env bash
+# modules/SecretaryAgent/scripts/orchestrator/scope_check.sh
 # Enforce that staged files are within AGENT_DIR scope.
-# Usage: AGENT_DIR="modules/BackendModule/" ./scope_check.sh
+# Usage: AGENT_DIR="modules/BackendModule/" ./modules/SecretaryAgent/scripts/orchestrator/scope_check.sh
 
 set -euo pipefail
 
 # Normalize AGENT_DIR if provided
 if [ -n "${AGENT_DIR:-}" ]; then
-  # remove leading ./ and ensure trailing slash
   AGENT_DIR="${AGENT_DIR#./}"
   case "$AGENT_DIR" in
     */) ;;
-    *) AGENT_DIR="$AGENT_DIR/";;
+    *) AGENT_DIR="$AGENT_DIR/" ;;
   esac
 fi
 
@@ -26,32 +25,35 @@ if [ -z "${AGENT_DIR:-}" ]; then
     echo "MAINTAINER_BYPASS enabled; skipping scope check."
     exit 0
   fi
-  echo "❗ AGENT_DIR not set. Set AGENT_DIR to your working directory (e.g. modules/BackendModule/)."
+  echo "â— AGENT_DIR not set. Set AGENT_DIR to your working directory (e.g. modules/BackendModule/)."
   echo "If you are a maintainer and intentionally bypassing, set MAINTAINER_BYPASS=1."
   exit 1
 fi
 
 VIOLATION=0
-# Determine allowed maintainer agent name for .context edits
 AGENT_BASENAME=$(basename "${AGENT_DIR%/}")
 
-# iterate safely over NUL-separated names
 while IFS= read -r -d '' FILE; do
-  # normalize file path (remove leading ./)
   FILE="${FILE#./}"
 
-  # allow edits to shared governance files only by SecretaryAgent (AG-00)
-  if [[ "$FILE" == ".github/agents/"* ]] || [[ "$FILE" == ".agents.md" ]] || [[ "$FILE" == "agent_schedule.md" ]] || [[ "$FILE" == ".context/agent_boundaries.json" ]] || [[ "$FILE" == ".context/openapi.yaml" ]] || [[ "$FILE" == ".context/data_schema.json" ]] || [[ "$FILE" == ".context/system_architecture.md" ]] || [[ "$FILE" == "DesOfSys.md" ]]; then
+  # Governance files: only SecretaryAgent may modify
+  if [[ "$FILE" == ".github/agents/"* ]] || [[ "$FILE" == "document/"* ]] || [[ "$FILE" == ".context/agent_boundaries.json" ]] || [[ "$FILE" == ".context/openapi.yaml" ]] || [[ "$FILE" == ".context/data_schema.json" ]] || [[ "$FILE" == ".context/system_architecture.yaml" ]]; then
     if [[ "$AGENT_BASENAME" != "SecretaryAgent" && "$AGENT_BASENAME" != "ag00" && "$AGENT_BASENAME" != "AG-00" ]]; then
-      echo "❌ ERROR: Only SecretaryAgent may modify $FILE (current AGENT_DIR basename: $AGENT_BASENAME)"
+      echo "âŒ ERROR: Only SecretaryAgent may modify $FILE (current AGENT_DIR basename: $AGENT_BASENAME)"
       VIOLATION=1
     fi
     continue
   fi
 
-  # Allow edits inside the agent working dir
+  # AG-00 has authority over module-local agent folders
+  if [[ "$AGENT_BASENAME" == "SecretaryAgent" || "$AGENT_BASENAME" == "ag00" || "$AGENT_BASENAME" == "AG-00" ]]; then
+    if [[ "$FILE" == modules/*/agent/* ]]; then
+      continue
+    fi
+  fi
+
   if [[ "$FILE" != "$AGENT_DIR"* ]]; then
-    echo "❌ ERROR: Attempt to modify $FILE outside allowed scope ($AGENT_DIR)."
+    echo "âŒ ERROR: Attempt to modify $FILE outside allowed scope ($AGENT_DIR)."
     VIOLATION=1
   fi
 done < <(printf '%s' "$STAGED_FILES_RAW")
