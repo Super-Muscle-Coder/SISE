@@ -1,17 +1,30 @@
 <Solution>
   <Folder Name="/.context/">
     <File Path=".context/agent_boundaries.json" />
+    <File Path=".context/agent_schedule.json" />
     <File Path=".context/data_schema.json" />
     <File Path=".context/openapi.yaml" />
-    <File Path=".context/system_architecture.md" />
+    <File Path=".context/system_architecture.yaml" />
   </Folder>
   <Folder Name="/.githooks/">
     <File Path=".githooks/pre-commit.txt" />
   </Folder>
-  <Folder Name="/agents/">
-    <File Path="agents/.agents.md" />
+  <Folder Name="/.github/agents/">
+    <File Path=".github/agents/AG00_SecretaryAgent.agent.md" />
+    <File Path=".github/agents/AG01_AIModule.agent.md" />
+    <File Path=".github/agents/AG02_StorageModule.agent.md" />
+    <File Path=".github/agents/AG03_BackendModule.agent.md" />
+    <File Path=".github/agents/AG04_WebFrontend.agent.md" />
+    <File Path=".github/agents/AG05_MobileFrontend.agent.md" />
   </Folder>
   <Folder Name="/common/" />
+  <Folder Name="/document/">
+    <File Path="document/.agents.md" />
+    <File Path="document/agent_schedule.md" />
+    <File Path="document/DesOfSys.md" />
+    <File Path="document/README.md" />
+    <File Path="document/system_architecture.md" />
+  </Folder>
   <Folder Name="/modules/">
     <Project Path="modules/AIModule/AIModule.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="763ee05e-2f26-4323-a767-328762ea75bc">
       <Build Project="false" />
@@ -73,18 +86,11 @@
   <Folder Name="/modules/FrontendMobile/scripts/">
     <File Path="modules/FrontendMobile/scripts/reset-project.js" />
   </Folder>
-  <Folder Name="/scripts/">
-    <File Path="scripts/ag00_orchestrator.sh" />
-    <File Path="scripts/scope_check.sh" />
-  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".env.example" />
     <File Path=".gitattributes" />
     <File Path=".gitignore" />
-    <File Path="agent_schedule.md" />
-    <File Path="DesOfSys.md" />
     <File Path="docker-compose.yaml" />
-    <File Path="README.md" />
+    <File Path="package-lock.json" />
   </Folder>
 </Solution>
-

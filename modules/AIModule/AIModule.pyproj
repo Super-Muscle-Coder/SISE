@@ -22,10 +22,11 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="scripts\Dockerfile.AIModule" />
+    <Content Include="scripts\\Dockerfile.AIModule" />
     <Compile Include="src\main_AIModule.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="agent\.agent.json" />
     <Content Include="agent\.agent.md" />
     <Content Include="scripts\README.md" />
     <Content Include="scripts\requirements.txt" />
