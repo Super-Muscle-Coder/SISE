@@ -6,6 +6,7 @@
     <File Path=".context/openapi.yaml" />
     <File Path=".context/Tasks.yaml" />
   </Folder>
+  <Folder Name="/.context/Session/" />
   <Folder Name="/.github/" />
   <Folder Name="/.github/agents/">
     <File Path=".github/agents/AIModuleAgent.agent.md" />
@@ -27,14 +28,17 @@
     <File Path=".knowledge/agent01/Skill_01.md" />
   </Folder>
   <Folder Name="/.knowledge/agent02/">
+    <File Path=".knowledge/agent02/KnowledgeBase_02.md" />
     <File Path=".knowledge/agent02/Log_02.md" />
     <File Path=".knowledge/agent02/Skill_02.md" />
   </Folder>
   <Folder Name="/.knowledge/agent03/">
+    <File Path=".knowledge/agent03/KnowledgeBase_03.md" />
     <File Path=".knowledge/agent03/Log_03.md" />
     <File Path=".knowledge/agent03/Skill_03.md" />
   </Folder>
   <Folder Name="/.knowledge/agent04/">
+    <File Path=".knowledge/agent04/KnowledgeBase_04.md" />
     <File Path=".knowledge/agent04/Log_04.md" />
     <File Path=".knowledge/agent04/Skill_04.md" />
   </Folder>
