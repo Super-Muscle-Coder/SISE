@@ -5,10 +5,10 @@
 #           Đảm bảo Output mà Project A cung cấp đáp ứng Input Project B mong muốn.
 # Writer  : Project Owner + AG-00
 # Reader  : Tất cả agents
-# Version : 1.0.0  (đồng bộ với agent_boundaries.yaml và openapi.yaml)
+# Version : 1.0.0 
 # =============================================================================
 
-schema_version: "1.0.0"
+schema_version: 1.0.0
 migration_tool: alembic
 
 # ---------------------------------------------------------------------------

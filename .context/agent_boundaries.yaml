@@ -4,11 +4,11 @@
 # Vai trò : Quy ước phạm vi hoạt động, trách nhiệm và phân quyền của mỗi agent.
 # Writer  : Project Owner + AG-00
 # Reader  : Tất cả agents
-# Version : 1.0.0  (đồng bộ với data_schema.yaml và openapi.yaml) 
+# Version : 1.0.0 
 # =============================================================================
 
 system_name: SISE
-version: "1.0.0"
+version: 1.0.0
 
 # ---------------------------------------------------------------------------
 # CÁC FILE HỢP ĐỒNG (Contract Files)
@@ -102,7 +102,7 @@ agents:
       Điều phối toàn solution. Giao task, kiểm soát ranh giới giữa các agent,
       quản lý contract files, audit logs, và kiểm soát việc push code lên GitHub.
       KHÔNG viết feature code cho bất kỳ module nào.
-    working_dir: modules/OrchestratorAgent/
+    working_dir: modules/Orchestrator/
 
     allowed_outbound_calls:
       - "*"   # AG-00 có thể giao tiếp với tất cả agents

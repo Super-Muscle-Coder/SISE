@@ -1,0 +1,520 @@
+# =============================================================================
+# TASKS — SISE
+# =============================================================================
+# Vai trò : Chìa khóa điều hành. AG-00 dùng file này để giao việc cho các agent.
+#           Mỗi agent đọc file này khi bắt đầu phiên làm việc để biết mình làm gì.
+# Writer  : Project Owner + AG-00
+# Reader  : Tất cả agents
+# Version : 1.0.0
+#
+# QUYỀN CHỈNH SỬA:
+#   - Tạo / xóa task       : AG-00 + Project Owner
+#   - Cập nhật status      : Agent được assign (chỉ field: status, actual_output, notes_to_ag00)
+#   - Cập nhật notes       : AG-00 + Project Owner
+#
+# STATUS HỢP LỆ:
+#   backlog     → Task đã được định nghĩa nhưng chưa lên lịch
+#   scheduled   → Task đã được lên lịch vào một session cụ thể
+#   in_progress → Agent đang thực hiện trong phiên hiện tại
+#   blocked     → Agent không thể tiếp tục, cần AG-00 hoặc agent khác unblock
+#   review      → Agent đã hoàn thành, đang chờ AG-00 review
+#   done        → AG-00 đã xác nhận hoàn thành
+#   cancelled   → Task bị hủy (ghi rõ lý do trong notes)
+#
+# PRIORITY:
+#   P0 = Critical (chặn toàn bộ pipeline nếu không làm)
+#   P1 = High
+#   P2 = Medium
+#   P3 = Low / Nice-to-have
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# PHASE 0 — Khởi tạo Solution & Cấu hình
+# Mục tiêu: Dựng nền tảng để tất cả agents có thể bắt đầu làm việc độc lập
+# ---------------------------------------------------------------------------
+phase_0:
+  name: "Solution Bootstrap & Configuration"
+  owner: AG-00
+  status: in_progress
+
+  tasks:
+
+    - id: T000-01
+      title: "Khởi tạo repo và cấu trúc thư mục"
+      assigned_to: AG-00
+      priority: P0
+      status: done
+      description: >
+        Tạo mono-repo trên GitHub với đúng cấu trúc thư mục theo DOS.md mục 5.
+        Bao gồm: .context/, .knowledge/, .github/agents/, modules/, docker-compose.yml skeleton.
+      depends_on: []
+      acceptance_criteria:
+        - Repo tồn tại trên GitHub với branch strategy đã thiết lập
+        - Toàn bộ thư mục đúng theo cấu trúc trong DOS.md
+
+    - id: T000-02
+      title: "Viết và commit toàn bộ contract files"
+      assigned_to: AG-00
+      priority: P0
+      status: done
+      description: >
+        Commit DOS.md, data_schema.yaml, openapi.yaml, agent_boundaries.yaml,
+        Tasks.yaml vào .context/. Đây là "luật pháp" của solution, phải có trước
+        khi bất kỳ agent nào bắt đầu code.
+      depends_on: [T000-01]
+      acceptance_criteria:
+        - Tất cả 5 contract files tồn tại trong .context/ trên main branch
+        - Không file nào chứa placeholder chưa điền
+
+    - id: T000-03
+      title: "Cấu hình .agent.md cho tất cả agents"
+      assigned_to: AG-00
+      priority: P0
+      status: done
+      description: >
+        Viết nội dung đầy đủ cho 6 file .agent.md trong .github/agents/.
+        Mỗi file phải định nghĩa rõ role, responsibilities, constraints, và
+        knowledge_scope để agent không hoạt động sai domain.
+      depends_on: [T000-02]
+      acceptance_criteria:
+        - 6 file .agent.md tồn tại trong .github/agents/ với nội dung đầy đủ
+        - Không file nào còn nội dung template mặc định
+
+    - id: T000-04
+      title: "Khởi tạo .knowledge/ cho tất cả agents"
+      assigned_to: AG-00
+      priority: P1
+      status: done
+      description: >
+        Commit KnowledgeBase_[N].md cho 6 agents vào .knowledge/agent[N]/.
+        Tạo Skill_[N].md và Log_[N].md rỗng với header template sẵn.
+        Commit KnowledgeBase_shared.md vào .knowledge/shared/.
+      depends_on: [T000-02]
+      acceptance_criteria:
+        - Mỗi agent có đủ 3 file trong .knowledge/agent[N]/
+        - KnowledgeBase_shared.md tồn tại trong .knowledge/shared/
+
+    - id: T000-05
+      title: "Thiết lập GitHub Actions CI/CD skeleton"
+      assigned_to: AG-00
+      priority: P1
+      status: scheduled
+      description: >
+        Tạo workflow files cơ bản trong .github/workflows/:
+        ci.yml (lint + test on PR), build.yml (Docker build on merge to main).
+        Chưa cần đầy đủ logic, chỉ cần skeleton chạy được.
+      depends_on: [T000-01]
+      acceptance_criteria:
+        - Workflow chạy không lỗi khi push PR
+        - Badge CI hiển thị trên README
+
+# ---------------------------------------------------------------------------
+# PHASE 1 — Storage Infrastructure (AG-02)
+# Mục tiêu: Toàn bộ storage layer sẵn sàng trước khi bất kỳ service nào cần đến
+# ---------------------------------------------------------------------------
+phase_1:
+  name: "Storage Infrastructure"
+  owner: AG-02
+  status: backlog
+
+  tasks:
+
+    - id: T001-01
+      title: "PostgreSQL schema migration"
+      assigned_to: AG-02
+      priority: P0
+      status: backlog
+      description: >
+        Viết Alembic migration scripts tạo đủ 4 bảng: users, friends, albums, images.
+        Bao gồm tất cả indexes theo data_schema.yaml → database_spec.postgresql.
+        Chạy migration thành công trong môi trường Docker local.
+      depends_on: [T000-02]
+      acceptance_criteria:
+        - alembic upgrade head chạy không lỗi
+        - Tất cả bảng và indexes tồn tại đúng schema
+        - alembic downgrade head~1 chạy không lỗi (rollback được)
+      notes_from_ag00: >
+        Ưu tiên bảng friends — đây là bảng hay bị bỏ quên nhất nhưng bắt buộc
+        cho privacy_level = 1 (Friends). Xem data_schema.yaml → notes.privacy_level_1_query.
+
+    - id: T001-02
+      title: "Milvus collection setup"
+      assigned_to: AG-02
+      priority: P0
+      status: backlog
+      description: >
+        Tạo Milvus collection sise_v1 với schema đúng theo data_schema.yaml → milvus.
+        Cấu hình HNSW index với đúng M=16, efConstruction=200.
+        Viết script setup có thể chạy idempotent (chạy nhiều lần không lỗi).
+      depends_on: [T000-02]
+      acceptance_criteria:
+        - Collection sise_v1 tồn tại và loaded
+        - Index type HNSW với metric COSINE
+        - vector_dim = 512 (theo data_schema.yaml → global_configs.vector_dim)
+        - Insert test vector và query thành công
+
+    - id: T001-03
+      title: "MinIO bucket initialization"
+      assigned_to: AG-02
+      priority: P0
+      status: backlog
+      description: >
+        Tạo 2 buckets: raw-images và thumbnails. Cấu hình lifecycle rules theo
+        data_schema.yaml → minio.lifecycle_rules. Viết script init idempotent.
+      depends_on: [T000-02]
+      acceptance_criteria:
+        - Cả 2 buckets tồn tại với đúng policy
+        - Upload test object và download lại thành công
+        - Lifecycle rules được apply
+
+    - id: T001-04
+      title: "Docker Compose storage stack"
+      assigned_to: AG-02
+      priority: P0
+      status: backlog
+      description: >
+        Viết docker-compose.storage.yml bao gồm: postgres, milvus-standalone,
+        etcd, minio, redis. Cấu hình volumes để data persistent khi restart.
+        AG-00 sẽ merge vào docker-compose.yml chính sau.
+      depends_on: [T001-01, T001-02, T001-03]
+      acceptance_criteria:
+        - docker compose up chạy thành công, tất cả containers healthy
+        - Sau khi restart containers, data vẫn còn
+        - Health check pass cho tất cả services
+
+    - id: T001-05
+      title: "Seed script cho test data"
+      assigned_to: AG-02
+      priority: P1
+      status: backlog
+      description: >
+        Viết scripts/seed/seed_test_data.py để tạo dữ liệu mẫu:
+        5 users, 10 albums, 50 images (metadata, không cần vector thật).
+        Dùng cho AG-03 và AG-04 test logic mà không cần chạy AI service.
+      depends_on: [T001-01, T001-02, T001-03]
+      acceptance_criteria:
+        - Script chạy không lỗi
+        - Data tồn tại trong PostgreSQL và MinIO sau khi chạy
+
+# ---------------------------------------------------------------------------
+# PHASE 2 — AI Inference Service (AG-01)
+# Mục tiêu: AI Service sẵn sàng nhận request embed và trả về vector đúng chiều
+# ---------------------------------------------------------------------------
+phase_2:
+  name: "AI Inference Service"
+  owner: AG-01
+  status: backlog
+
+  tasks:
+
+    - id: T002-01
+      title: "CLIP model loader & warm-up"
+      assigned_to: AG-01
+      priority: P0
+      status: backlog
+      description: >
+        Implement EmbeddingService class: load CLIP ViT-B/32, thực hiện warm-up
+        với dummy forward pass khi khởi động. Model phải ở trạng thái eval() và
+        sẵn sàng nhận request ngay sau startup event.
+      depends_on: [T000-02]
+      acceptance_criteria:
+        - Service khởi động không có cold-start delay sau lần đầu
+        - Model loaded đúng device (CPU/GPU auto-detect)
+
+    - id: T002-02
+      title: "Image preprocessing pipeline"
+      assigned_to: AG-01
+      priority: P0
+      status: backlog
+      description: >
+        Implement ImagePreprocessor: nhận PIL.Image hoặc bytes, thực hiện
+        convert RGB, resize 224×224, normalize theo CLIP standard (mean/std của
+        CLIP). Output: torch.Tensor sẵn sàng đưa vào model.
+      depends_on: [T002-01]
+      acceptance_criteria:
+        - Xử lý đúng ảnh grayscale (2D) bằng cách expand thành RGB
+        - Xử lý đúng ảnh có alpha channel (RGBA → RGB)
+        - Output tensor có shape (1, 3, 224, 224)
+
+    - id: T002-03
+      title: "POST /embed/image endpoint"
+      assigned_to: AG-01
+      priority: P0
+      status: backlog
+      description: >
+        FastAPI endpoint nhận multipart/form-data (file ảnh), chạy qua
+        ImagePreprocessor → CLIP image encoder → trả về float32[] vector.
+        Output shape phải đúng với global_configs.vector_dim = 512.
+      depends_on: [T002-01, T002-02]
+      acceptance_criteria:
+        - Trả về vector có len() == 512
+        - Latency < 500ms trên CPU (không có GPU)
+        - Xử lý đúng content-type validation (chỉ nhận image/jpeg, image/png)
+
+    - id: T002-04
+      title: "POST /embed/text endpoint"
+      assigned_to: AG-01
+      priority: P0
+      status: backlog
+      description: >
+        FastAPI endpoint nhận JSON {"text": "..."}, chạy qua CLIP text encoder
+        → trả về float32[] vector cùng chiều với image embedding.
+      depends_on: [T002-01]
+      acceptance_criteria:
+        - Trả về vector có len() == 512
+        - Text encoding nằm trong cùng vector space với image encoding (CLIP guarantee)
+
+    - id: T002-05
+      title: "Batch embedding endpoint"
+      assigned_to: AG-01
+      priority: P1
+      status: backlog
+      description: >
+        POST /embed/batch nhận danh sách ảnh, trả về danh sách vectors.
+        Dùng cho bulk indexing khi nạp dữ liệu ban đầu.
+      depends_on: [T002-03]
+      acceptance_criteria:
+        - Hỗ trợ batch size tối thiểu 32 ảnh
+        - Không OOM khi batch = 32 trên máy không có GPU
+
+    - id: T002-06
+      title: "Dockerfile cho AI Service"
+      assigned_to: AG-01
+      priority: P0
+      status: backlog
+      description: >
+        Viết Dockerfile multi-stage cho AI Service. Image phải nhỏ gọn,
+        model weights không baked vào image (download khi startup hoặc
+        mount qua volume).
+      depends_on: [T002-03, T002-04]
+      acceptance_criteria:
+        - docker build thành công
+        - Container khởi động và /health/liveness trả 200
+
+# ---------------------------------------------------------------------------
+# PHASE 3 — Backend API (AG-03)
+# Mục tiêu: FastAPI backend đầy đủ logic, test được qua Swagger UI
+# ---------------------------------------------------------------------------
+phase_3:
+  name: "Backend API Service"
+  owner: AG-03
+  status: backlog
+
+  tasks:
+
+    - id: T003-01
+      title: "Project scaffold & dependencies"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Khởi tạo FastAPI project trong modules/BackendModule/: pyproject.toml,
+        cấu hình Alembic, cấu trúc thư mục (routers/, services/, models/,
+        schemas/). Thiết lập Pydantic settings đọc env vars theo
+        data_schema.yaml → security_and_secrets.required_env_vars.
+      depends_on: [T001-04]
+
+    - id: T003-02
+      title: "Auth Service (JWT)"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Implement POST /auth/register, POST /auth/login theo openapi.yaml.
+        JWT access token + refresh token. Middleware xác thực cho protected routes.
+      depends_on: [T003-01]
+
+    - id: T003-03
+      title: "Upload pipeline (5 bước)"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Implement đầy đủ upload pipeline theo data_schema.yaml → transaction_semantics.
+        Bao gồm: presigned URL generation, metadata insert, Celery task enqueue,
+        idempotency handling. Celery worker thực hiện S4_Async_Index.
+      depends_on: [T003-01, T001-04, T002-06]
+      notes_from_ag00: >
+        Xem data_schema.yaml → transaction_semantics.upload_pipeline.
+        Đặc biệt chú ý S3: nếu PostgreSQL insert lỗi phải xóa MinIO object (compensating action).
+
+    - id: T003-04
+      title: "Search Service (image + text)"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Implement POST /search/image và POST /search/text theo openapi.yaml.
+        Privacy filter phải đúng theo data_schema.yaml → notes.privacy_level_1_query.
+        Bao gồm metadata enrichment từ PostgreSQL sau khi query Milvus.
+      depends_on: [T003-02, T001-01, T001-02, T002-03]
+
+    - id: T003-05
+      title: "Album & Media CRUD"
+      assigned_to: AG-03
+      priority: P1
+      status: backlog
+      description: >
+        Implement đầy đủ CRUD cho albums và images theo openapi.yaml.
+        Bao gồm soft delete cho images (deleted_at).
+      depends_on: [T003-02]
+
+    - id: T003-06
+      title: "Evaluation Service"
+      assigned_to: AG-03
+      priority: P1
+      status: backlog
+      description: >
+        Implement POST /eval/run: chạy benchmark tự động trên test set,
+        tính MRR, HitRate@K, Precision@K, Recall. Trả về báo cáo JSON.
+      depends_on: [T003-04]
+
+    - id: T003-07
+      title: "Health probes"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Implement GET /health/liveness và GET /health/readiness theo openapi.yaml.
+        Readiness phải check: postgres, milvus, minio, ai_service.
+        Readiness response phải include header X-Expected-Vector-Dim.
+      depends_on: [T003-01]
+
+# ---------------------------------------------------------------------------
+# PHASE 4 — Frontend (AG-04 và AG-05, song song)
+# Prerequisite: T003-02 đến T003-05 phải ở status 'review' hoặc 'done'
+# ---------------------------------------------------------------------------
+phase_4:
+  name: "Frontend Development"
+  owner: AG-04   # AG-05 đồng thời
+
+  tasks:
+
+    - id: T004-01
+      title: "[Web] Project scaffold"
+      assigned_to: AG-04
+      priority: P0
+      status: backlog
+      description: >
+        Khởi tạo React project với Vite + Tailwind CSS. Cấu hình Axios instance
+        với base URL và interceptor cho JWT. Thiết lập routing cơ bản.
+      depends_on: [T003-02]
+
+    - id: T004-02
+      title: "[Web] Auth pages (Login / Register)"
+      assigned_to: AG-04
+      priority: P0
+      status: backlog
+      depends_on: [T004-01]
+
+    - id: T004-03
+      title: "[Web] Dashboard & Album management"
+      assigned_to: AG-04
+      priority: P1
+      status: backlog
+      depends_on: [T004-02]
+
+    - id: T004-04
+      title: "[Web] Bulk upload với Drag & Drop"
+      assigned_to: AG-04
+      priority: P1
+      status: backlog
+      depends_on: [T004-02]
+
+    - id: T004-05
+      title: "[Web] Search UI (image + text query)"
+      assigned_to: AG-04
+      priority: P0
+      status: backlog
+      description: >
+        Upload ảnh query hoặc nhập text → hiển thị grid kết quả với similarity score.
+        Phải hiển thị rõ ràng score và privacy level của từng kết quả.
+      depends_on: [T004-02]
+
+    - id: T004-06
+      title: "[Web] Evaluation dashboard"
+      assigned_to: AG-04
+      priority: P1
+      status: backlog
+      description: >
+        Biểu đồ MRR, Precision@K, HitRate, Recall. Trigger POST /eval/run và
+        hiển thị kết quả real-time.
+      depends_on: [T004-02]
+
+    - id: T004-07
+      title: "[Mobile] Project scaffold"
+      assigned_to: AG-05
+      priority: P0
+      status: backlog
+      description: >
+        Khởi tạo React Native project với Expo managed workflow.
+        Cấu hình EAS và Axios instance tương tự AG-04.
+      depends_on: [T003-02]
+
+    - id: T004-08
+      title: "[Mobile] Camera integration & Search"
+      assigned_to: AG-05
+      priority: P0
+      status: backlog
+      depends_on: [T004-07]
+
+    - id: T004-09
+      title: "[Mobile] Offline cache"
+      assigned_to: AG-05
+      priority: P1
+      status: backlog
+      depends_on: [T004-08]
+
+    - id: T004-10
+      title: "[Mobile] Share extension"
+      assigned_to: AG-05
+      priority: P2
+      status: backlog
+      depends_on: [T004-08]
+
+# ---------------------------------------------------------------------------
+# PHASE 5 — Integration & Evaluation (AG-00 điều phối)
+# ---------------------------------------------------------------------------
+phase_5:
+  name: "Integration, Benchmarking & CI/CD"
+  owner: AG-00
+  status: backlog
+
+  tasks:
+
+    - id: T005-01
+      title: "Docker Compose full stack integration"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Merge tất cả service configs vào docker-compose.yml chính.
+        Cấu hình Nginx reverse proxy, internal network, volumes.
+      depends_on: [T003-07, T002-06, T001-04]
+
+    - id: T005-02
+      title: "E2E smoke test"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Chạy scripts/tests/e2e_smoke.sh: upload → embed → index → search → verify.
+        Toàn bộ pipeline phải pass trong môi trường Docker Compose.
+      depends_on: [T005-01]
+
+    - id: T005-03
+      title: "Benchmarking: MRR, HitRate, Precision, Recall"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Chạy scripts/bench/mrr_benchmark.py trên test set chuẩn.
+        Ghi lại embedding_latency_ms và mrr_score. So sánh HNSW vs IVF.
+      depends_on: [T005-02]
+
+    - id: T005-04
+      title: "GitHub Actions CI/CD hoàn chỉnh"
+      assigned_to: AG-00
+      priority: P1
+      status: backlog
+      depends_on: [T005-02]
