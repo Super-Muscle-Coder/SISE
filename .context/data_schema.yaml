@@ -1,0 +1,356 @@
+# =============================================================================
+# DATA SCHEMA — SISE
+# =============================================================================
+# Vai trò : Bản hợp đồng dữ liệu giữa các project.
+#           Đảm bảo Output mà Project A cung cấp đáp ứng Input Project B mong muốn.
+# Writer  : Project Owner + AG-00
+# Reader  : Tất cả agents
+# Version : 1.0.0  (đồng bộ với agent_boundaries.yaml và openapi.yaml)
+# =============================================================================
+
+schema_version: "1.0.0"
+migration_tool: alembic
+
+# ---------------------------------------------------------------------------
+# CẤU HÌNH TOÀN CỤC (Global Configs)
+# Các giá trị này là nguồn sự thật duy nhất.
+# Khi tham chiếu đến vector_dim ở bất kỳ đâu, PHẢI dùng giá trị này.
+# ---------------------------------------------------------------------------
+global_configs:
+  vector_dim: 512                     # ViT-B/32. Đổi thành 768 nếu dùng ViT-L/14.
+                                      # ⚠️ THAY ĐỔI GIÁ TRỊ NÀY SẼ YÊU CẦU XÓA VÀ TÁI TẠO MILVUS COLLECTION.
+  supported_dims: [512, 768]
+
+  max_file_size_mb: 20
+  allowed_content_types:
+    - image/jpeg
+    - image/png
+
+  presigned_url_expiry_sec: 3600      # 1 giờ
+
+  retry_policy:
+    max_retries: 3
+    backoff_ms: 1000
+    factor: 2                         # Exponential backoff: 1s, 2s, 4s
+
+  idempotency_ttl_hours: 24
+  default_timeout_ms: 10000
+
+# ---------------------------------------------------------------------------
+# NGỮ NGHĨA GIAO DỊCH (Transaction Semantics)
+# Mô tả chính xác luồng upload 5 bước. AG-03 phải implement đúng thứ tự này.
+# ---------------------------------------------------------------------------
+transaction_semantics:
+
+  upload_pipeline:
+    - step: S1_Presigned
+      actor: AG-03
+      action: Tạo presigned PUT URL và object_key từ MinIO
+      on_success: Trả upload_url và object_key về cho client
+      on_failure: Trả StandardError (xem openapi.yaml)
+
+    - step: S2_Binary_Upload
+      actor: Client (Browser / Mobile)
+      action: Client PUT file binary trực tiếp lên MinIO qua presigned URL
+      on_success: Client gọi callback xác nhận lên backend
+      on_failure: Client retry; presigned URL có thể hết hạn sau presigned_url_expiry_sec
+
+    - step: S3_Metadata_Pending
+      actor: AG-03
+      action: INSERT metadata vào PostgreSQL với index_status = 'pending'
+      on_failure: Xóa MinIO object (compensating action) và trả lỗi về client
+
+    - step: S4_Async_Index
+      actor: Celery Worker (AG-03 quản lý)
+      action: >
+        Enqueue Celery task: fetch ảnh từ MinIO → gọi AG-01 (POST /embed/image)
+        → nhận vector → insert vào Milvus
+      on_failure: Đánh dấu images.index_status = 'failed'; schedule retry theo retry_policy
+
+    - step: S5_Commit_Ready
+      actor: Celery Worker
+      action: Sau khi index thành công, UPDATE images.index_status = 'ready'
+      on_failure: >
+        Nếu liên tục thất bại sau max_retries lần, giữ index_status = 'failed'
+        và ghi nhận để can thiệp thủ công.
+
+  idempotency:
+    header: Idempotency-Key
+    scope: per-authenticated-user
+    ttl_hours: 24
+    behavior_on_duplicate: >
+      Trả về cùng job_id/result như lần đầu, hoặc HTTP 409 nếu conflict.
+      KHÔNG enqueue lại task trùng lặp.
+
+# ---------------------------------------------------------------------------
+# ĐẶC TẢ DATABASE
+# ---------------------------------------------------------------------------
+database_spec:
+
+  # -----------------------------------------------------------------------
+  # PostgreSQL
+  # -----------------------------------------------------------------------
+  postgresql:
+    extensions:
+      - uuid-ossp    # Dùng cho gen_random_uuid()
+      - pgcrypto     # Dùng cho password hashing
+
+    migration_notes: >
+      Dùng Alembic để quản lý migration. Bao gồm scripts tạo extensions và indexes.
+      Chạy migration trước khi khởi động backend service.
+
+    tables:
+
+      users:
+        description: Thông tin tài khoản người dùng
+        columns:
+          id:            SERIAL PRIMARY KEY
+          username:      VARCHAR(50) UNIQUE NOT NULL
+          email:         VARCHAR(100) UNIQUE NOT NULL
+          password_hash: TEXT NOT NULL
+          created_at:    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+
+      friends:
+        description: Quan hệ bạn bè giữa người dùng (phục vụ privacy_level = 1)
+        columns:
+          user_id:   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+          friend_id: INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+          created_at: TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        constraints:
+          - PRIMARY KEY (user_id, friend_id)
+          - CHECK (user_id <> friend_id)   # Không thể tự kết bạn với chính mình
+        indexes:
+          - CREATE INDEX IF NOT EXISTS idx_friends_user_id ON friends (user_id)
+          - CREATE INDEX IF NOT EXISTS idx_friends_friend_id ON friends (friend_id)
+        note: >
+          Khi query với privacy_level = 1 (Friends), AG-03 phải JOIN bảng friends
+          để kiểm tra user hiện tại có phải là bạn của chủ ảnh không.
+
+      albums:
+        description: Album ảnh của người dùng
+        columns:
+          id:          SERIAL PRIMARY KEY
+          user_id:     INTEGER REFERENCES users(id) ON DELETE CASCADE
+          title:       VARCHAR(100) NOT NULL
+          description: TEXT
+          is_public:   BOOLEAN DEFAULT FALSE
+          created_at:  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+
+      images:
+        description: Metadata của từng ảnh trong hệ thống
+        columns:
+          id:                UUID PRIMARY KEY DEFAULT gen_random_uuid()
+          user_id:           INTEGER NOT NULL REFERENCES users(id)
+          album_id:          INTEGER REFERENCES albums(id)
+          minio_object_name: TEXT UNIQUE NOT NULL     # Key lưu trong MinIO
+          minio_bucket:      TEXT NOT NULL            # Tên bucket (raw-images / thumbnails)
+          privacy_level:     "SMALLINT DEFAULT 2 CHECK (privacy_level IN (0,1,2))"
+          # privacy_level: 0 = Private, 1 = Friends, 2 = Public
+          tags:              JSONB                    # Mảng tag tùy chỉnh
+          index_status:      "VARCHAR(20) DEFAULT 'pending' CHECK (index_status IN ('pending','ready','failed'))"
+          created_at:        TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          updated_at:        TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          deleted_at:        TIMESTAMP WITH TIME ZONE NULL  # Soft delete
+        indexes:
+          - CREATE INDEX IF NOT EXISTS idx_images_user_id ON images (user_id)
+          - CREATE INDEX IF NOT EXISTS idx_images_privacy_level ON images (privacy_level)
+          - CREATE INDEX IF NOT EXISTS idx_images_created_at ON images (created_at)
+          - CREATE INDEX IF NOT EXISTS idx_images_tags_gin ON images USING gin (tags)
+          - CREATE INDEX IF NOT EXISTS idx_images_index_status ON images (index_status)
+
+  # -----------------------------------------------------------------------
+  # Milvus
+  # -----------------------------------------------------------------------
+  milvus:
+    collection_name: sise_v1
+    vector_dim: 512   # Phải bằng global_configs.vector_dim. Không được hard-code khác giá trị này.
+
+    fields:
+      - name: image_id
+        type: VarChar
+        is_primary: true
+        max_length: 36          # UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+      - name: vector
+        type: FloatVector
+        dim: 512                # Phải bằng vector_dim ở trên
+
+      - name: user_id
+        type: Int64             # Tham chiếu đến PostgreSQL users.id
+
+      - name: privacy_level
+        type: Int32             # 0 = Private, 1 = Friends, 2 = Public
+
+    index_type: HNSW
+    index_params:
+      M: 16                     # Số cạnh tối đa mỗi node. Tăng M → tăng recall nhưng tốn RAM.
+      efConstruction: 200       # Độ chính xác khi build index. Tăng → chậm hơn nhưng chính xác hơn.
+
+    search_params:
+      ef: 64                    # Độ chính xác khi search. Tăng → chính xác hơn nhưng chậm hơn.
+
+    metric_type: COSINE         # Cosine Similarity — chuẩn cho CLIP vector
+
+    notes: >
+      Backup collection snapshot định kỳ theo backup_and_dr bên dưới.
+      Khi cần reindex (schema change hoặc tune), dùng batch reindex với resume token.
+      Giữ old index read-only cho đến khi new index được validate.
+
+  # -----------------------------------------------------------------------
+  # MinIO
+  # -----------------------------------------------------------------------
+  minio:
+    buckets:
+      - raw-images     # Ảnh gốc do người dùng upload
+      - thumbnails     # Ảnh thu nhỏ được tạo bởi backend (Pillow)
+
+    storage_policy: private     # Không public trực tiếp; dùng presigned URL
+
+    object_naming_convention: "{user_id}/{album_id}/{image_id}.jpg"
+    # Lý do: Tạo pseudo-folder hierarchy tự nhiên trong MinIO.
+    # Dễ xóa toàn bộ ảnh của một user hoặc album khi cần.
+
+    lifecycle_rules:
+      - bucket: thumbnails
+        rule: expire
+        days: 365               # Thumbnail tự động xóa sau 1 năm
+
+      - bucket: raw-images
+        rule: archive
+        days: 3650              # Ảnh gốc archive sau 10 năm
+
+    presigned:
+      expiry_seconds: 3600              # Đồng bộ với global_configs.presigned_url_expiry_sec
+      max_file_size_mb: 20              # Đồng bộ với global_configs.max_file_size_mb
+      allowed_content_types:            # Đồng bộ với global_configs.allowed_content_types
+        - image/jpeg
+        - image/png
+
+# ---------------------------------------------------------------------------
+# OBSERVABILITY
+# ---------------------------------------------------------------------------
+observability:
+  metrics:
+    - embedding_latency_ms    # Thời gian AG-01 trả về vector
+    - index_latency_ms        # Thời gian Celery worker insert vào Milvus
+    - search_qps              # Query per second của Search Service
+    - mrr_score               # Mean Reciprocal Rank (chạy định kỳ)
+    - hit_rate                # Hit Rate@K (chạy định kỳ)
+    - error_rate              # Tỷ lệ lỗi của các endpoints
+
+  tracing: opentelemetry
+  logging: structured_json    # Loguru hoặc ELK Stack
+
+  health_probes:
+    liveness: /health/liveness
+    readiness: /health/readiness
+    readiness_checks:
+      - postgres
+      - milvus
+      - minio
+      - ai_service
+
+# ---------------------------------------------------------------------------
+# BACKUP & DISASTER RECOVERY
+# ---------------------------------------------------------------------------
+backup_and_dr:
+
+  postgres:
+    cadence: daily
+    retention_days: 30
+    method: "pg_dump + WAL archiving"
+
+  milvus:
+    cadence: weekly
+    retention_weeks: 8
+    method: collection snapshot
+
+  minio:
+    cadence: daily
+    retention_days: 90
+    method: "replication + lifecycle rules"
+
+  restore_playbook: >
+    1. Restore PostgreSQL từ pg_dump gần nhất.
+    2. Restore Milvus từ collection snapshot.
+    3. Verify MinIO objects khớp với PostgreSQL records.
+    4. Test DR procedure mỗi quý (quarterly).
+
+# ---------------------------------------------------------------------------
+# BẢO MẬT & SECRETS
+# ---------------------------------------------------------------------------
+security_and_secrets:
+  no_secrets_in_repo: true
+  secret_management: "Vault hoặc cloud secret manager; tham chiếu qua env vars"
+
+  required_env_vars:
+    - DATABASE_URL
+    - MINIO_ENDPOINT
+    - MINIO_ACCESS_KEY
+    - MINIO_SECRET_KEY
+    - MILVUS_HOST
+    - MILVUS_PORT
+    - REDIS_URL
+    - JWT_SECRET
+    - AI_SERVICE_URL      # URL nội bộ của AG-01 (ví dụ: http://ai-service:8001)
+
+  network:
+    recommended: >
+      Private VPC cho PostgreSQL, Milvus, MinIO.
+      Chỉ Backend và Celery Worker mới có quyền kết nối trực tiếp.
+      Frontend (Web/Mobile) chỉ giao tiếp với Backend qua HTTPS.
+
+# ---------------------------------------------------------------------------
+# TESTING & CI
+# ---------------------------------------------------------------------------
+testing_and_ci:
+  e2e_smoke: "scripts/tests/e2e_smoke.sh"
+  e2e_scenario: "upload → embed → index → search → verify result"
+  unit_tests: "pytest cho tất cả service modules (AG-01, AG-02, AG-03)"
+  contract_tests: "Validate openapi.yaml trong CI; dùng openapi-generator để verify stubs"
+  benchmarking: "scripts/bench/mrr_benchmark.py; ghi lại embedding_latency_ms và mrr_score"
+
+# ---------------------------------------------------------------------------
+# OPERATIONAL PLAYBOOKS
+# ---------------------------------------------------------------------------
+operational_playbooks:
+
+  reindex_strategy:
+    when: "Schema change hoặc index tuning"
+    approach: "Batch reindex với resume token; dùng job queue và monitor tiến độ"
+    safety: "Giữ old index read-only cho đến khi new index được validate"
+
+  incident_response:
+    on_index_failure: >
+      1. Đánh dấu images.index_status = 'failed'.
+      2. Enqueue retry job.
+      3. Alert khi số lượng 'failed' vượt ngưỡng.
+    on_minio_unreachable: >
+      1. Retry với exponential backoff (theo retry_policy).
+      2. Từ chối upload gracefully và thông báo user.
+    on_vector_dim_mismatch: >
+      Client gọi GET /health/readiness, đọc header X-Expected-Vector-Dim.
+      Backend trả HTTP 400 với error code ERR_VECTOR_DIM_MISMATCH.
+
+# ---------------------------------------------------------------------------
+# GHI CHÚ KỸ THUẬT
+# ---------------------------------------------------------------------------
+notes:
+
+  vector_dim_mismatch_handling: >
+    Clients phải gọi GET /health/readiness để đọc header X-Expected-Vector-Dim
+    trước khi gửi vector. Backend trả HTTP 400 với structured error
+    {code: 'ERR_VECTOR_DIM_MISMATCH'} khi vector length không khớp.
+
+  filter_expression_guidance: >
+    Dùng structured FilterExpression JSON (and/or/leaf).
+    Dùng op 'contains' cho tags (JSONB array membership).
+    Dùng op 'in' cho enums/numeric lists.
+    AG-03 phải validate và sanitize filter expression trước khi truyền vào Milvus hoặc SQL.
+
+  privacy_level_1_query: >
+    Với privacy_level = 1 (Friends), AG-03 phải:
+    1. Query bảng friends để lấy danh sách friend_id của current_user.
+    2. Milvus filter: (privacy_level == 2) OR (user_id == current_user_id)
+       OR (privacy_level == 1 AND user_id IN [friend_ids]).
+    Không cache danh sách friend quá 5 phút để đảm bảo tính nhất quán.

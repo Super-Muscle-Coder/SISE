@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/.context/">
+    <File Path=".context/agent_boundaries.yaml" />
+    <File Path=".context/data_schema.yaml" />
+    <File Path=".context/DOS.md" />
+    <File Path=".context/openapi.yaml" />
+  </Folder>
+  <Folder Name="/.knowledge/" />
+  <Folder Name="/modules/">
+    <Project Path="modules/BackendModule/BackendModule.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="ff80f0c4-3dc3-48a7-a7bd-a571ef3f0ad3">
+      <Build Project="false" />
+    </Project>
+    <Project Path="modules/Orchestrator/Orchestrator.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="18cabc9c-1106-441f-b4f5-2c1db3bd7061">
+      <Build Project="false" />
+    </Project>
+    <Project Path="modules/StorageModule/StorageModule.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="0b068797-cc8c-4b93-a088-db9a84e0ccfa">
+      <Build Project="false" />
+    </Project>
+  </Folder>
+</Solution>
