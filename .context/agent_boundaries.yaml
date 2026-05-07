@@ -94,15 +94,15 @@ global_constraints:
 agents:
 
   # -------------------------------------------------------------------------
-  # AG-00 — SecretaryAgent (Orchestrator)
+  # AG-00 — OrchestratorAgent
   # -------------------------------------------------------------------------
   - id: AG-00
-    name: SecretaryAgent
+    name: OrchestratorAgent
     role: >
       Điều phối toàn solution. Giao task, kiểm soát ranh giới giữa các agent,
       quản lý contract files, audit logs, và kiểm soát việc push code lên GitHub.
       KHÔNG viết feature code cho bất kỳ module nào.
-    working_dir: modules/SecretaryAgent/
+    working_dir: modules/OrchestratorAgent/
 
     allowed_outbound_calls:
       - "*"   # AG-00 có thể giao tiếp với tất cả agents
@@ -120,10 +120,10 @@ agents:
       - manage_tasks                # Write vào .context/Tasks.yaml
 
   # -------------------------------------------------------------------------
-  # AG-01 — AIModule
+  # AG-01 — AIModuleAgent
   # -------------------------------------------------------------------------
   - id: AG-01
-    name: AIModule
+    name: AIModuleAgent
     role: >
       Xây dựng và vận hành AI Inference Service. Chịu trách nhiệm toàn bộ
       về CLIP model loading, embedding extraction, và preprocessing pipeline.
@@ -155,10 +155,10 @@ agents:
       # KHÔNG cần biết: database schemas, authentication, frontend
 
   # -------------------------------------------------------------------------
-  # AG-02 — StorageModule
+  # AG-02 — StorageModuleAgent
   # -------------------------------------------------------------------------
   - id: AG-02
-    name: StorageModule
+    name: StorageModuleAgent
     role: >
       Xây dựng và quản lý toàn bộ hạ tầng lưu trữ: PostgreSQL schemas,
       Milvus collection, MinIO buckets, Redis cache. Không implement business logic.
@@ -193,10 +193,10 @@ agents:
       # KHÔNG cần biết: embedding model, frontend, business logic
 
   # -------------------------------------------------------------------------
-  # AG-03 — BackendModule
+  # AG-03 — BackendModuleAgent
   # -------------------------------------------------------------------------
   - id: AG-03
-    name: BackendModule
+    name: BackendModuleAgent
     role: >
       Xây dựng FastAPI backend — "Nhạc trưởng" điều phối giữa Frontend,
       AI Service, và Storage. Chịu trách nhiệm business logic, auth, search workflow,
@@ -233,10 +233,10 @@ agents:
       # KHÔNG cần biết: CLIP internals, React, React Native
 
   # -------------------------------------------------------------------------
-  # AG-04 — WebFrontend
+  # AG-04 — WebFrontendAgent
   # -------------------------------------------------------------------------
   - id: AG-04
-    name: WebFrontend
+    name: WebFrontendAgent
     role: >
       Xây dựng React web application. Giao diện quản lý album, tìm kiếm ảnh,
       bulk upload, và evaluation dashboard.
@@ -267,10 +267,10 @@ agents:
       # KHÔNG cần biết: model internals, database schemas
 
   # -------------------------------------------------------------------------
-  # AG-05 — MobileFrontend
+  # AG-05 — MobileFrontendAgent
   # -------------------------------------------------------------------------
   - id: AG-05
-    name: MobileFrontend
+    name: MobileFrontendAgent
     role: >
       Xây dựng React Native mobile application. Tận dụng camera và phần cứng
       điện thoại để cung cấp trải nghiệm tìm kiếm ảnh tức thì.
