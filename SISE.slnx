@@ -16,6 +16,9 @@
     <File Path=".github/agents/StorageModuleAgent.agent.md" />
     <File Path=".github/agents/WebFrontendAgent.agent.md" />
   </Folder>
+  <Folder Name="/.github/template/">
+    <File Path=".github/template/template.md" />
+  </Folder>
   <Folder Name="/.knowledge/" />
   <Folder Name="/.knowledge/agent00/">
     <File Path=".knowledge/agent00/KnowledgeBase_00.md" />
@@ -47,6 +50,7 @@
     <File Path=".knowledge/agent05/Skill_05.md" />
   </Folder>
   <Folder Name="/.knowledge/shared/">
+    <File Path=".knowledge/shared/Architecture_4Tier_Analysic.md" />
     <File Path=".knowledge/shared/KnowledgeBase_shared.md" />
   </Folder>
   <Folder Name="/modules/">
