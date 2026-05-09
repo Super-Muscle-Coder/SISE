@@ -6,7 +6,7 @@
     <File Path=".context/openapi.yaml" />
     <File Path=".context/Tasks.yaml" />
   </Folder>
-  <Folder Name="/.context/Session/" />
+  <Folder Name="/.context/Sessions/" />
   <Folder Name="/.github/" />
   <Folder Name="/.github/agents/">
     <File Path=".github/agents/AIModuleAgent.agent.md" />
@@ -51,7 +51,7 @@
   </Folder>
   <Folder Name="/.knowledge/shared/">
     <File Path=".knowledge/shared/Architecture_4Tier_Analysic.md" />
-    <File Path=".knowledge/shared/KnowledgeBase_shared.md" />
+    <File Path=".knowledge/shared/KnowledgeBase_template.md" />
   </Folder>
   <Folder Name="/modules/">
     <Project Path="modules/AIModule/AIModule.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="df3ad6ba-89c7-467b-84fc-50d576144dee">

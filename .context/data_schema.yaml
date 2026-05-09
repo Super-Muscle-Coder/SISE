@@ -18,7 +18,7 @@ migration_tool: alembic
 # ---------------------------------------------------------------------------
 global_configs:
   vector_dim: 512                     # ViT-B/32. Đổi thành 768 nếu dùng ViT-L/14.
-                                      # ⚠️ THAY ĐỔI GIÁ TRỊ NÀY SẼ YÊU CẦU XÓA VÀ TÁI TẠO MILVUS COLLECTION.
+                                      # ⚠ THAY ĐỔI GIÁ TRỊ NÀY SẼ YÊU CẦU XÓA VÀ TÁI TẠO MILVUS COLLECTION.
   supported_dims: [512, 768]
 
   max_file_size_mb: 20
