@@ -3,11 +3,11 @@
 ## Metadata  
 - **id**: KB_AG00_01
 - **title**: Orchestrator & System Governance Knowledge Base
-- **version**: 1.0.1
-- **created_at**: 2024-05-18
+- **version**: 1.0.0
+- **created_at**: 2026-05-09
 - **created_by**: Project Owner
-- **last_updated**: 2024-05-18
-- **last_reviewed**: 2024-05-18
+- **last_updated**: 2026-05-09
+- **last_reviewed**: 2026-05-09
 - **review_owner**: Project Owner
 - **status**: active
 - **visibility**: internal
@@ -89,7 +89,7 @@
 
 ## Review Cadence  
 - **review_interval_days**: 30 (CI/CD environments evolve rapidly; requires frequent auditing).
-- **next_review_due**: 2024-06-18
+- **next_review_due**: 2026-06-09
 
 ---
 

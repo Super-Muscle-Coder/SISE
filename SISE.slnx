@@ -46,12 +46,15 @@
     <File Path=".knowledge/agent04/Skill_04.md" />
   </Folder>
   <Folder Name="/.knowledge/agent05/">
+    <File Path=".knowledge/agent05/KnowledgeBase_05.md" />
     <File Path=".knowledge/agent05/Log_05.md" />
     <File Path=".knowledge/agent05/Skill_05.md" />
   </Folder>
   <Folder Name="/.knowledge/shared/">
     <File Path=".knowledge/shared/Architecture_4Tier_Analysic.md" />
     <File Path=".knowledge/shared/KnowledgeBase_template.md" />
+    <File Path=".knowledge/shared/Log_template.md" />
+    <File Path=".knowledge/shared/Skill_template.md" />
   </Folder>
   <Folder Name="/modules/">
     <Project Path="modules/AIModule/AIModule.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="df3ad6ba-89c7-467b-84fc-50d576144dee">

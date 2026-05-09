@@ -3,11 +3,11 @@
 ## Metadata  
 - **id**: KB_AG01_01
 - **title**: AI & Image Processing Knowledge Base (AI Module)
-- **version**: 1.0.1
-- **created_at**: 2024-05-18
+- **version**: 1.0.0
+- **created_at**: 2026-05-09
 - **created_by**: Project Owner
-- **last_updated**: 2024-05-18
-- **last_reviewed**: 2024-05-18
+- **last_updated**: 2026-05-09
+- **last_reviewed**: 2026-05-09
 - **review_owner**: AG-00 Auditor
 - **status**: active
 - **visibility**: internal

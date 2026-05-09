@@ -3,11 +3,11 @@
 ## Metadata  
 - **id**: KB_AG02_01
 - **title**: Storage & Vector Database Knowledge Base (Storage Module)
-- **version**: 1.0.1
-- **created_at**: 2024-05-18
+- **version**: 1.0.0
+- **created_at**: 2026-05-09
 - **created_by**: Project Owner
-- **last_updated**: 2024-05-18
-- **last_reviewed**: 2024-05-18
+- **last_updated**: 2026-05-09
+- **last_reviewed**: 2026-05-09
 - **review_owner**: AG-00 Auditor
 - **status**: active
 - **visibility**: internal
@@ -79,7 +79,7 @@
 
 ## Review Cadence  
 - **review_interval_days**: 180 (Infrastructure schemas mutate less frequently).
-- **next_review_due**: 2024-11-18
+- **next_review_due**: 2026-11-09
 
 ---
 
