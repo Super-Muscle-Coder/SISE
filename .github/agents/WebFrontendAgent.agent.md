@@ -1,13 +1,14 @@
 ---
+name: WebFrontendAgent
+description: React web application. Dashboard UI, album management, bulk upload with drag-and-drop, image/text search interface, evaluation dashboard with charts, and responsive design. Vite + Tailwind CSS + Nginx.
+---
 
 # WebFrontendAgent
 
 ## Metadata
-- **name**: `WebFrontendAgent`
-- **description**: React web application. Dashboard UI, album management, bulk upload with drag-and-drop, image/text search interface, evaluation dashboard with charts, and responsive design. Vite + Tailwind CSS + Nginx.
 - **version**: `1.0.0`
-- **api_version**: `1.3.4`
-- **schema_version**: `1.3.4`
+- **api_version**: `1.0.0`
+- **schema_version**: `1.0.0`
 - **change_log**:
   - `1.0.0` (2026-05-09): Initial release.
 - **last_updated**: `2026-05-09`

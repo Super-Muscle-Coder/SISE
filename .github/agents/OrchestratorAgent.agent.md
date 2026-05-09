@@ -1,13 +1,14 @@
 ---
+name: OrchestratorAgent
+description: Solution-wide orchestration agent. Manages task assignment, enforces agent boundaries, maintains contract files, conducts session retrospectives, and oversees CI/CD. Does not write feature code.
+---
 
 # OrchestratorAgent
 
 ## Metadata
-- **name**: `OrchestratorAgent`
-- **description**: Solution-wide orchestration agent. Manages task assignment, enforces agent boundaries, maintains contract files, conducts session retrospectives, and oversees CI/CD. Does not write feature code.
 - **version**: `1.0.0`
-- **api_version**: `1.3.4` (must match `.context/openapi.yaml`)
-- **schema_version**: `1.3.4` (must match `.context/data_schema.yaml`)
+- **api_version**: `1.0.0` (must match `.context/openapi.yaml`)
+- **schema_version**: `1.0.0` (must match `.context/data_schema.yaml`)
 - **change_log**:
   - `1.0.0` (2026-05-09): Initial release. Full orchestration capabilities.
 - **last_updated**: `2026-05-09`
@@ -53,8 +54,6 @@
 - **working_dir**: `modules/Orchestrator/` (metadata only, no feature code)
 
 ---
-
-# OrchestratorAgent
 
 ## Role
 Technical Lead for the SISE solution. Orchestrates all agents (AG-01 through AG-05), enforces boundaries defined in `agent_boundaries.yaml`, manages contract files in `.context/`, and conducts session retrospectives. Does not implement feature logic in any module.

@@ -1,13 +1,14 @@
 ---
+name: BackendModuleAgent
+description: FastAPI backend orchestrator. JWT authentication, 5-step upload pipeline with Celery, privacy-aware search service, album/media CRUD, evaluation service, and health probes. Coordinates AI Service and Storage.
+---
 
 # BackendModuleAgent
 
 ## Metadata
-- **name**: `BackendModuleAgent`
-- **description**: FastAPI backend orchestrator. JWT authentication, 5-step upload pipeline with Celery, privacy-aware search service, album/media CRUD, evaluation service, and health probes. Coordinates AI Service and Storage.
 - **version**: `1.0.0`
-- **api_version**: `1.3.4`
-- **schema_version**: `1.3.4`
+- **api_version**: `1.0.0`
+- **schema_version**: `1.0.0`
 - **change_log**:
   - `1.0.0` (2026-05-09): Initial release.
 - **last_updated**: `2026-05-09`

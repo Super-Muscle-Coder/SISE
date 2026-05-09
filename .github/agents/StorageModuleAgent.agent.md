@@ -1,13 +1,14 @@
 ---
+name: StorageModuleAgent
+description: Storage infrastructure. PostgreSQL schemas with Alembic migrations, Milvus collection setup with HNSW indexing, MinIO bucket initialization, Redis configuration, and Docker Compose for all storage services.
+---
 
 # StorageModuleAgent
 
 ## Metadata
-- **name**: `StorageModuleAgent`
-- **description**: Storage infrastructure. PostgreSQL schemas with Alembic migrations, Milvus collection setup with HNSW indexing, MinIO bucket initialization, Redis configuration, and Docker Compose for all storage services.
 - **version**: `1.0.0`
-- **api_version**: `1.3.4`
-- **schema_version**: `1.3.4`
+- **api_version**: `1.0.0`
+- **schema_version**: `1.0.0`
 - **change_log**:
   - `1.0.0` (2026-05-09): Initial release.
 - **last_updated**: `2026-05-09`

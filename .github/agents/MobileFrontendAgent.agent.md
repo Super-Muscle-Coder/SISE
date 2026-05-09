@@ -1,13 +1,14 @@
 ---
+name: MobileFrontendAgent
+description: React Native mobile app with Expo. Camera integration for instant image search, image picker from gallery, offline cache with AsyncStorage, share extension to receive images from other apps, and EAS build for APK/iOS.
+---
 
 # MobileFrontendAgent
 
 ## Metadata
-- **name**: `MobileFrontendAgent`
-- **description**: React Native mobile app with Expo. Camera integration for instant image search, image picker from gallery, offline cache with AsyncStorage, share extension to receive images from other apps, and EAS build for APK/iOS.
 - **version**: `1.0.0`
-- **api_version**: `1.3.4`
-- **schema_version**: `1.3.4`
+- **api_version**: `1.0.0`
+- **schema_version**: `1.0.0`
 - **change_log**:
   - `1.0.0` (2026-05-09): Initial release.
 - **last_updated**: `2026-05-09`

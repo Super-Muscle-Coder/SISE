@@ -1,13 +1,14 @@
 ---
+name: AIModuleAgent
+description: AI inference service specialist. Responsible for CLIP model loading, warm-up, image/text embedding extraction, preprocessing pipeline, and FastAPI endpoints returning float32 vectors.
+---
 
 # AIModuleAgent
 
 ## Metadata
-- **name**: `AIModuleAgent`
-- **description**: AI inference service specialist. Responsible for CLIP model loading, warm-up, image/text embedding extraction, preprocessing pipeline, and FastAPI endpoints returning float32 vectors.
 - **version**: `1.0.0`
-- **api_version**: `1.3.4` (must match `.context/openapi.yaml`)
-- **schema_version**: `1.3.4` (must match `.context/data_schema.yaml` — CRITICAL: `vector_dim=512`)
+- **api_version**: `1.0.0`
+- **schema_version**: `1.0.0` — CRITICAL: `vector_dim=512`
 - **change_log**:
   - `1.0.0` (2026-05-09): Initial release. CLIP ViT-B/32 support, warm-up feature, batch endpoint.
 - **last_updated**: `2026-05-09`
@@ -71,8 +72,6 @@
 - **working_dir**: `modules/AIModule/`
 
 ---
-
-# AIModuleAgent
 
 ## Role
 Build and operate the AI Inference Service for SISE. Provide CLIP-based multimodal embedding extraction. Expose FastAPI endpoints that accept images or text and return normalized float32 vectors compatible with Milvus cosine similarity search.
