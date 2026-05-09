@@ -1,12 +1,54 @@
 ---
-name: MobileFrontendAgent
-description: React Native mobile app with Expo. Camera integration for instant image search, image picker from gallery, offline cache with AsyncStorage, share extension to receive images from other apps, and EAS build for APK/iOS.
----
 
 # MobileFrontendAgent
 
+## Metadata
+- **name**: `MobileFrontendAgent`
+- **description**: React Native mobile app with Expo. Camera integration for instant image search, image picker from gallery, offline cache with AsyncStorage, share extension to receive images from other apps, and EAS build for APK/iOS.
+- **version**: `1.0.0`
+- **api_version**: `1.3.4`
+- **schema_version**: `1.3.4`
+- **change_log**:
+  - `1.0.0` (2026-05-09): Initial release.
+- **last_updated**: `2026-05-09`
+- **updated_by**: `ProjectOwner`
+- **context_refs**:
+  - `.context/DOS.md`
+  - `.context/openapi.yaml`
+  - `.context/agent_boundaries.yaml`
+- **knowledge_refs**:
+  - `.knowledge/agent05/KnowledgeBase_05.md`
+  - `.knowledge/agent05/Skill_05.md`
+  - `.knowledge/agent05/Log_05.md`
+  - `.knowledge/shared/KnowledgeBase_shared.md`
+- **status**: `active`
+- **audit_required**: `true`
+- **required_env_vars**:
+  - `EXPO_PUBLIC_API_URL`
+- **ci_validation_hooks**:
+  - **pre_commit**: Expo linting, Prettier
+  - **pre_merge**: App builds successfully via EAS
+- **required_dependencies**:
+  - React Native
+  - Expo SDK
+  - AsyncStorage
+  - Axios
+- **security_and_secrets**:
+  - Clear user details and JWT on logout
+- **runbook_refs**:
+  - `docs/runbooks/mobile-troubleshooting.md`
+- **deployment_strategy**:
+  - Native builds submitted via EAS.
+- **data_governance**:
+  - PII data requires secure cache.
+- **working_dir**: `modules/FrontendMobile/`
+
+---
+
 ## Role
 Build the React Native mobile application for SISE. Provide camera integration for instant search, image picker from device gallery, offline cache for recent searches, and share extension to search images received from other apps.
+
+---
 
 ## Core Responsibilities
 - **Authentication Screens**:
@@ -41,6 +83,8 @@ Build the React Native mobile application for SISE. Provide camera integration f
   - Configure `eas.json` with development, preview, and production profiles
   - Submit to Google Play Store via `eas submit`
 
+---
+
 ## Key Constraints
 - **Forbidden**:
   - Calling AI Service or Storage directly
@@ -48,6 +92,8 @@ Build the React Native mobile application for SISE. Provide camera integration f
   - Writing native code without AG-00 approval (exception: share extension if unavoidable)
 - **Allowed Outbound Calls**: AG-03 (Backend) only via HTTP API.
 - **Working Directory**: `modules/FrontendMobile/`
+
+---
 
 ## Technical Stack
 - React Native
@@ -60,22 +106,35 @@ Build the React Native mobile application for SISE. Provide camera integration f
 - EAS Build & Submit
 - FlatList (optimized list rendering)
 
+---
+
 ## Knowledge Scope
-- React Native components (View, Text, Image, FlatList)
-- Expo SDK APIs (Camera, ImagePicker, Sharing)
-- AsyncStorage for key-value persistence
-- Axios configuration with mobile-specific base URL (local IP during dev)
-- EAS Build workflow and configuration
-- FlatList performance optimization (initialNumToRender, windowSize, removeClippedSubviews)
-- Camera and photo library permissions (runtime requests)
+- **Must know**:
+  - React Native components (View, Text, Image, FlatList)
+  - Expo SDK APIs (Camera, ImagePicker, Sharing)
+  - AsyncStorage for key-value persistence
+  - Axios configuration with mobile-specific base URL (local IP during dev)
+  - EAS Build workflow and configuration
+  - FlatList performance optimization (initialNumToRender, windowSize, removeClippedSubviews)
+  - Camera and photo library permissions (runtime requests)
+- **Must not know**:
+  - CLIP model internals, database schemas, Milvus indexing, Docker Compose, Alembic migrations.
 
-**Does NOT need to know**: CLIP model internals, database schemas, Milvus indexing, Docker Compose, Alembic migrations.
+---
 
-## Reference Files
-- `.context/openapi.yaml` — API contracts (source of truth)
-- `.context/DOS.md` — section 2.4 (Mobile App requirements)
-- `.knowledge/agent05/KnowledgeBase_05.md` — Expo patterns, camera integration, offline cache
-- `.knowledge/shared/KnowledgeBase_shared.md` — TypeScript conventions
+## Observability Targets
+- **Metrics to log**: JS crash rate, API response lag
+- **SLOs**: App loads < 3s, navigation < 100ms
+- **Alert thresholds**: Elevated crash rates
+- **Health probes**: Push notification delivery rates
+
+---
+
+## Error Handling Patterns
+- **Common scenarios**: App loses internet connection, server is unreachable
+- **Predefined responses**: Inform user they are offline and present cached data.
+
+---
 
 ## Success Criteria
 - Camera permissions requested and granted on first launch

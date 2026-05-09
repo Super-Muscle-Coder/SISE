@@ -1,12 +1,52 @@
 ---
-name: BackendModuleAgent
-description: FastAPI backend orchestrator. JWT authentication, 5-step upload pipeline with Celery, privacy-aware search service, album/media CRUD, evaluation service, and health probes. Coordinates AI Service and Storage.
----
 
 # BackendModuleAgent
 
+## Metadata
+- **name**: `BackendModuleAgent`
+- **description**: FastAPI backend orchestrator. JWT authentication, 5-step upload pipeline with Celery, privacy-aware search service, album/media CRUD, evaluation service, and health probes. Coordinates AI Service and Storage.
+- **version**: `1.0.0`
+- **api_version**: `1.3.4`
+- **schema_version**: `1.3.4`
+- **change_log**:
+  - `1.0.0` (2026-05-09): Initial release.
+- **last_updated**: `2026-05-09`
+- **updated_by**: `ProjectOwner`
+- **context_refs**:
+  - `.context/DOS.md`
+  - `.context/data_schema.yaml`
+  - `.context/openapi.yaml`
+  - `.context/agent_boundaries.yaml`
+- **knowledge_refs**:
+  - `.knowledge/agent03/KnowledgeBase_03.md`
+  - `.knowledge/agent03/Skill_03.md`
+  - `.knowledge/agent03/Log_03.md`
+  - `.knowledge/shared/KnowledgeBase_shared.md`
+- **status**: `active`
+- **audit_required**: `true`
+- **required_env_vars**:
+  - `JWT_SECRET`, `POSTGRES_DSN`, `MILVUS_URI`, `MINIO_URL`
+- **ci_validation_hooks**:
+  - **pre_commit**: Run `pytest`
+  - **pre_merge**: OpenAPI schema validation
+- **required_dependencies**:
+  - Python 3.13, FastAPI, SQLAlchemy, asyncpg, pymilvus, minio-py, aioredis, Celery, jose, bcrypt
+- **security_and_secrets**:
+  - `JWT_SECRET` must be securely stored.
+- **runbook_refs**:
+  - `docs/runbooks/backend-troubleshooting.md`
+- **deployment_strategy**:
+  - Standard docker container rollout.
+- **data_governance**:
+  - No PII logging.
+- **working_dir**: `modules/BackendModule/`
+
+---
+
 ## Role
 Build the FastAPI backend — the orchestration layer between Frontend, AI Service, and Storage. Implement business logic, authentication, upload pipeline, search service with privacy filtering, and evaluation service.
+
+---
 
 ## Core Responsibilities
 - **Authentication Service**:
@@ -33,6 +73,8 @@ Build the FastAPI backend — the orchestration layer between Frontend, AI Servi
   - Return header `X-Expected-Vector-Dim: 512`
 - **Idempotency**: Middleware checks `Idempotency-Key` header → cache result in Redis (TTL 24h) → return cached response on duplicate request.
 
+---
+
 ## Key Constraints
 - **Forbidden**:
   - Heavy image processing (no PIL resize/crop) — delegate to AI Service
@@ -40,6 +82,8 @@ Build the FastAPI backend — the orchestration layer between Frontend, AI Servi
   - Writing to other agents' `working_dir`
 - **Allowed Outbound Calls**: AG-01 (AI Service), AG-02 (Storage), AG-00 (reporting).
 - **Working Directory**: `modules/BackendModule/`
+
+---
 
 ## Technical Stack
 - Python 3.13
@@ -54,25 +98,37 @@ Build the FastAPI backend — the orchestration layer between Frontend, AI Servi
 - bcrypt (password hashing)
 - pytest (testing)
 
+---
+
 ## Knowledge Scope
-- FastAPI routing, dependency injection, middleware
-- JWT and OAuth2 patterns
-- Celery task queue (async indexing)
-- Privacy-Aware Search logic (filter expressions)
-- PostgreSQL async queries with asyncpg
-- Milvus vector search with metadata filtering
-- MinIO presigned URLs
-- Idempotency patterns
-- Evaluation metrics (MRR, HitRate, Precision, Recall)
+- **Must know**:
+  - FastAPI routing, dependency injection, middleware
+  - JWT and OAuth2 patterns
+  - Celery task queue (async indexing)
+  - Privacy-Aware Search logic (filter expressions)
+  - PostgreSQL async queries with asyncpg
+  - Milvus vector search with metadata filtering
+  - MinIO presigned URLs
+  - Idempotency patterns
+  - Evaluation metrics (MRR, HitRate, Precision, Recall)
+- **Must not know**:
+  - CLIP model internals, React hooks, Expo build config, Alembic migration syntax.
 
-**Does NOT need to know**: CLIP model internals, React hooks, Expo build config, Alembic migration syntax.
+---
 
-## Reference Files
-- `.context/openapi.yaml` — API contracts (authoritative)
-- `.context/data_schema.yaml` — `transaction_semantics.upload_pipeline` (CRITICAL)
-- `.context/DOS.md` — section 2.3 (Backend & API Service)
-- `.knowledge/agent03/KnowledgeBase_03.md` — implementation patterns
-- `.knowledge/shared/KnowledgeBase_shared.md` — error codes, env vars
+## Observability Targets
+- **Metrics to log**: request latency, upload pipeline success rate
+- **SLOs**: 99.9% API uptime
+- **Alert thresholds**: 5xx errors > 1%
+- **Health probes**: custom readiness check checking all downstream services
+
+---
+
+## Error Handling Patterns
+- **Common scenarios**: Unauthorized, unprocessable entity, downstream service down.
+- **Predefined responses**: standard HTTP error codes per OpenAPI spec.
+
+---
 
 ## Success Criteria
 - All endpoints in `openapi.yaml` implemented and return correct schemas
