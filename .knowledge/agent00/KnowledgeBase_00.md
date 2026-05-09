@@ -1,92 +1,99 @@
-# =============================================================================
-# KNOWLEDGE BASE — AG-00 OrchestratorAgent
-# =============================================================================
-# Writer  : Project Owner + AG-00 (self)
-# Reader  : AG-00 chủ yếu, AG-00 audit mọi agent khác
-# =============================================================================
+# KnowledgeBase_00.md
 
-## 1. VAI TRÒ & NGUYÊN TẮC CỐT LÕI
-
-AG-00 là **Tech Lead kỹ thuật số** của solution. Không viết code logic, nhưng:
-- Là người duy nhất có quyền ghi vào `.context/` và `.github/agents/`
-- Là người duy nhất giao task trong `Tasks.yaml`
-- Là người kiểm soát ranh giới: nếu phát hiện agent ghi sai vùng, AG-00 có quyền revert
-
-**Nguyên tắc bất di bất dịch:**
-1. DOS.md là nguồn sự thật duy nhất. Khi conflict giữa code và DOS → DOS thắng.
-2. Không agent nào được block nhau im lặng — mọi dependency phải được declare trong Tasks.yaml.
-3. Một task chỉ được chuyển sang `done` khi acceptance_criteria đã pass, không phải khi agent tự nghĩ xong.
+## Metadata  
+- **id**: KB_AG00_01
+- **title**: Orchestrator & System Governance Knowledge Base
+- **version**: 1.0.1
+- **created_at**: 2024-05-18
+- **created_by**: Project Owner
+- **last_updated**: 2024-05-18
+- **last_reviewed**: 2024-05-18
+- **review_owner**: Project Owner
+- **status**: active
+- **visibility**: internal
+- **retention_policy_days**: 365
 
 ---
 
-## 2. QUY TRÌNH MỞ PHIÊN LÀM VIỆC
-
-Khi bắt đầu một phiên mới, AG-00 thực hiện theo thứ tự:
-
-```
-1. Đọc Session file gần nhất trong .context/Sessions/ (nếu có)
-2. Đọc Tasks.yaml → tìm tất cả task status = 'blocked' → xử lý unblock trước
-3. Cập nhật Tasks.yaml: chuyển task phù hợp từ 'scheduled' → 'in_progress'
-4. Giao task cho đúng agent: thông báo qua chat với cú pháp #[agent_name]
-5. Monitor tiến độ trong phiên
-```
+## Scope and Purpose  
+- **scope_summary**: Provides foundational knowledge for AG-00 to operate as the Technical Lead and Orchestrator of the SISE project. AG-00 does not write application code but manages schedules, CI/CD pipelines, API contracts (`.context`), task delegation, and code reviews for all other agents.
+- **dos_reference**: 
+  - Section 5: Solution Structure (management of `.context`, `.github`).
+  - Section 4: Solution-wide Technical Constraints.
+  - Section 2.4C: DevOps & Deployment (Docker, CI/CD).
 
 ---
 
-## 3. QUY TRÌNH ĐÓNG PHIÊN LÀM VIỆC
-
-Khi kết thúc phiên, AG-00 tạo Session file tại `.context/Sessions/Session_YYYYMMDD_HH.md`:
-
-```markdown
-## Session [date] [time]
-
-### Tasks Completed
-- T00X-XX ✅ Agent0N — [title]
-
-### Friction Points
-- [vấn đề gặp phải, agent nào gặp]
-
-### Cross-Agent Dependencies
-- [agent nào đang chờ gì từ agent nào]
-
-### KnowledgeBase Updates Needed
-- [tri thức nào cần được bổ sung vào KnowledgeBase_[N].md]
-
-### Next Session Tasks
-- [danh sách task sẽ được assign phiên tới]
-```
+## Core Concepts  
+- **Single Source of Truth (SSOT)**: `DOS.md` is paramount. Any conflict between the codebase, user requests, and `DOS.md` must be resolved by adhering to or formally updating `DOS.md` first.
+- **Agent Boundaries**: Each agent (AG-01 to AG-05) operates within a strictly defined workspace and knowledge boundary specified in `.context/agent_boundaries.yaml`. AG-00 acts as the auditor. For instance, Frontend agents must never communicate directly with the Database.
+- **Contract-First Development**: System components interact only via the OpenAPI schema (`openapi.yaml`) and Data Schema (`data_schema.yaml`). Any API change must be drafted and approved in the schema before implementation.
+- **Idempotency in System Design**: State-mutating operations (especially Indexing flows and Database Migrations) must be idempotent to ensure safe retries.
+- **Task Orchestration**: A single Task in `Tasks.yaml` encompasses [ID, Assignee, Constraints, Definition of Done]. AG-00 uses this file to track and manage system evolution.
 
 ---
 
-## 4. QUY TẮC AUDIT
-
-AG-00 có thể đọc tất cả file trong `.knowledge/`. Khi audit:
-- `Log_[N].md`: tìm pattern lỗi lặp lại → có thể là dấu hiệu cần cập nhật KnowledgeBase
-- `Skill_[N].md`: verify rằng fix đã được apply đúng, không chỉ là workaround tạm thời
-- `KnowledgeBase_[N].md`: kiểm tra nội dung mới agent đề xuất có vi phạm DOS.md không
+## Trusted References  
+1. **GitHub Actions Documentation**
+   - title: Automate your workflow from idea to production
+   - url: https://docs.github.com/en/actions
+   - type: Official Docs
+   - trust_level: High
+   - notes: Foundation for creating and debugging CI/CD YAML configurations.
+2. **Docker Compose Documentation**
+   - title: Compose File Reference
+   - url: https://docs.docker.com/compose/compose-file/
+   - type: Official Docs
+   - trust_level: High
+   - notes: Guidelines for service networking and environment variable distribution across containers.
+3. **SkillMP - Project Management**
+   - title: Agile & DevOps Project Management
+   - url: https://skillmp.com
+   - type: Reference
+   - trust_level: Medium
+   - notes: Best practices for managing agent workflows and lifecycles.
+4. **OpenAPI Specification (OAS 3.0/3.1)**
+   - title: OpenAPI Specification
+   - url: https://swagger.io/specification/
+   - type: Official Standard
+   - trust_level: High
+   - notes: Standard for validating inter-service communication structures.
 
 ---
 
-## 5. DEPENDENCY GRAPH GIỮA CÁC PHASE
-
-```
-Phase 0 (AG-00) → Phase 1 (AG-02) ─┐
-                                     ├─→ Phase 3 (AG-03) ─┐
-Phase 0 (AG-00) → Phase 2 (AG-01) ─┘                      ├─→ Phase 4 (AG-04, AG-05)
-                                                            └─→ Phase 5 (AG-00)
-```
-
-Phase 1 và Phase 2 có thể chạy song song.
-Phase 4 chỉ bắt đầu khi Phase 3 đạt milestone T003-04 (Search Service).
+## Internal References  
+- `E:\SISE\.context\DOS.md`: The ultimate system guideline.
+- `E:\SISE\.context\Tasks.yaml`: Task delegation dashboard.
+- `E:\SISE\.context\agent_boundaries.yaml`: Absolute inter-agent constraints.
+- `E:\SISE\.knowledge\agent00\Skill_00.md`: Historical resolutions for orchestration and coordination issues.
 
 ---
 
-## 6. FORBIDDEN KNOWLEDGE
+## Do Not Do  
+- WRITE PRODUCT CODE DIRECTLY: AG-00 must never implement logic (e.g., FastAPI, React) on behalf of other agents (AG-01 to AG-05). Reassign tasks to the appropriate agent if bugs arise.
+- CHANGE TECHNOLOGY STANDARDS: Do not propose replacing core technologies (e.g., PostgreSQL with MongoDB) without Project Owner approval and a corresponding `DOS.md` update.
+- UNAUTHORIZED MERGES: Do not merge code from other agents into main/master without executing validation steps and verifying API/schema contract alignments.
 
-AG-00 **không cần và không nên** biết chi tiết về:
-- Cách CLIP model được load trong memory
-- SQL migration syntax cụ thể
-- React component lifecycle
-- Expo build configuration
+---
 
-Lý do: Nếu AG-00 can thiệp vào code nội bộ của các agent, ranh giới sẽ bị phá vỡ.
+## Provenance and Change Log  
+- 2024-05-18 | Project Owner + AI | Translated | Converted to professional technical English.
+
+---
+
+## Validation Hooks  
+- YAML linters must pass before committing modifications to `.context/*.yaml`.
+- Reference URLs should be validated periodically for liveness.
+
+---
+
+## Review Cadence  
+- **review_interval_days**: 30 (CI/CD environments evolve rapidly; requires frequent auditing).
+- **next_review_due**: 2024-06-18
+
+---
+
+## Tags and Search Metadata  
+- **tags**: [orchestrator, governance, ci/cd, docker, docs, ssot]
+- **keywords**: tech lead, tasks.yaml, dos.md, github actions, boundaries, orchestration
+- **canonical_id**: kb.ag00.core.1

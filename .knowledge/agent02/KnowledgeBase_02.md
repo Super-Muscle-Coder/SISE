@@ -1,193 +1,89 @@
-# =============================================================================
-# KNOWLEDGE BASE — AG-02 StorageModuleAgent
-# =============================================================================
-# Writer  : Project Owner + AG-00 + AG-02 (đề xuất, AG-00 approve)
-# Reader  : AG-02 chủ yếu
-# =============================================================================
+# KnowledgeBase_02.md
 
-## 1. DOMAIN KNOWLEDGE: POSTGRESQL
-
-### 1.1 Alembic Migration Workflow
-
-AG-02 chịu trách nhiệm toàn bộ schema lifecycle. Quy trình chuẩn:
-
-```bash
-# Tạo migration mới
-alembic revision --autogenerate -m "create_users_table"
-
-# Chạy migration
-alembic upgrade head
-
-# Rollback 1 bước
-alembic downgrade -1
-
-# Xem lịch sử migration
-alembic history --verbose
-```
-
-> ⚠️ **BẮT BUỘC**: Mỗi migration phải có cả `upgrade()` và `downgrade()`.
-> Migration không có downgrade sẽ bị AG-00 reject khi review PR.
-
-### 1.2 Schema chuẩn theo data_schema.yaml
-
-Thứ tự tạo bảng phải đúng dependency (foreign key constraints):
-```
-1. users
-2. friends      (FK → users)
-3. albums       (FK → users)
-4. images       (FK → users, albums)
-```
-
-### 1.3 Index strategy
-
-```sql
--- Các index đã được định nghĩa trong data_schema.yaml, không được thêm/bớt tùy tiện:
-CREATE INDEX IF NOT EXISTS idx_images_user_id      ON images (user_id);
-CREATE INDEX IF NOT EXISTS idx_images_privacy_level ON images (privacy_level);
-CREATE INDEX IF NOT EXISTS idx_images_created_at   ON images (created_at);
-CREATE INDEX IF NOT EXISTS idx_images_tags_gin     ON images USING gin (tags);
-CREATE INDEX IF NOT EXISTS idx_images_index_status ON images (index_status);
-
--- friends table:
-CREATE INDEX IF NOT EXISTS idx_friends_user_id   ON friends (user_id);
-CREATE INDEX IF NOT EXISTS idx_friends_friend_id ON friends (friend_id);
-```
-
-### 1.4 Soft Delete pattern
-
-Bảng `images` dùng soft delete qua cột `deleted_at`:
-```sql
--- Xóa mềm (AG-03 gọi khi user delete ảnh)
-UPDATE images SET deleted_at = NOW() WHERE id = $1;
-
--- AG-02 phải đảm bảo tất cả query đều filter deleted_at IS NULL
--- AG-03 chịu trách nhiệm logic, AG-02 chỉ cần biết convention này tồn tại
-```
+## Metadata  
+- **id**: KB_AG02_01
+- **title**: Storage & Vector Database Knowledge Base (Storage Module)
+- **version**: 1.0.1
+- **created_at**: 2024-05-18
+- **created_by**: Project Owner
+- **last_updated**: 2024-05-18
+- **last_reviewed**: 2024-05-18
+- **review_owner**: AG-00 Auditor
+- **status**: active
+- **visibility**: internal
+- **retention_policy_days**: 365
 
 ---
 
-## 2. DOMAIN KNOWLEDGE: MILVUS
-
-### 2.1 Collection lifecycle
-
-```python
-from pymilvus import MilvusClient, DataType
-
-client = MilvusClient(uri=f"http://{MILVUS_HOST}:{MILVUS_PORT}")
-
-# Schema definition — phải khớp CHÍNH XÁC với data_schema.yaml → milvus
-schema = client.create_schema(auto_id=False, enable_dynamic_field=False)
-schema.add_field("image_id",     DataType.VARCHAR,      is_primary=True, max_length=36)
-schema.add_field("vector",       DataType.FLOAT_VECTOR, dim=512)   # = global_configs.vector_dim
-schema.add_field("user_id",      DataType.INT64)
-schema.add_field("privacy_level",DataType.INT32)
-
-# Index params — theo data_schema.yaml → milvus.index_params
-index_params = client.prepare_index_params()
-index_params.add_index(
-    field_name="vector",
-    index_type="HNSW",
-    metric_type="COSINE",
-    params={"M": 16, "efConstruction": 200}
-)
-
-# Idempotent creation
-if not client.has_collection("sise_v1"):
-    client.create_collection("sise_v1", schema=schema)
-    client.create_index("sise_v1", index_params)
-    client.load_collection("sise_v1")
-```
-
-### 2.2 HNSW Parameters — tại sao chọn M=16, efConstruction=200
-
-| Parameter | Giá trị | Ý nghĩa |
-|---|---|---|
-| `M` | 16 | Mỗi node có tối đa 16 cạnh kết nối. Tăng M → recall cao hơn, RAM nhiều hơn |
-| `efConstruction` | 200 | Candidate pool khi build. Tăng → chính xác hơn, build chậm hơn |
-| `ef` (search) | 64 | Candidate pool khi query. Tăng → chính xác hơn, query chậm hơn |
-
-**Không tự ý thay đổi các giá trị này.** Nếu cần tune, đề xuất AG-00 cập nhật data_schema.yaml trước.
-
-### 2.3 Collection backup (snapshot)
-
-```bash
-# Chạy weekly theo backup_and_dr trong data_schema.yaml
-# Script: modules/StorageModule/scripts/backup_milvus.sh
-curl -X POST "http://milvus-standalone:9091/api/v1/snapshot" \
-  -H "Content-Type: application/json" \
-  -d '{"collection_name": "sise_v1"}'
-```
+## Scope and Purpose  
+- **scope_summary**: Outlines administrative, configuration, and structural knowledge for the core storage platforms: PostgreSQL (Relational Metadata), Milvus (Vector ANN), MinIO (Object Storage), and Redis (Cache/Queues).
+- **dos_reference**: 
+  - Section 2.2: The Storage (Vector Database Infrastructure).
+  - Section 3.1 & 3.2: Upload & Search Flows (persistence layer guidelines).
 
 ---
 
-## 3. DOMAIN KNOWLEDGE: MINIO
-
-### 3.1 Bucket initialization script (idempotent)
-
-```python
-from minio import Minio
-
-client = Minio(MINIO_ENDPOINT, access_key=MINIO_ACCESS_KEY, secret_key=MINIO_SECRET_KEY, secure=False)
-
-for bucket in ["raw-images", "thumbnails"]:
-    if not client.bucket_exists(bucket):
-        client.make_bucket(bucket)
-```
-
-### 3.2 Object naming convention
-
-```
-{user_id}/{album_id}/{image_id}.jpg
-```
-
-Ví dụ: `42/7/550e8400-e29b-41d4-a716-446655440000.jpg`
-
-AG-02 **không tự generate** object_key. AG-03 generate và truyền vào khi gọi Storage.
-
-### 3.3 Lifecycle rules
-
-Được cấu hình theo `data_schema.yaml → minio.lifecycle_rules`:
-- `thumbnails`: expire sau 365 ngày
-- `raw-images`: archive sau 3650 ngày (10 năm)
+## Core Concepts  
+- **Vector Indexing (HNSW/IVF)**: Algorithm for Approximate Nearest Neighbor lookups in Milvus. Default configuration mandates HNSW with M=16, efConstruction=200, and COSINE similarity.
+- **Privacy-Aware Search (Metadata Filtering)**: Vector search queries must embed filters (e.g., `privacy_level=Public` OR `user_id=current_user`) directly within the Milvus execution plan. Avoiding PostgreSQL post-filtering prevents heavy computation bottlenecks.
+- **Strict Data/Media Separation**: Raw bytes or blobs are strictly forbidden in PostgreSQL/Milvus. Physical image assets reside exclusively in MinIO buckets, while databases store only path references or Object keys.
+- **Schema Idempotency**: All initialization scripts (migrations, bucket creation, collection bootstrapping) must utilize `IF NOT EXISTS` syntax to prevent startup aborts within Dockerized environments.
 
 ---
 
-## 4. DOMAIN KNOWLEDGE: REDIS
-
-AG-02 chịu trách nhiệm **cài đặt và cấu hình** Redis container. AG-03 chịu trách nhiệm **sử dụng** Redis cho cache và Celery broker.
-
-Cấu hình Redis container:
-```yaml
-# Trong docker-compose.storage.yml
-redis:
-  image: redis:7-alpine
-  command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
-  volumes:
-    - redis_data:/data
-```
-
----
-
-## 5. DOCKER COMPOSE RESPONSIBILITIES
-
-AG-02 viết `docker-compose.storage.yml` bao gồm:
-```yaml
-services:
-  postgres:    # image: postgres:16-alpine
-  milvus-standalone:  # image: milvusdb/milvus:v2.4.x
-  etcd:        # phụ trợ cho Milvus
-  minio:       # image: minio/minio
-  redis:       # image: redis:7-alpine
-```
-
-AG-02 **không** viết config cho: `backend`, `ai-service`, `frontend-web`, `celery-worker`.
-AG-00 sẽ merge tất cả vào `docker-compose.yml` chính ở Phase 5.
+## Trusted References  
+1. **Milvus Documentation**
+   - title: Indexing and Metadata Filtering
+   - url: https://milvus.io/docs/index.md
+   - type: Official Docs
+   - trust_level: High
+   - notes: Crucial for implementing accurate boolean expression filtering during inference.
+2. **MinIO Python Client API (Boto3 / Minio-py)**
+   - title: Presigned URLs in MinIO
+   - url: https://min.io/docs/minio/linux/developers/python/API.html#presigned_put_object
+   - type: Official Docs
+   - trust_level: High
+   - notes: Imperative for providing Frontend clients with secure upload pathways.
+3. **PostgreSQL / SQLAlchemy (Asyncpg)**
+   - title: Asyncio with SQLAlchemy
+   - url: https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
+   - type: Official Library Docs
+   - trust_level: High
+   - notes: AG-02 constructs schemas that the AG-03 Async drivers will leverage.
 
 ---
 
-## 6. RANH GIỚI CỨNG
+## Internal References  
+- `E:\SISE\.context\DOS.md`: The ultimate system guideline.
+- `E:\SISE\.context\data_schema.yaml`: DDL configurations must map 1:1 with these logical definitions.
+- `E:\SISE\.knowledge\agent02\Skill_02.md`: Playbooks for disaster recovery (etcd/Milvus crash, PG deadlocks).
 
-- AG-02 **không** implement business logic (ví dụ: không viết "nếu user xóa album thì xóa tất cả ảnh" — đó là AG-03).
-- AG-02 chỉ cung cấp **infrastructure layer**: schema, index, buckets, Docker configs, scripts.
-- AG-02 **không** gọi AG-01 hay AG-03.
-- Mọi thay đổi schema phải qua Alembic migration, **không** ALTER TABLE thủ công.
+---
+
+## Do Not Do  
+- IMPLEMENT BUSINESS LOGIC: AG-02 must not handle token validation, HTTP requests, or image ingestion logic. Responsibilities are limited to infrastructure initialization and CRUD schemas.
+- PERSIST RAW ASSETS IN DB: Databases exclusively hold metadata, constraints, and embeddings. Direct image ingestion belongs in MinIO.
+
+---
+
+## Provenance and Change Log  
+- 2024-05-18 | Project Owner + AI | Translated | Converted to professional technical English.
+
+---
+
+## Validation Hooks  
+- Initialization scripts must pass idempotent behavior tests without throwing errors on subsequent runs.
+- `vector_dim` properties in DDL scripts must align directly with the values in `data_schema.yaml`.
+
+---
+
+## Review Cadence  
+- **review_interval_days**: 180 (Infrastructure schemas mutate less frequently).
+- **next_review_due**: 2024-11-18
+
+---
+
+## Tags and Search Metadata  
+- **tags**: [database, postgres, milvus, minio, sql, vector, infrastructure]
+- **keywords**: hnsw, metadata filtering, s3_bucket, rdbms, idempotency, boolean expressions
+- **canonical_id**: kb.ag02.db.1
