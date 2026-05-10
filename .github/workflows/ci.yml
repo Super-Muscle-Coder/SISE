@@ -1,0 +1,35 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  validate-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate YAML syntax
+        run: |
+          for file in .context/*.yaml; do
+            yq eval '.' "$file" > /dev/null || exit 1
+          done
+
+  test:
+    runs-on: ubuntu-latest
+    needs: validate-contracts
+    steps:
+      - uses: actions/checkout@v4
+      - name: Basic smoke test placeholder
+        run: echo "Tests will go here"
+
+  build:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker images (placeholder)
+        run: echo "Docker build simulated"

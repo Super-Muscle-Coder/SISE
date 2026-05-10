@@ -35,7 +35,7 @@
 phase_0:
   name: "Solution Bootstrap & Configuration"
   owner: AG-00
-  status: in_progress
+  status: done
 
   tasks:
 
@@ -98,7 +98,7 @@ phase_0:
       title: "Thiết lập GitHub Actions CI/CD skeleton"
       assigned_to: AG-00
       priority: P1
-      status: scheduled
+      status: done
       description: >
         Tạo workflow files cơ bản trong .github/workflows/:
         ci.yml (lint + test on PR), build.yml (Docker build on merge to main).
@@ -115,7 +115,7 @@ phase_0:
 phase_1:
   name: "Storage Infrastructure"
   owner: AG-02
-  status: backlog
+  status: in_progress
 
   tasks:
 
