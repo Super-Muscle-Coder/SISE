@@ -18,8 +18,8 @@ description: React Native mobile app with Expo. Camera integration for instant i
   - `.context/openapi.yaml`
   - `.context/agent_boundaries.yaml`
 - **knowledge_refs**:
-  - .knowledge/agent05/ — mobile frontend knowledge (write: AG-05; read: AG-05 + AG-00)
-  - .knowledge/shared/ — shared conventions (read-only)
+  - `.knowledge/agent05/` - mobile frontend knowledge (write: AG-05; read: AG-05 + AG-00)
+  - `.knowledge/shared/` - shared conventions (read-only)
 - **status**: `active`
 - **audit_required**: `true`
 - **required_env_vars**:
@@ -57,14 +57,14 @@ Build the React Native mobile application for SISE. Provide camera integration f
   - Axios interceptor for token injection and 401 handling
 - **Camera Integration**:
   - Request camera permissions at app startup
-  - Camera capture button â†’ launch camera â†’ take photo â†’ instant search
+  - Camera capture button -> launch camera -> take photo -> instant search
   - Use Expo Camera or ImagePicker.launchCameraAsync
   - Compress image (quality: 0.8) before upload to reduce data usage
 - **Image Picker from Gallery**:
-  - Gallery button â†’ launch image picker â†’ select photo â†’ search
+  - Gallery button -> launch image picker -> select photo -> search
   - Support single image selection only
 - **Search Flow**:
-  - Upload image (from camera or gallery) â†’ `POST /search/image` â†’ display results
+  - Upload image (from camera or gallery) -> `POST /search/image` -> display results
   - Results displayed as FlatList with:
     - Thumbnail image
     - Similarity score badge
@@ -74,7 +74,7 @@ Build the React Native mobile application for SISE. Provide camera integration f
   - Cache recent search results in `AsyncStorage` (key-value pairs)
   - When offline, show cached results with "Offline" indicator
   - Limit cache to 10 most recent searches
-- **Share Extension** (P2 â€” optional, requires native code):
+- **Share Extension** (P2 — optional, requires native code):
   - Receive image shared from other apps (Instagram, Facebook, Photos)
   - Launch SISE with shared image pre-loaded for search
   - May require custom native module (Expo SDK support pending)

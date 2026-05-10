@@ -1,56 +1,55 @@
-
 ---
 
 # Agent Template
 
 ## Metadata
-- **name**: TĂªn duy nháº¥t cá»§a agent.
-- **description**: MĂ´ táº£ ngáº¯n gá»n vai trĂ² vĂ  pháº¡m vi.
-- **version**: PhiĂªn báº£n semantic (major.minor.patch).
-- **api_version**: Version cá»§a API contract (pháº£i khá»›p vá»›i `openapi.yaml`).
-- **schema_version**: Version cá»§a schema (pháº£i khá»›p vá»›i `data_schema.yaml`).
-- **change_log**: Nháº­t kĂ½ thay Ä‘á»•i Ä‘á»ƒ audit/rollback.
-- **last_updated**: NgĂ y cáº­p nháº­t gáº§n nháº¥t. 
-- **updated_by**: Ai cáº­p nháº­t. *VĂ­ dá»¥: `AG-00 (SecretaryAgent)` hoáº·c ProjectOwner*  
-- **context_refs**: Liá»‡t kĂª file trong `.context` mĂ  agent phá»¥ thuá»™c. *VĂ­ dá»¥: `.context/DOS.md`, `.context/openapi.yaml`, `.context/agent_boundaries.yaml`, `.context/data_schema.yaml`*  
-- **knowledge_refs**: Thư mục quản lý tri thức của agent (.knowledge/agent[N]/) và thư mục dùng chung (.knowledge/shared/).
-- **status**: Tráº¡ng thĂ¡i agent. *active | deprecated | pending*  
-- **audit_required**: Báº­t cá» audit Ä‘á»ƒ Orchestrator log má»i thay Ä‘á»•i. *true/false*  
-- **required_env_vars**: CĂ¡c biáº¿n mĂ´i trÆ°á»ng báº¯t buá»™c. 
-- **ci_validation_hooks**: CĂ¡c bÆ°á»›c kiá»ƒm tra CI/CD.
-- **required_dependencies**: CĂ¡c dependency vĂ  version, báº¯t buá»™c pháº£i liá»‡t kĂª chĂ­nh xĂ¡c.
-- **security & secrets**: Liá»‡t kĂª secrets cáº§n thiáº¿t vĂ  nÆ¡i lÆ°u trá»¯.
-- **runbook_refs**: Tham chiáº¿u tá»›i tĂ i liá»‡u xá»­ lĂ½ sá»± cá»‘.
-- **deployment_strategy**: Chiáº¿n lÆ°á»£c rollout.
-- **data_governance**: ChĂ­nh sĂ¡ch dá»¯ liá»‡u.
-- **working_dir**: ThÆ° má»¥c project mĂ  agent lĂ m viá»‡c.
+- **name**: Unique name of the agent.
+- **description**: Brief description of role and scope.
+- **version**: Semantic version (major.minor.patch).
+- **api_version**: API contract version (must match `openapi.yaml`).
+- **schema_version**: Schema version (must match `data_schema.yaml`).
+- **change_log**: Change log for audit/rollback.
+- **last_updated**: Date of the last update. 
+- **updated_by**: Who updated it. *Example: `AG-00 (OrchestratorAgent)` or ProjectOwner*  
+- **context_refs**: List of files in `.context` that the agent depends on.
+- **knowledge_refs**: The agent's knowledge management directory (`.knowledge/agent[N]/`) and shared directory (`.knowledge/shared/`).
+- **status**: Agent status. *active | deprecated | pending*  
+- **audit_required**: Enable audit flag so Orchestrator logs all changes. *true/false*  
+- **required_env_vars**: Required environment variables. 
+- **ci_validation_hooks**: CI/CD validation steps.
+- **required_dependencies**: Required dependencies and their versions.
+- **security_and_secrets**: Required secrets and storage location.
+- **runbook_refs**: References to troubleshooting documents.
+- **deployment_strategy**: Rollout strategy.
+- **data_governance**: Data governance policies.
+- **working_dir**: Project directory where the agent works.
 
 ---
 
 ## Role
-MĂ´ táº£ ngáº¯n gá»n vai trĂ² tá»•ng thá»ƒ cá»§a agent trong há»‡ thá»‘ng.  
+Brief description of the agent's overall role in the system.
 
 ---
 
 ## Core Responsibilities
-Liá»‡t kĂª chi tiáº¿t cĂ¡c nhiá»‡m vá»¥ chĂ­nh mĂ  agent Ä‘áº£m nháº­n, dáº¡ng bullet (bĂ¡m sĂ¡t theo `DOS.md`).
-- **Knowledge Management**: TrĂ¡ch nhiá»‡m TUYá»†T Äá»I quáº£n lĂ½, duy trĂ¬ vĂ  cáº­p nháº­t thÆ° má»¥c `.knowledge/agent[N]/`. Báº¯t buá»™c pháº£i tuĂ¢n thá»§ cĂ¡c template chuáº©n trong `.knowledge/shared/`. Khi lĂ m viá»‡c, pháº£i thÆ°á»ng xuyĂªn rĂ  soĂ¡t vĂ  cáº­p nháº­t `KnowledgeBase_[N].md`, `Skill_[N].md`, vĂ  Ä‘áº·c biá»‡t lĂ  `Log_[N].md` bĂ¡m sĂ¡t tiáº¿n Ä‘á»™ thá»±c táº¿ (theo Ä‘Ăºng cÆ¡ cháº¿ trigger).
+List in detail the primary tasks the agent handles, using bullet points (strictly adhering to `DOS.md`).
+- **Knowledge Management**: ABSOLUTE responsibility to manage, maintain, and update the `.knowledge/agent[N]/` directory. Must strictly comply with standards in `.knowledge/shared/`. During operations, must frequently review and update `KnowledgeBase_[N].md`, `Skill_[N].md`, and especially `Log_[N].md` to align with actual task progress (following the correct trigger mechanisms).
 
 ---
 
 ## Key Constraints
-CĂ¡c rĂ ng buá»™c, hĂ nh vi bá»‹ cáº¥m, outbound call (bĂ¡m sĂ¡t theo `DOS.md`, `agent_boundaries.yaml`, `data_schema.yaml`, `openapi.yaml`)
+Constraints, forbidden behaviors, outbound calls (strictly adhering to `DOS.md`, `agent_boundaries.yaml`, `data_schema.yaml`, `openapi.yaml`).
 
 ---
 
 ## Technical Stack
-NgĂ´n ngá»¯, framework, thÆ° viá»‡n chĂ­nh (bĂ¡m sĂ¡t theo `DOS.md`)  
+Main programming language, frameworks, and libraries (strictly adhering to `DOS.md`).
 
 ---
 
 ## Knowledge Scope
-- **Must know**: Kiáº¿n thá»©c cáº§n thiáº¿t pháº£i biáº¿t vĂ  Ä‘Ă o sĂ¢u
-- **Must not know**: Kiáº¿n thá»©c ngoĂ i pháº¡m vi, khĂ´ng cáº§n biáº¿t, khĂ´ng Ä‘Æ°á»£c phĂ©p can thiá»‡p.
+- **Must know**: Essential knowledge that must be known and deeply understood.
+- **Must not know**: Out-of-scope knowledge, unnecessary details, unauthorized areas.
 
 ---
 
@@ -65,11 +64,11 @@ NgĂ´n ngá»¯, framework, thÆ° viá»‡n chĂ­nh (bĂ¡m sĂ¡t theo `DOS
 ## Error Handling Patterns
 - **Common scenarios** 
 - **Predefined responses** 
-- **Difference from Skill.md**: Skill.md ghi láº¡i lá»—i báº¥t ngá» Ä‘Ă£ fix; Error Handling Ä‘á»‹nh nghÄ©a lá»—i dá»± phĂ²ng vĂ  cĂ¡ch pháº£n á»©ng ngay.  
+- **Difference from Skill.md**: `Skill.md` records resolved unexpected errors; Error Handling defines predicted errors and immediate fallback reactions.
 
 ---
 
 ## Success Criteria
-Äá»‹nh nghÄ©a rĂµ rĂ ng tháº¿ nĂ o lĂ  â€œlĂ m Ä‘Ăºngâ€, Ä‘áº£m báº£o agent khĂ´ng áº£o tÆ°á»Ÿng vá» káº¿t quáº£ mĂ  nĂ³ lĂ m ra.  
+Clearly define what "correct execution" means, ensuring the agent does not output hallucinated or unverified results.
 
----
+------

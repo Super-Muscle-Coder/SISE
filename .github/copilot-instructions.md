@@ -1,4 +1,7 @@
 # Copilot Instructions
 
+## General Guidelines
+- Respond in Vietnamese for future interactions.
+
 ## Project Guidelines
-- User requested future responses in Vietnamese.
+- Write all .github files entirely in professional English (no Vietnamese text).

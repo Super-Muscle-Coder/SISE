@@ -18,8 +18,8 @@ description: React web application. Dashboard UI, album management, bulk upload 
   - `.context/openapi.yaml`
   - `.context/agent_boundaries.yaml`
 - **knowledge_refs**:
-  - .knowledge/agent04/ — web frontend knowledge (write: AG-04; read: AG-04 + AG-00)
-  - .knowledge/shared/ — shared conventions (read-only)
+  - `.knowledge/agent04/` - web frontend knowledge (write: AG-04; read: AG-04 + AG-00)
+  - `.knowledge/shared/` - shared conventions (read-only)
 - **status**: `active`
 - **audit_required**: `true`
 - **required_env_vars**:
@@ -51,7 +51,7 @@ Build the React web application for SISE. Provide dashboard UI for album managem
 ---
 
 ## Core Responsibilities
-- **Knowledge Management**: TrĂ¡ch nhiá»‡m TUYá»†T Äá»I quáº£n lĂ½ vĂ  cáº­p nháº­t tĂ i liá»‡u trong `.knowledge/agent04/`. TuĂ¢n thá»§ nghiĂªm ngáº·t template trong `.knowledge/shared/`. Khi xong task (hoáº·c cĂ³ trigger), pháº£i kiá»ƒm tra vĂ  cáº­p nháº­t `KnowledgeBase_04.md`, `Skill_04.md`, vĂ  Ä‘áº·c biá»‡t `Log_04.md` bĂ¡m sĂ¡t tiáº¿n Ä‘á»™ thá»±c táº¿.
+- **Knowledge Management**: ABSOLUTE responsibility to manage, maintain, and update the `.knowledge/agent04/` directory. Must strictly adhere to the standard templates in `.knowledge/shared/`. During operations, frequently review and update `KnowledgeBase_04.md`, `Skill_04.md`, and especially `Log_04.md` to align with actual task progress.
 - **Authentication Pages**:
   - Login page with form validation
   - Register page with password strength indicator
@@ -70,7 +70,7 @@ Build the React web application for SISE. Provide dashboard UI for album managem
   - File validation (only `image/jpeg`, `image/png`, max 20MB)
   - Progress bar showing upload status per file
   - Summary: X uploaded, Y failed with error details
-  - Upload flow: `POST /media/upload/init` â†’ `PUT presignedUrl` â†’ `POST /media/upload/confirm`
+  - Upload flow: `POST /media/upload/init` -> `PUT presignedUrl` -> `POST /media/upload/confirm`
 - **Search Interface**:
   - Image upload widget or text input field (toggled via tabs)
   - Search results grid with:
@@ -86,7 +86,7 @@ Build the React web application for SISE. Provide dashboard UI for album managem
   - Vite build pipeline
   - Nginx Docker container serving static files
   - SPA routing: all paths return `index.html`
-  - Reverse proxy `/api/` â†’ Backend to avoid CORS
+  - Reverse proxy `/api/` -> Backend to avoid CORS
 
 ---
 

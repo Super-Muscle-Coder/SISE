@@ -8,19 +8,19 @@ description: AI inference service specialist. Responsible for CLIP model loading
 ## Metadata
 - **version**: `1.0.0`
 - **api_version**: `1.0.0`
-- **schema_version**: `1.0.0` — CRITICAL: `vector_dim=512`
+- **schema_version**: `1.0.0` - CRITICAL: `vector_dim=512`
 - **change_log**:
   - `1.0.0` (2026-05-09): Initial release. CLIP ViT-B/32 support, warm-up feature, batch endpoint.
 - **last_updated**: `2026-05-09`
 - **updated_by**: `ProjectOwner`
 - **context_refs**:
-  - `.context/DOS.md` — section 2.1 (AI & Data Processing)
-  - `.context/data_schema.yaml` — `global_configs.vector_dim` (**MUST** be 512)
-  - `.context/openapi.yaml` — endpoints `/embed/image`, `/embed/text`, `/embed/batch`
-  - `.context/agent_boundaries.yaml` — AG-01 constraints
+  - `.context/DOS.md` - section 2.1 (AI & Data Processing)
+  - `.context/data_schema.yaml` - `global_configs.vector_dim` (**MUST** be 512)
+  - `.context/openapi.yaml` - endpoints `/embed/image`, `/embed/text`, `/embed/batch`
+  - `.context/agent_boundaries.yaml` - AG-01 constraints
 - **knowledge_refs**:
-  - `.knowledge/agent01/` — AI module knowledge (write: AG-01; read: AG-01 + AG-00)
-  - `.knowledge/shared/` — shared conventions (read-only)
+  - `.knowledge/agent01/` - AI module knowledge (write: AG-01; read: AG-01 + AG-00)
+  - `.knowledge/shared/` - shared conventions (read-only)
 - **status**: `active`
 - **audit_required**: `false` (no direct user data access, only vector computation)
 - **required_env_vars**:
@@ -30,7 +30,7 @@ description: AI inference service specialist. Responsible for CLIP model loading
   - `MODEL_CACHE_DIR` (optional, for offline model loading)
 - **ci_validation_hooks**:
   - **pre_commit**: Run `pytest tests/test_embedding_service.py` to verify vector dimension output
-  - **pre_merge**: Verify `vector_dim` in code matches `data_schema.yaml → global_configs.vector_dim`
+  - **pre_merge**: Verify `vector_dim` in code matches `data_schema.yaml -> global_configs.vector_dim`
   - **post_deploy**: Health check `/health/liveness` returns 200, warm-up completes < 30s
 - **required_dependencies**:
   ```yaml
@@ -57,8 +57,8 @@ description: AI inference service specialist. Responsible for CLIP model loading
   - If using private model weights: store `MODEL_S3_URL` in env var, download at startup
   - Do NOT log full image binary in logs (only log metadata: size, format)
 - **runbook_refs**:
-  - `docs/runbooks/ai-service-model-swap.md` — how to switch from ViT-B/32 to ViT-L/14
-  - `docs/runbooks/ai-service-gpu-troubleshooting.md` — CUDA OOM, driver issues
+  - `docs/runbooks/ai-service-model-swap.md` - how to switch from ViT-B/32 to ViT-L/14
+  - `docs/runbooks/ai-service-gpu-troubleshooting.md` - CUDA OOM, driver issues
 - **deployment_strategy**:
   - **Rolling update**: Deploy new container, wait for health check pass, then terminate old container
   - **Zero-downtime**: Run 2 replicas, update one at a time
@@ -77,7 +77,7 @@ Build and operate the AI Inference Service for SISE. Provide CLIP-based multimod
 ---
 
 ## Core Responsibilities
-- **Knowledge Management**: Trách nhiệm TUYỆT ĐỐI quản lý và cập nhật tài liệu trong `.knowledge/agent01/`. Tuân thủ nghiêm ngặt template trong `.knowledge/shared/`. Khi xong task (hoặc có trigger), phải kiểm tra và cập nhật `KnowledgeBase_01.md`, `Skill_01.md`, và đặc biệt `Log_01.md` bám sát tiến độ thực tế.
+- **Knowledge Management**: ABSOLUTE responsibility to manage, maintain, and update the `.knowledge/agent01/` directory. Must strictly adhere to the standard templates in `.knowledge/shared/`. During operations, frequently review and update `KnowledgeBase_01.md`, `Skill_01.md`, and especially `Log_01.md` to align with actual task progress.
 - **CLIP Model Management**:
   - Load ViT-B/32 (512-dim) or ViT-L/14 (768-dim) based on `CLIP_MODEL_NAME` env var
   - Implement startup warm-up: dummy forward pass to eliminate cold-start latency
@@ -103,16 +103,16 @@ Build and operate the AI Inference Service for SISE. Provide CLIP-based multimod
   - Ensures cosine similarity = dot product (optimization for Milvus)
 - **Error Handling**:
   - Validate image content type (only `image/jpeg`, `image/png`)
-  - Validate image size (reject if > 20MB per `data_schema.yaml → global_configs.max_file_size_mb`)
+  - Validate image size (reject if > 20MB per `data_schema.yaml -> global_configs.max_file_size_mb`)
   - Return structured errors per `openapi.yaml` (e.g., `ERR_INVALID_CONTENT_TYPE`, `ERR_FILE_TOO_LARGE`)
 
 ---
 
 ## Key Constraints
 - **Forbidden Actions** (per `agent_boundaries.yaml`):
-  - `direct_db_access` — do NOT connect to PostgreSQL, Milvus, or MinIO
-  - `write_to_common` — do NOT write to other agents' `working_dir`
-  - `modify_docker_compose` — AG-00 manages `docker-compose.yml`
+  - `direct_db_access` - do NOT connect to PostgreSQL, Milvus, or MinIO
+  - `write_to_common` - do NOT write to other agents' `working_dir`
+  - `modify_docker_compose` - AG-00 manages `docker-compose.yml`
   - No knowledge of `user_id`, `album_id`, `privacy_level` (these are AG-03's concern)
   - No business logic beyond embedding extraction
 - **Allowed Outbound Calls**:
@@ -167,9 +167,9 @@ Build and operate the AI Inference Service for SISE. Provide CLIP-based multimod
   - Batch size 32 latency: **< 5s on CPU**, **< 1s on GPU**
   - Availability: **99.9%** (max 43 minutes downtime per month)
 - **Alert Thresholds**:
-  - `embedding_latency_ms > 600` → Warning: "Latency exceeds SLO, investigate load or hardware"
-  - `error_rate > 5%` → Alert: "High error rate, check logs for pattern"
-  - `model_load_time_ms > 30000` → Warning: "Model load slow, check network or disk I/O"
+  - `embedding_latency_ms > 600` -> Warning: "Latency exceeds SLO, investigate load or hardware"
+  - `error_rate > 5%` -> Alert: "High error rate, check logs for pattern"
+  - `model_load_time_ms > 30000` -> Warning: "Model load slow, check network or disk I/O"
 - **Health Probes**:
   - `GET /health/liveness` — return 200 if process alive (lightweight check)
   - `GET /health/readiness` — return 200 only if:
