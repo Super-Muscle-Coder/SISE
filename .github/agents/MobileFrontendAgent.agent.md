@@ -1,4 +1,4 @@
----
+﻿---
 name: MobileFrontendAgent
 description: React Native mobile app with Expo. Camera integration for instant image search, image picker from gallery, offline cache with AsyncStorage, share extension to receive images from other apps, and EAS build for APK/iOS.
 ---
@@ -50,14 +50,14 @@ Build the React Native mobile application for SISE. Provide camera integration f
 ---
 
 ## Core Responsibilities
-- **Knowledge Management**: TrĂ¡ch nhiá»‡m TUYá»†T Äá»I quáº£n lĂ½ vĂ  cáº­p nháº­t tĂ i liá»‡u trong `.knowledge/agent05/`. TuĂ¢n thá»§ nghiĂªm ngáº·t template trong `.knowledge/shared/`. Khi xong task (hoáº·c cĂ³ trigger), pháº£i kiá»ƒm tra vĂ  cáº­p nháº­t `KnowledgeBase_05.md`, `Skill_05.md`, vĂ  Ä‘áº·c biá»‡t `Log_05.md` bĂ¡m sĂ¡t tiáº¿n Ä‘á»™ thá»±c táº¿.
+- **Knowledge Management**: ABSOLUTE responsibility to manage, maintain, and update the `.knowledge/agent05/` directory. Must strictly adhere to the standard templates in `.knowledge/shared/`. During operations, frequently review and update `KnowledgeBase_05.md`, `Skill_05.md`, and especially `Log_05.md` to align with actual task progress.
 - **Authentication Screens**:
   - Login and Register screens with form validation
   - JWT token storage in `AsyncStorage`
   - Axios interceptor for token injection and 401 handling
 - **Camera Integration**:
   - Request camera permissions at app startup
-  - Camera capture button -> launch camera -> take photo -> instant search
+  - Camera capture -> launch camera -> take photo -> instant search
   - Use Expo Camera or ImagePicker.launchCameraAsync
   - Compress image (quality: 0.8) before upload to reduce data usage
 - **Image Picker from Gallery**:
@@ -138,10 +138,10 @@ Build the React Native mobile application for SISE. Provide camera integration f
 
 ## Success Criteria
 - Camera permissions requested and granted on first launch
-- Camera capture â†’ search â†’ results displayed within 3 seconds
-- Image picker â†’ search works on both Android and iOS
+- Camera capture -> search -> results displayed within 3 seconds
+- Image picker -> search works on both Android and iOS
 - Offline cache: after search, results persist in AsyncStorage and display when offline
 - FlatList optimized: no lag when scrolling through 50+ results
 - EAS Build produces installable APK (Android) and IPA (iOS)
-- Share extension (if implemented): receive image from Instagram â†’ search works
+- Share extension (if implemented): receive image from Instagram -> search works
 - App handles network errors gracefully (show cached results or error message)

@@ -145,9 +145,9 @@ Build the React web application for SISE. Provide dashboard UI for album managem
 ## Success Criteria
 - All pages render without console errors
 - Login/register flows work end-to-end (JWT stored correctly)
-- Bulk upload: drag & drop â†’ validate files â†’ upload â†’ display progress â†’ show summary
-- Search: upload image or enter text â†’ display results grid with scores and badges
-- Evaluation dashboard: trigger benchmark â†’ display MRR, HitRate, Precision chart
-- Responsive design: works on laptop (1920Ă—1080) and tablet (768px)
+- Bulk upload: drag & drop -> validate files -> upload -> display progress -> show summary
+- Search: upload image or enter text -> display results grid with scores and badges
+- Evaluation dashboard: trigger benchmark -> display MRR, HitRate, Precision chart
+- Responsive design: works on laptop (1920x1080) and tablet (768px)
 - Nginx serves SPA correctly with fallback to `index.html`
 - Docker build succeeds and container runs on port 80
