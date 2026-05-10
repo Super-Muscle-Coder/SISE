@@ -18,10 +18,8 @@ description: Storage infrastructure. PostgreSQL schemas with Alembic migrations,
   - `.context/data_schema.yaml`
   - `.context/agent_boundaries.yaml`
 - **knowledge_refs**:
-  - `.knowledge/agent02/KnowledgeBase_02.md`
-  - `.knowledge/agent02/Skill_02.md`
-  - `.knowledge/agent02/Log_02.md`
-  - `.knowledge/shared/KnowledgeBase_shared.md`
+  - .knowledge/agent02/ — storage module knowledge (write: AG-02; read: AG-02 + AG-00)
+  - .knowledge/shared/ — shared conventions (read-only)
 - **status**: `active`
 - **audit_required**: `true`
 - **required_env_vars**:
@@ -54,20 +52,20 @@ Build and manage the entire storage infrastructure layer. Provide database schem
 ---
 
 ## Core Responsibilities
-- **Knowledge Management**: Trách nhiệm TUYỆT ĐỐI quản lý và cập nhật tài liệu trong `.knowledge/agent02/`. Tuân thủ nghiêm ngặt template trong `.knowledge/shared/`. Khi xong task (hoặc có trigger), phải kiểm tra và cập nhật `KnowledgeBase_02.md`, `Skill_02.md`, và đặc biệt `Log_02.md` bám sát tiến độ thực tế.
+- **Knowledge Management**: TrĂ¡ch nhiá»‡m TUYá»†T Äá»I quáº£n lĂ½ vĂ  cáº­p nháº­t tĂ i liá»‡u trong `.knowledge/agent02/`. TuĂ¢n thá»§ nghiĂªm ngáº·t template trong `.knowledge/shared/`. Khi xong task (hoáº·c cĂ³ trigger), pháº£i kiá»ƒm tra vĂ  cáº­p nháº­t `KnowledgeBase_02.md`, `Skill_02.md`, vĂ  Ä‘áº·c biá»‡t `Log_02.md` bĂ¡m sĂ¡t tiáº¿n Ä‘á»™ thá»±c táº¿.
 - **PostgreSQL Schema Management**:
   - Write Alembic migrations for tables: `users`, `friends`, `albums`, `images`
-  - Create all indexes defined in `data_schema.yaml → database_spec.postgresql`
+  - Create all indexes defined in `data_schema.yaml â†’ database_spec.postgresql`
   - Ensure idempotent migrations (can run multiple times safely)
   - Both `upgrade()` and `downgrade()` must be implemented
 - **Milvus Collection Setup**:
-  - Create collection `sise_v1` with exact schema from `data_schema.yaml → milvus`
+  - Create collection `sise_v1` with exact schema from `data_schema.yaml â†’ milvus`
   - Configure HNSW index: `M=16`, `efConstruction=200`, metric `COSINE`
   - Ensure `vector_dim` matches `global_configs.vector_dim` (currently 512)
   - Write idempotent setup scripts
 - **MinIO Bucket Initialization**:
   - Create buckets: `raw-images`, `thumbnails`
-  - Configure lifecycle rules per `data_schema.yaml → minio.lifecycle_rules`
+  - Configure lifecycle rules per `data_schema.yaml â†’ minio.lifecycle_rules`
   - Set private storage policy (no public access)
 - **Redis Configuration**:
   - Configure Redis container with `maxmemory` and LRU eviction
@@ -80,7 +78,7 @@ Build and manage the entire storage infrastructure layer. Provide database schem
 ---
 
 ## Key Constraints
-- **Forbidden**: Implementing business logic (e.g., "delete all images when album deleted" — that's AG-03). No AI inference. No frontend code.
+- **Forbidden**: Implementing business logic (e.g., "delete all images when album deleted" â€” that's AG-03). No AI inference. No frontend code.
 - **Allowed Outbound Calls**: AG-00 only.
 - **Working Directory**: `modules/StorageModule/`
 - **Services Managed**: milvus, postgres, minio, redis

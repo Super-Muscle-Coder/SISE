@@ -18,10 +18,8 @@ description: React Native mobile app with Expo. Camera integration for instant i
   - `.context/openapi.yaml`
   - `.context/agent_boundaries.yaml`
 - **knowledge_refs**:
-  - `.knowledge/agent05/KnowledgeBase_05.md`
-  - `.knowledge/agent05/Skill_05.md`
-  - `.knowledge/agent05/Log_05.md`
-  - `.knowledge/shared/KnowledgeBase_shared.md`
+  - .knowledge/agent05/ — mobile frontend knowledge (write: AG-05; read: AG-05 + AG-00)
+  - .knowledge/shared/ — shared conventions (read-only)
 - **status**: `active`
 - **audit_required**: `true`
 - **required_env_vars**:
@@ -52,21 +50,21 @@ Build the React Native mobile application for SISE. Provide camera integration f
 ---
 
 ## Core Responsibilities
-- **Knowledge Management**: Trách nhiệm TUYỆT ĐỐI quản lý và cập nhật tài liệu trong `.knowledge/agent05/`. Tuân thủ nghiêm ngặt template trong `.knowledge/shared/`. Khi xong task (hoặc có trigger), phải kiểm tra và cập nhật `KnowledgeBase_05.md`, `Skill_05.md`, và đặc biệt `Log_05.md` bám sát tiến độ thực tế.
+- **Knowledge Management**: TrĂ¡ch nhiá»‡m TUYá»†T Äá»I quáº£n lĂ½ vĂ  cáº­p nháº­t tĂ i liá»‡u trong `.knowledge/agent05/`. TuĂ¢n thá»§ nghiĂªm ngáº·t template trong `.knowledge/shared/`. Khi xong task (hoáº·c cĂ³ trigger), pháº£i kiá»ƒm tra vĂ  cáº­p nháº­t `KnowledgeBase_05.md`, `Skill_05.md`, vĂ  Ä‘áº·c biá»‡t `Log_05.md` bĂ¡m sĂ¡t tiáº¿n Ä‘á»™ thá»±c táº¿.
 - **Authentication Screens**:
   - Login and Register screens with form validation
   - JWT token storage in `AsyncStorage`
   - Axios interceptor for token injection and 401 handling
 - **Camera Integration**:
   - Request camera permissions at app startup
-  - Camera capture button → launch camera → take photo → instant search
+  - Camera capture button â†’ launch camera â†’ take photo â†’ instant search
   - Use Expo Camera or ImagePicker.launchCameraAsync
   - Compress image (quality: 0.8) before upload to reduce data usage
 - **Image Picker from Gallery**:
-  - Gallery button → launch image picker → select photo → search
+  - Gallery button â†’ launch image picker â†’ select photo â†’ search
   - Support single image selection only
 - **Search Flow**:
-  - Upload image (from camera or gallery) → `POST /search/image` → display results
+  - Upload image (from camera or gallery) â†’ `POST /search/image` â†’ display results
   - Results displayed as FlatList with:
     - Thumbnail image
     - Similarity score badge
@@ -76,7 +74,7 @@ Build the React Native mobile application for SISE. Provide camera integration f
   - Cache recent search results in `AsyncStorage` (key-value pairs)
   - When offline, show cached results with "Offline" indicator
   - Limit cache to 10 most recent searches
-- **Share Extension** (P2 — optional, requires native code):
+- **Share Extension** (P2 â€” optional, requires native code):
   - Receive image shared from other apps (Instagram, Facebook, Photos)
   - Launch SISE with shared image pre-loaded for search
   - May require custom native module (Expo SDK support pending)
@@ -140,10 +138,10 @@ Build the React Native mobile application for SISE. Provide camera integration f
 
 ## Success Criteria
 - Camera permissions requested and granted on first launch
-- Camera capture → search → results displayed within 3 seconds
-- Image picker → search works on both Android and iOS
+- Camera capture â†’ search â†’ results displayed within 3 seconds
+- Image picker â†’ search works on both Android and iOS
 - Offline cache: after search, results persist in AsyncStorage and display when offline
 - FlatList optimized: no lag when scrolling through 50+ results
 - EAS Build produces installable APK (Android) and IPA (iOS)
-- Share extension (if implemented): receive image from Instagram → search works
+- Share extension (if implemented): receive image from Instagram â†’ search works
 - App handles network errors gracefully (show cached results or error message)

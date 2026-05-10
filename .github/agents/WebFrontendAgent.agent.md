@@ -18,10 +18,8 @@ description: React web application. Dashboard UI, album management, bulk upload 
   - `.context/openapi.yaml`
   - `.context/agent_boundaries.yaml`
 - **knowledge_refs**:
-  - `.knowledge/agent04/KnowledgeBase_04.md`
-  - `.knowledge/agent04/Skill_04.md`
-  - `.knowledge/agent04/Log_04.md`
-  - `.knowledge/shared/KnowledgeBase_shared.md`
+  - .knowledge/agent04/ — web frontend knowledge (write: AG-04; read: AG-04 + AG-00)
+  - .knowledge/shared/ — shared conventions (read-only)
 - **status**: `active`
 - **audit_required**: `true`
 - **required_env_vars**:
@@ -53,7 +51,7 @@ Build the React web application for SISE. Provide dashboard UI for album managem
 ---
 
 ## Core Responsibilities
-- **Knowledge Management**: Trách nhiệm TUYỆT ĐỐI quản lý và cập nhật tài liệu trong `.knowledge/agent04/`. Tuân thủ nghiêm ngặt template trong `.knowledge/shared/`. Khi xong task (hoặc có trigger), phải kiểm tra và cập nhật `KnowledgeBase_04.md`, `Skill_04.md`, và đặc biệt `Log_04.md` bám sát tiến độ thực tế.
+- **Knowledge Management**: TrĂ¡ch nhiá»‡m TUYá»†T Äá»I quáº£n lĂ½ vĂ  cáº­p nháº­t tĂ i liá»‡u trong `.knowledge/agent04/`. TuĂ¢n thá»§ nghiĂªm ngáº·t template trong `.knowledge/shared/`. Khi xong task (hoáº·c cĂ³ trigger), pháº£i kiá»ƒm tra vĂ  cáº­p nháº­t `KnowledgeBase_04.md`, `Skill_04.md`, vĂ  Ä‘áº·c biá»‡t `Log_04.md` bĂ¡m sĂ¡t tiáº¿n Ä‘á»™ thá»±c táº¿.
 - **Authentication Pages**:
   - Login page with form validation
   - Register page with password strength indicator
@@ -72,7 +70,7 @@ Build the React web application for SISE. Provide dashboard UI for album managem
   - File validation (only `image/jpeg`, `image/png`, max 20MB)
   - Progress bar showing upload status per file
   - Summary: X uploaded, Y failed with error details
-  - Upload flow: `POST /media/upload/init` → `PUT presignedUrl` → `POST /media/upload/confirm`
+  - Upload flow: `POST /media/upload/init` â†’ `PUT presignedUrl` â†’ `POST /media/upload/confirm`
 - **Search Interface**:
   - Image upload widget or text input field (toggled via tabs)
   - Search results grid with:
@@ -88,7 +86,7 @@ Build the React web application for SISE. Provide dashboard UI for album managem
   - Vite build pipeline
   - Nginx Docker container serving static files
   - SPA routing: all paths return `index.html`
-  - Reverse proxy `/api/` → Backend to avoid CORS
+  - Reverse proxy `/api/` â†’ Backend to avoid CORS
 
 ---
 
@@ -147,9 +145,9 @@ Build the React web application for SISE. Provide dashboard UI for album managem
 ## Success Criteria
 - All pages render without console errors
 - Login/register flows work end-to-end (JWT stored correctly)
-- Bulk upload: drag & drop → validate files → upload → display progress → show summary
-- Search: upload image or enter text → display results grid with scores and badges
-- Evaluation dashboard: trigger benchmark → display MRR, HitRate, Precision chart
-- Responsive design: works on laptop (1920×1080) and tablet (768px)
+- Bulk upload: drag & drop â†’ validate files â†’ upload â†’ display progress â†’ show summary
+- Search: upload image or enter text â†’ display results grid with scores and badges
+- Evaluation dashboard: trigger benchmark â†’ display MRR, HitRate, Precision chart
+- Responsive design: works on laptop (1920Ă—1080) and tablet (768px)
 - Nginx serves SPA correctly with fallback to `index.html`
 - Docker build succeeds and container runs on port 80

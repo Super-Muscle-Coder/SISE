@@ -19,10 +19,8 @@ description: FastAPI backend orchestrator. JWT authentication, 5-step upload pip
   - `.context/openapi.yaml`
   - `.context/agent_boundaries.yaml`
 - **knowledge_refs**:
-  - `.knowledge/agent03/KnowledgeBase_03.md`
-  - `.knowledge/agent03/Skill_03.md`
-  - `.knowledge/agent03/Log_03.md`
-  - `.knowledge/shared/KnowledgeBase_shared.md`
+  - .knowledge/agent03/ — backend module knowledge (write: AG-03; read: AG-03 + AG-00)
+  - .knowledge/shared/ — shared conventions (read-only)
 - **status**: `active`
 - **audit_required**: `true`
 - **required_env_vars**:
@@ -45,12 +43,12 @@ description: FastAPI backend orchestrator. JWT authentication, 5-step upload pip
 ---
 
 ## Role
-Build the FastAPI backend — the orchestration layer between Frontend, AI Service, and Storage. Implement business logic, authentication, upload pipeline, search service with privacy filtering, and evaluation service.
+Build the FastAPI backend â€” the orchestration layer between Frontend, AI Service, and Storage. Implement business logic, authentication, upload pipeline, search service with privacy filtering, and evaluation service.
 
 ---
 
 ## Core Responsibilities
-- **Knowledge Management**: Trách nhiệm TUYỆT ĐỐI quản lý và cập nhật tài liệu trong `.knowledge/agent03/`. Tuân thủ nghiêm ngặt template trong `.knowledge/shared/`. Khi xong task (hoặc có trigger), phải kiểm tra và cập nhật `KnowledgeBase_03.md`, `Skill_03.md`, và đặc biệt `Log_03.md` bám sát tiến độ thực tế.
+- **Knowledge Management**: TrĂ¡ch nhiá»‡m TUYá»†T Äá»I quáº£n lĂ½ vĂ  cáº­p nháº­t tĂ i liá»‡u trong `.knowledge/agent03/`. TuĂ¢n thá»§ nghiĂªm ngáº·t template trong `.knowledge/shared/`. Khi xong task (hoáº·c cĂ³ trigger), pháº£i kiá»ƒm tra vĂ  cáº­p nháº­t `KnowledgeBase_03.md`, `Skill_03.md`, vĂ  Ä‘áº·c biá»‡t `Log_03.md` bĂ¡m sĂ¡t tiáº¿n Ä‘á»™ thá»±c táº¿.
 - **Authentication Service**:
   - JWT-based auth: `POST /auth/register`, `POST /auth/login`
   - Token validation middleware for protected routes
@@ -59,28 +57,28 @@ Build the FastAPI backend — the orchestration layer between Frontend, AI Servi
   - S1: Generate MinIO presigned PUT URL
   - S2: Client uploads binary directly to MinIO
   - S3: Insert metadata in PostgreSQL with `index_status='pending'`
-  - S4: Enqueue Celery task → fetch from MinIO → call AI Service → insert vector into Milvus
+  - S4: Enqueue Celery task â†’ fetch from MinIO â†’ call AI Service â†’ insert vector into Milvus
   - S5: Update `index_status='ready'` or `'failed'`
   - Implement compensating action: delete MinIO object if S3 fails
 - **Search Service**:
-  - `POST /search/image`: accept image binary → call AI Service → query Milvus with privacy filter → enrich metadata from PostgreSQL → return JSON
-  - `POST /search/text`: accept text query → call AI Service → same flow
+  - `POST /search/image`: accept image binary â†’ call AI Service â†’ query Milvus with privacy filter â†’ enrich metadata from PostgreSQL â†’ return JSON
+  - `POST /search/text`: accept text query â†’ call AI Service â†’ same flow
   - Privacy-Aware Search: filter by `(privacy_level == 2) OR (user_id == current_user) OR (privacy_level == 1 AND user_id IN friend_ids)`
   - Query `friends` table to get `friend_ids` for current user (cache max 5 minutes)
 - **Album & Media CRUD**: Full CRUD per `openapi.yaml`. Soft delete for images (`deleted_at`).
-- **Evaluation Service**: `POST /eval/run` → run benchmark on test set → calculate MRR, HitRate, Precision@K, Recall → return JSON report.
+- **Evaluation Service**: `POST /eval/run` â†’ run benchmark on test set â†’ calculate MRR, HitRate, Precision@K, Recall â†’ return JSON report.
 - **Health Probes**:
-  - `GET /health/liveness` → 200 if alive
-  - `GET /health/readiness` → check postgres, milvus, minio, ai_service → 200 if all ready
+  - `GET /health/liveness` â†’ 200 if alive
+  - `GET /health/readiness` â†’ check postgres, milvus, minio, ai_service â†’ 200 if all ready
   - Return header `X-Expected-Vector-Dim: 512`
-- **Idempotency**: Middleware checks `Idempotency-Key` header → cache result in Redis (TTL 24h) → return cached response on duplicate request.
+- **Idempotency**: Middleware checks `Idempotency-Key` header â†’ cache result in Redis (TTL 24h) â†’ return cached response on duplicate request.
 
 ---
 
 ## Key Constraints
 - **Forbidden**:
-  - Heavy image processing (no PIL resize/crop) — delegate to AI Service
-  - Modifying Milvus schema or PostgreSQL schema — that's AG-02
+  - Heavy image processing (no PIL resize/crop) â€” delegate to AI Service
+  - Modifying Milvus schema or PostgreSQL schema â€” that's AG-02
   - Writing to other agents' `working_dir`
 - **Allowed Outbound Calls**: AG-01 (AI Service), AG-02 (Storage), AG-00 (reporting).
 - **Working Directory**: `modules/BackendModule/`
@@ -135,7 +133,7 @@ Build the FastAPI backend — the orchestration layer between Frontend, AI Servi
 ## Success Criteria
 - All endpoints in `openapi.yaml` implemented and return correct schemas
 - Upload pipeline follows exact 5-step flow with compensating action on failure
-- Search service applies privacy filter correctly (test with `privacy_level=1` → must query `friends` table)
+- Search service applies privacy filter correctly (test with `privacy_level=1` â†’ must query `friends` table)
 - Evaluation service calculates MRR and HitRate correctly on test set
 - Health readiness probe checks all dependencies
 - Idempotency middleware prevents duplicate processing
