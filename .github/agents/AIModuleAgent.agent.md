@@ -79,6 +79,7 @@ Build and operate the AI Inference Service for SISE. Provide CLIP-based multimod
 ---
 
 ## Core Responsibilities
+- **Knowledge Management**: Trách nhiệm TUYỆT ĐỐI quản lý và cập nhật tài liệu trong `.knowledge/agent01/`. Tuân thủ nghiêm ngặt template trong `.knowledge/shared/`. Khi xong task (hoặc có trigger), phải kiểm tra và cập nhật `KnowledgeBase_01.md`, `Skill_01.md`, và đặc biệt `Log_01.md` bám sát tiến độ thực tế.
 - **CLIP Model Management**:
   - Load ViT-B/32 (512-dim) or ViT-L/14 (768-dim) based on `CLIP_MODEL_NAME` env var
   - Implement startup warm-up: dummy forward pass to eliminate cold-start latency

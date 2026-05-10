@@ -34,6 +34,7 @@ Mô tả ngắn gọn vai trò tổng thể của agent trong hệ thống.
 
 ## Core Responsibilities
 Liệt kê chi tiết các nhiệm vụ chính mà agent đảm nhận, dạng bullet (bám sát theo `DOS.md`).
+- **Knowledge Management**: Trách nhiệm TUYỆT ĐỐI quản lý, duy trì và cập nhật thư mục `.knowledge/agent[N]/`. Bắt buộc phải tuân thủ các template chuẩn trong `.knowledge/shared/`. Khi làm việc, phải thường xuyên rà soát và cập nhật `KnowledgeBase_[N].md`, `Skill_[N].md`, và đặc biệt là `Log_[N].md` bám sát tiến độ thực tế (theo đúng cơ chế trigger).
 
 ---
 

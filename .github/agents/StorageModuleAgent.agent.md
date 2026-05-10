@@ -54,6 +54,7 @@ Build and manage the entire storage infrastructure layer. Provide database schem
 ---
 
 ## Core Responsibilities
+- **Knowledge Management**: Trách nhiệm TUYỆT ĐỐI quản lý và cập nhật tài liệu trong `.knowledge/agent02/`. Tuân thủ nghiêm ngặt template trong `.knowledge/shared/`. Khi xong task (hoặc có trigger), phải kiểm tra và cập nhật `KnowledgeBase_02.md`, `Skill_02.md`, và đặc biệt `Log_02.md` bám sát tiến độ thực tế.
 - **PostgreSQL Schema Management**:
   - Write Alembic migrations for tables: `users`, `friends`, `albums`, `images`
   - Create all indexes defined in `data_schema.yaml → database_spec.postgresql`

@@ -53,6 +53,7 @@ Build the React web application for SISE. Provide dashboard UI for album managem
 ---
 
 ## Core Responsibilities
+- **Knowledge Management**: Trách nhiệm TUYỆT ĐỐI quản lý và cập nhật tài liệu trong `.knowledge/agent04/`. Tuân thủ nghiêm ngặt template trong `.knowledge/shared/`. Khi xong task (hoặc có trigger), phải kiểm tra và cập nhật `KnowledgeBase_04.md`, `Skill_04.md`, và đặc biệt `Log_04.md` bám sát tiến độ thực tế.
 - **Authentication Pages**:
   - Login page with form validation
   - Register page with password strength indicator

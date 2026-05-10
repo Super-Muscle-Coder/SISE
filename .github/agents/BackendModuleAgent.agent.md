@@ -50,6 +50,7 @@ Build the FastAPI backend — the orchestration layer between Frontend, AI Servi
 ---
 
 ## Core Responsibilities
+- **Knowledge Management**: Trách nhiệm TUYỆT ĐỐI quản lý và cập nhật tài liệu trong `.knowledge/agent03/`. Tuân thủ nghiêm ngặt template trong `.knowledge/shared/`. Khi xong task (hoặc có trigger), phải kiểm tra và cập nhật `KnowledgeBase_03.md`, `Skill_03.md`, và đặc biệt `Log_03.md` bám sát tiến độ thực tế.
 - **Authentication Service**:
   - JWT-based auth: `POST /auth/register`, `POST /auth/login`
   - Token validation middleware for protected routes

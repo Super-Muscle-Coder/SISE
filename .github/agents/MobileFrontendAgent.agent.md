@@ -52,6 +52,7 @@ Build the React Native mobile application for SISE. Provide camera integration f
 ---
 
 ## Core Responsibilities
+- **Knowledge Management**: Trách nhiệm TUYỆT ĐỐI quản lý và cập nhật tài liệu trong `.knowledge/agent05/`. Tuân thủ nghiêm ngặt template trong `.knowledge/shared/`. Khi xong task (hoặc có trigger), phải kiểm tra và cập nhật `KnowledgeBase_05.md`, `Skill_05.md`, và đặc biệt `Log_05.md` bám sát tiến độ thực tế.
 - **Authentication Screens**:
   - Login and Register screens with form validation
   - JWT token storage in `AsyncStorage`

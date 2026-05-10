@@ -34,24 +34,27 @@ shared_resources:
     - .context/openapi.yaml
     - .context/agent_boundaries.yaml
     - .context/Tasks.yaml
-    - .knowledge/shared/KnowledgeBase_shared.md
+    - .knowledge/shared/KnowledgeBase_template.md
+    - .knowledge/shared/Skill_template.md
+    - .knowledge/shared/Log_template.md
 
-  # Các file / thư mục chỉ AG-00 được ghi
+  # Các file / thư mục chỉ User và AG-00 được ghi, các Agent khác CHỈ READ
   write_restricted_to_ag00:
-    - .github/agents/               # Định nghĩa .agent.md cho từng agent
-    - .github/workflows/            # CI/CD workflow files
+    - .github/                      # Toàn bộ cấu hình github, agents, workflows, template
     - .context/                     # Toàn bộ thư mục .context
-    - .context/Sessions/            # Session retrospective files
+    - .knowledge/shared/            # Toàn bộ template dự án
     - docker-compose.yml            # Kết nối toàn bộ services
 
-  # Các file mà agent[N] và AG-00 cùng có quyền ghi
-  write_shared_per_agent:
-    # Pattern: .knowledge/agent[N]/Log_[N].md  → Writer: Agent[N] + AG-00
-    # Pattern: .knowledge/agent[N]/Skill_[N].md → Writer: Agent[N] (AG-00 chỉ đọc để audit)
-    # Pattern: .knowledge/agent[N]/KnowledgeBase_[N].md → Writer: Agent[N] (đề xuất) + AG-00 (approve)
+  # Các thư mục riêng của agent (Agent sở hữu có quyền Read/Write ĐỘC QUYỀN)
+  write_exclusive_to_agent:
     note: >
-      Mỗi agent chỉ được ghi vào thư mục .knowledge/agent[N]/ của chính mình.
-      Không agent nào được ghi vào thư mục .knowledge/ của agent khác.
+      Mỗi agent có toàn quyền Read/Write ĐỘC QUYỀN trên thư mục .knowledge/agent[N]/ của chính mình.
+      AG-00 KHÔNG được can thiệp Write, CHỈ CÓ THỂ READ để audit/trace làm báo cáo Sessions.
+      KHÔNG agent nào được truy cập ghi vào thư mục .knowledge/ của agent khác.
+      TRÁCH NHIỆM TUYỆT ĐỐI KHI LÀM VIỆC: Mọi agent (bao gồm cả AG-00 với .knowledge/agent00/)
+      khi hoàn thành task bắt buộc phải thường xuyên kiểm tra và cập nhật nội dung KnowledgeBase_[N].md,
+      Skill_[N].md và Log_[N].md để bám sát tiến độ thực tế, đồng thời phải tuân thủ đúng form mẫu
+      của template chuẩn từ .knowledge/shared/.
 
 # ---------------------------------------------------------------------------
 # RÀNG BUỘC TOÀN SOLUTION (Global Constraints)
