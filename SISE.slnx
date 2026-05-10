@@ -19,6 +19,10 @@
   <Folder Name="/.github/template/">
     <File Path=".github/template/template.md" />
   </Folder>
+  <Folder Name="/.github/workflows/">
+    <File Path=".github/workflows/build.yml" />
+    <File Path=".github/workflows/ci.yml" />
+  </Folder>
   <Folder Name="/.knowledge/" />
   <Folder Name="/.knowledge/agent00/">
     <File Path=".knowledge/agent00/KnowledgeBase_00.md" />
