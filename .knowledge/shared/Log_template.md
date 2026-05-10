@@ -1,4 +1,9 @@
-## Template Log.md 
+
+---
+
+## Log_[N].md 
+
+*Log Template* là một tài liệu Markdown chuẩn, chứa bộ khung đã được thiết lập sẵn, khi các agent viết tệp Log của chính nó, cần phải tuân thủ cấu trúc này để đảm bảo tính nhất quán, dễ dàng truy cập và bảo trì. Dưới đây là hướng dẫn chi tiết về cách điền vào từng phần của template:
 
 ### Metadata
 - **id**: Mã định danh duy nhất cho file Log.  
@@ -52,5 +57,11 @@
 - **next_compression_date**: Ngày dự kiến chạy nén tiếp theo.  
 - **session_continuity_protocol**: Quy trình khôi phục ngữ cảnh khi bắt đầu phiên mới.  
 - **notes_and_todo**: Ghi chú tự do hoặc kế hoạch cải tiến.
+
+### Workflow & Session Retrospective Integration (AG-00 Audit)
+*Quy trình bắt buộc cho phần báo cáo của tất cả các Agent:*
+1. **Agent tự báo cáo**: Ngay sau khi hoàn thành Task và chuyển trạng thái sang `review` hoặc `done` trong `Tasks.yaml`, Agent BẮT BUỘC phải tạo một Event Entry vào file `Log_[N].md` của mình. Event này phải ghi rõ chi tiết những file đã sửa, logic đã viết, và các vấn đề (nếu có).
+2. **AG-00 Audit**: AG-00 không yêu cầu Agent báo cáo trực tiếp trong chat. Thay vào đó, AG-00 sẽ trace đến file `Log_[N].md` của Agent đó để đọc, kiểm toán (Audit) và đánh giá chất lượng công việc.
+3. **Tổng hợp theo Template**: Tổng hợp các Log nội bộ đã được kiểm toán, AG-00 sẽ tự động tạo file Session Retrospective chuẩn theo mẫu `.context/Sessions/report_template.md`.
 
 ---
