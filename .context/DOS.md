@@ -337,7 +337,10 @@ SISE/
 │
 ├── .knowledge/                      ← Knowledge base cục bộ
 │   ├── shared/
-│   │   └── KnowledgeBase_shared.md
+│   │   └── KnowledgeBase_template.md
+│   │   └── Skill_template.md
+│   │   └── Log_template.md
+│   │   └── Architecture_4Tier_Analysis.md
 │   ├── agent00/ … agent05/
 │   │   ├── KnowledgeBase_[N].md
 │   │   ├── Skill_[N].md

@@ -3,6 +3,8 @@
 
 # KnowledgeBase_[N].md
 
+*KnowledgeBase Template* là một tài liệu Markdown chuẩn, chứa bộ khung đã được thiết lập sẵn, khi các agent viết tệp KnowledgeBase của chính nó, cần phải tuân thủ cấu trúc này để đảm bảo tính nhất quán, dễ dàng truy cập và bảo trì. Dưới đây là hướng dẫn chi tiết về cách điền vào từng phần của template:
+
 ## Metadata  
 - **id**: Mã định danh duy nhất cho KnowledgeBase.  
 - **title**: Tiêu đề ngắn gọn, mô tả phạm vi tri thức.  

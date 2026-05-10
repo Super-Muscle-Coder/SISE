@@ -19,10 +19,8 @@ description: AI inference service specialist. Responsible for CLIP model loading
   - `.context/openapi.yaml` — endpoints `/embed/image`, `/embed/text`, `/embed/batch`
   - `.context/agent_boundaries.yaml` — AG-01 constraints
 - **knowledge_refs**:
-  - `.knowledge/agent01/KnowledgeBase_01.md` — CLIP implementation patterns (write: AG-01 propose, AG-00 approve; read: AG-01)
-  - `.knowledge/agent01/Skill_01.md` — AI module skills learned (write: AG-01; read: AG-01 + AG-00)
-  - `.knowledge/agent01/Log_01.md` — AI module activity log (write: AG-01 + AG-00; read: AG-01 + AG-00)
-  - `.knowledge/shared/KnowledgeBase_shared.md` — shared conventions (read-only)
+  - `.knowledge/agent01/` — AI module knowledge (write: AG-01; read: AG-01 + AG-00)
+  - `.knowledge/shared/` — shared conventions (read-only)
 - **status**: `active`
 - **audit_required**: `false` (no direct user data access, only vector computation)
 - **required_env_vars**:
