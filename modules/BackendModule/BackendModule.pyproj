@@ -24,10 +24,18 @@
     <Compile Include="BackendModule.py" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="app\" />
+    <Folder Include="app\adapters\" />
+    <Folder Include="app\entities\" />
+    <Folder Include="app\routers\" />
+    <Folder Include="app\services\" />
     <Folder Include="configs\" />
-    <Folder Include="entities\" />
-    <Folder Include="scripts\" />
-    <Folder Include="services\" />
+    <Folder Include="tests\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="configs\be.env" />
+    <Content Include="configs\be.env.example" />
+    <Content Include="configs\be.env.staging" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

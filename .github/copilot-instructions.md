@@ -1,7 +1,7 @@
 # Copilot Instructions
 
 ## General Guidelines
-- Respond in Vietnamese for future interactions.
+- Use Vietnamese for all user-facing responses (the user prefers Vietnamese).
 
 ## Project Guidelines
 - Write all .github files entirely in professional English (no Vietnamese text).

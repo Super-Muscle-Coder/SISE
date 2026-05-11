@@ -4,7 +4,8 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>df3ad6ba-89c7-467b-84fc-50d576144dee</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>AIModule.py</StartupFile>
+    <StartupFile>
+    </StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -21,10 +22,22 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="AIModule.py" />
+    <Folder Include="app\" />
+    <Folder Include="app\adapters\" />
+    <Folder Include="app\entities\" />
+    <Folder Include="app\routers\" />
+    <Folder Include="app\services\" />
+    <Folder Include="configs\" />
+    <Folder Include="tests\" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="services\" />
+    <Content Include="configs\ai.env" />
+    <Content Include="configs\ai.env.example" />
+    <Content Include="configs\ai.env.staging" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="app\dependencies.py" />
+    <Compile Include="app\main.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
