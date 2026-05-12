@@ -55,7 +55,7 @@
     <File Path=".knowledge/agent05/Skill_05.md" />
   </Folder>
   <Folder Name="/.knowledge/shared/">
-    <File Path=".knowledge/shared/Architecture_4Tier_Analysic.md" />
+    <File Path=".knowledge/shared/Architecture_5Tier_Analysic.md" />
     <File Path=".knowledge/shared/KnowledgeBase_template.md" />
     <File Path=".knowledge/shared/Log_template.md" />
     <File Path=".knowledge/shared/Skill_template.md" />
