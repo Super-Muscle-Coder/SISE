@@ -2,9 +2,17 @@
 
 ## General Guidelines
 - Use Vietnamese for all user-facing responses (the user prefers Vietnamese).
+- Note team role: Project Manager (PM).
 
 ## Project Guidelines
 - Write all .github files entirely in professional English (no Vietnamese text).
+
+### Architecture & File Organization
+- Adopt an exclusive five-layer architecture: configs, entities, adapters, services, routers.
+- Combine the five-layer architecture with a Workflow-Centric design: structure code around workflows and their responsibilities.
+- Limit cross-domain reuse: enforce file/module ownership and prevent files from acting as "freelance" across multiple business domains to ensure sufficiency and transparent responsibility.
+- Assign and document a clear owner for each file/module; enforce ownership and reuse rules via code reviews and CI checks.
+- Handle long filenames by exporting concise public names from package __init__.py files; expose stable APIs through package exports while keeping internal filenames explicit.
 
 ## Agent Documentation
 - Specify audit_required for critical agents: set audit_required: true in agent docs and explain why the agent is critical.
