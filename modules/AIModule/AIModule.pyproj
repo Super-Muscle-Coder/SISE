@@ -36,8 +36,8 @@
     <Content Include="configs\ai.env.staging" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="app\dependencies.py" />
-    <Compile Include="app\main.py" />
+    <Compile Include="ai_requirements.txt" />
+    <Compile Include="ai_main.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

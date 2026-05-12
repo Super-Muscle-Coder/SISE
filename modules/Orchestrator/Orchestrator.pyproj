@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>18cabc9c-1106-441f-b4f5-2c1db3bd7061</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>Orchestrator.py</StartupFile>
+    <StartupFile>orchestrator_main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -21,13 +21,20 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Orchestrator.py" />
+    <Compile Include="orchestrator_main.py" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="app\adapters\" />
+    <Folder Include="app\routers\" />
     <Folder Include="configs\" />
-    <Folder Include="entities\" />
-    <Folder Include="services\" />
-    <Folder Include="scripts\" />
+    <Folder Include="app\entities\" />
+    <Folder Include="app\" />
+    <Folder Include="app\services\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="configs\orchestrator.env.example" />
+    <Content Include="configs\orchestrator.env.local" />
+    <Content Include="configs\orchestrator.env.staging" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

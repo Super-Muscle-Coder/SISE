@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>0b068797-cc8c-4b93-a088-db9a84e0ccfa</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>StorageModule.py</StartupFile>
+    <StartupFile>storage_main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -21,7 +21,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="StorageModule.py" />
+    <Compile Include="storage_main.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="app\" />
@@ -33,9 +33,10 @@
     <Folder Include="tests\" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="configs\str.env" />
-    <Content Include="configs\str.env.example" />
-    <Content Include="configs\str.env.staging" />
+    <Content Include="configs\storage.env.local" />
+    <Content Include="configs\storage.env.example" />
+    <Content Include="configs\storage.env.staging" />
+    <Content Include="storage_requirements.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>ff80f0c4-3dc3-48a7-a7bd-a571ef3f0ad3</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>BackendModule.py</StartupFile>
+    <StartupFile>backend_main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -21,7 +21,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="BackendModule.py" />
+    <Compile Include="backend_main.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="app\" />
@@ -33,9 +33,10 @@
     <Folder Include="tests\" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="configs\be.env" />
-    <Content Include="configs\be.env.example" />
-    <Content Include="configs\be.env.staging" />
+    <Content Include="configs\backend.env.local" />
+    <Content Include="configs\backend.env.example" />
+    <Content Include="configs\backend.env.staging" />
+    <Content Include="backend_requirements.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
