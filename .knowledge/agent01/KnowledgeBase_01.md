@@ -80,7 +80,7 @@
 
 ## Review Cadence  
 - **review_interval_days**: 90
-- **next_review_due**: 2024-08-18
+- **next_review_due**: 2026-08-18
 
 ---
 

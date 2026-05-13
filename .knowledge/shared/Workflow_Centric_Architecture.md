@@ -3,208 +3,152 @@
 **Status:** Active (enforced via CI/CD)
 **Owner:** AG-00 (OrchestratorAgent) + ProjectOwner
 **Last Updated:** 2026-05-12
-**Version:** 2.0.0
+**Version:** 2.2.0
 **Applies To:** All modules (AIModule, BackendModule, StorageModule, frontendweb, FrontendMobile)
 ---
 
 # KIẾN TRÚC 5 LỚP VÀ QUY TẮC WORKFLOW-CENTRIC (SISE PROJECT)
 
-Tài liệu này là nguồn tham chiếu chuẩn xác nhất (Single Source of Truth) về cách tổ chức mã nguồn, đặt tên tệp và phân tách trách nhiệm trong dự án SISE. Toàn bộ lập trình viên và Agents BẮT BUỘC tuân thủ.
+Tài liệu này định nghĩa hệ thống phân lớp kiến trúc và nguyên tắc tổ chức mã nguồn của dự án SISE.
 
 ---
 
-## 1. KIẾN TRÚC 5 LỚP TRONG DỰ ÁN SISE
+## 1. KIẾN TRÚC 5 LỚP TRONG SISE
 
-Kiến trúc mã nguồn của SISE được thiết kế theo "Workflow-Centric" kết hợp phân tách 5 lớp rõ ràng. Điều này giúp khoanh vùng trách nhiệm (Bounded Context) cực kỳ mạch lạc.
+Kiến trúc mã nguồn của SISE được thiết kế theo mô hình "Workflow-Centric" kết hợp với sự phân tách 5 lớp (5-Layer Architecture). Kiến trúc này **phù hợp 100% với các project Python (Backend, AI)** và được áp dụng **bán phần cho các project React (Web, Mobile)** với sự điều chỉnh ở lớp UI. Mục tiêu chính là phân định rõ ràng ranh giới trách nhiệm (Bounded Context) và giúp quá trình gỡ lỗi trở nên trực quan nhất có thể.
 
-### 1.1 Trình bày về 5 Thành phần cốt lõi
+### 1.1 Khái niệm về 5 Thành phần cốt lõi
 
-Mọi project trong số 5 Modules chính đều phải tuân thủ 5 lớp sau:
+Trong thư mục mã nguồn của mỗi project (thường là `app/` cho Python hoặc `src/` cho React), toàn bộ code phải được xếp vào đúng 5 lớp sau:
 
-1. **Configs (Cấu hình ngoại vi)**
-   - **Ý nghĩa:** Chứa các biến môi trường, tham số triển khai, URL kết nối. Không chứa logic code.
-   - **Cú pháp tên tệp:** `[prefix].env.[status]` (Ví dụ: `ai.env.local`, `backend.env.staging`).
-   - **Vị trí:** Nằm MỘT MÌNH ở thư mục gốc của project (cùng cấp với `app/` hoặc `src/`).
+1. **configs (Cấu hình ngoại vi)**
+   - **Định nghĩa:** Nơi lưu trữ toàn bộ các tham số môi trường, thông tin kết nối, và các hằng số không thay đổi ở runtime. Tách biệt hoàn toàn ra khỏi thư mục chứa code logic `app`.
+   - **Tên tệp:** Được đặt ở định dạng `[prefix].env.[status]` (Ví dụ: `ai.env.local`, `backend.env.staging`).
+   - **Vị trí:** Đứng độc lập ở thư mục gốc của project, ngang hàng với thư mục mã nguồn chính.
 
-2. **Entities (Thực thể Dữ liệu)**
-   - **Ý nghĩa:** Nơi định nghĩa khung xương dữ liệu (Schema, DTOs, Pydantic Models, SQLAlchemy Models). Tuyệt đối KHÔNG có hàm logic tính toán.
-   - **Cú pháp tên tệp:** `[workflow]_entities.py` (hoặc `.ts`).
-   - **Vị trí:** Nằm trong `app/entities/`.
+2. **entities (Thực thể Dữ liệu)**
+   - **Định nghĩa:** Lớp định nghĩa cấu trúc dữ liệu. Bao gồm các Pydantic Models, SQLAlchemy Schemas, hoặc DTO đối với Python; Interfaces/Types đối với TypeScript. Điểm mấu chốt: **Lớp này tuyệt đối không chứa logic xử lý**. 
+   - **Tên tệp:** `[workflow]_entities.py` (hoặc `.ts`).
 
-3. **Adapters (Cầu nối Ngoại vi)**
-   - **Ý nghĩa:** Chịu trách nhiệm giao tiếp với "thế giới bên ngoài" (Database, AI Model như PyTorch/CLIP, Third-party APIs như MinIO, Milvus). Đây là nơi duy nhất import các thư viện kết nối bên ngoài.
-   - **Cú pháp tên tệp:** `[workflow]_adapters.py` (hoặc `.ts`).
-   - **Vị trí:** Nằm trong `app/adapters/`.
+3. **adapters (Cầu nối Ngoại vi)**
+   - **Định nghĩa:** Nơi duy nhất mã nguồn giao tiếp trực tiếp với "thế giới bên ngoài". Bất kỳ thư viện nào thực thi kết nối (SQLAlchemy cho DB, MinIO Client cho Storage, PyTorch cho AI Inference, Axios/Fetch gọi API) đều phải bọc lại ở đây.
+   - **Tên tệp:** `[workflow]_adapters.py` (hoặc `.ts`).
 
-4. **Services (Logic Nghiệp vụ)**
-   - **Ý nghĩa:** Chứa toàn bộ Data Flow và Business Logic. Nhận Entities, thực hiện tính toán, gọi Adapters để thao tác dữ liệu, và ghép nối các bước lại với nhau thành một luồng hoàn chỉnh.
-   - **Cú pháp tên tệp:** `[workflow]_services.py` (hoặc `.ts`).
-   - **Vị trí:** Nằm trong `app/services/`.
+4. **services (Logic Nghiệp vụ)**
+   - **Định nghĩa:** Bộ não của từng workflow. Chứa "Pure business logic". Services nhận input từ Routers, thao tác dữ liệu dựa trên Entities, và gọi Adapters để thực hiện lưu trữ hoặc tính toán.
+   - **Tên tệp:** `[workflow]_services.py` (hoặc `.ts`).
 
-5. **Routers (Giao tiếp HTTP / UI Controller)**
-   - **Ý nghĩa:** Điểm đón nhận Request từ người dùng (Endpoints trong FastAPI) hoặc UI/Navigation trong Frontend (React). Làm nhiệm vụ Validate Input ban đầu và đẩy yêu cầu xuống cho Services.
-   - **Cú pháp tên tệp:** `[workflow]_routers.py` (hoặc `.ts`).
-   - **Vị trí:** Nằm trong `app/routers/`.
+5. **routers (Giao tiếp HTTP / UI Controller)**
+   - **Định nghĩa:** Cánh cửa tiếp nhận dữ liệu đầu vào. Tại Backend, nó là các Endpoints HTTP (FastAPI routers). Tại Frontend, nó đóng vai trò là Global Orchestrator UI (như Pages, Route config, Controller components). Trách nhiệm của Routers chỉ dừng lại ở bước validate request và điều hướng lời gọi tới Services.
+   - **Tên tệp:** `[workflow]_routers.py` (hoặc `.tsx`). Cùng cấp với lớp này là `main.py` hoặc `App.tsx` đóng vai trò nhạc trưởng cao nhất.
 
-### 1.2 "Bộ tệp" giải quyết tự trị cho 1 mắt xích Workflow
+### Minh hoạ cấu trúc thư mục
+**Áp dụng cho Python (Backend/AI)**
+```text
+project_root/
+├── configs
+│	├── backend.env.local
+│	├── backend.env.staging
+│	├── backend.env.example  
+├── app/
+│   ├── entities/
+│   │    ├── search_entities.py    
+│   │    └── __init__.py
+│   ├── adapters/
+│   │    ├── search_adapters.py   
+│   │    └── __init__.py
+│   ├── services/
+│   │    ├── search_services.py    
+│   │    └── __init__.py
+│   └── routers/
+│        ├── search_routers.py   
+│        └── __init__.py
+├── backend_main.py    
+├── backend_dependencies.py (hoặc backend_requirements.txt)
+(...)
+```
+### 1.2 Quyền lực của "Bộ tệp Workflow"
 
-Thay vì tổ chức theo kiểu MVC truyền thống (gom tất cả Controllers vào 1 chỗ, tất cả Models vào 1 chỗ một cách rời rạc), SISE gom chúng lại thành các **"Bộ tệp Workflow"**.
+Thay vì áp dụng MVC tĩnh khiến số lượng tệp phình to mất kiểm soát, SISE nhóm các lớp trên thành các **"Bộ tệp Workflow"** (Workflow-Centric Naming). 
 
-**Cách hoạt động:** Lấy ví dụ mắt xích vòng đời `upload` của BackendModule, bộ tệp sẽ gồm: `upload_entities.py`, `upload_adapters.py`, `upload_services.py`, `upload_routers.py`. Bộ 4 tệp này hoạt động như một "đội thi công" độc lập, trọn vẹn dành riêng cho nghiệp vụ tải ảnh.
-
-**So sánh Ưu/Nhược điểm với các kiến trúc nhóm phổ biến:**
-- **Ưu điểm SISE (Workflow-Centric):** Khắc phục triệt để căn bệnh "mã nguồn loãng" (Spaghetti Code). Lập trình viên lập tức biết logic nằm ở đâu, không cần nhảy chéo giữa hàng chục file dùng chung. Trách nhiệm (Responsibility) minh bạch.
-- **Nhược điểm (Trade-off):** Chấp nhận hy sinh khả năng tái sử dụng (reusability) ở mức độ nhỏ. Có thể đôi lúc bạn phải viết lại một hàm nhỏ ở 2 file service khác nhau, nhưng đổi lại, nếu sửa logic ở luồng Upload, chắc chắn luồng Search không bao giờ bị dính bug (Side-effect).
+- **Ưu điểm:** Khắc phục triệt để tình trạng mã nguồn chồng chéo. Ví dụ, khi ta cần nâng cấp tính năng "tìm kiếm", bạn chỉ quan tâm đến bộ 4 file bắt đầu bằng `search_...`. Code không bị trộn lẫn trong các schema/service khổng lồ hàng ngàn dòng. Thay đổi logic ở nghiệp vụ "search" sẽ không bao giờ tạo ra bug ẩn cho các luồng nghiệp vụ khác.
+- **Đánh đổi:** Chấp nhận sự lặp lại (code duplication) và khả năng tái sử dụng kém để giữ sự TẬP TRUNG TUYỆT ĐỐI vào Context (Mắt xích nghiệp vụ) thay vì cố trừu tượng hoá.
 
 ---
 
-## 2. CHI TIẾT TỪNG WORKFLOW CỦA CÁC MODULE
+## 2. WORKFLOW ĐẶC TẢ THEO TỪNG MODULE
 
-### 2.1 AG-01: AIModule (The Brain)
-- **Tính chất Workflow:** Pipeline Inference (chuyển đổi Dữ liệu phi cấu trúc -> Vector số). Xử lý nặng bằng CPU/GPU.
-- **Input:** Hình ảnh (form-data) hoặc Văn bản (JSON text) nhận trực tiếp từ BackendModule AG-03.
-- **Output:** Mảng `float32[]` có số chiều tuân thủ tuyệt đối chuẩn `global_configs.vector_dim` của `data_schema.yaml` (512 chiều đối với ViT-B/32). Return JSON về Backend.
+Dưới đây là đặc tả kỹ thuật nghiêm ngặt về phân rã chức năng cho từng Module dựa trên `DOS.md`, `Tasks.yaml` và `data_schema.yaml`.
 
-**Các mắt xích (Links):**
-1. **`warmup` (Warm-up Model):** Tải AI Model (CLIP) từ đĩa cứng lên RAM/VRAM ngay tại thời điểm khởi động FastAPI, tránh tình trạng Cold-start cho request đầu tiên.
-2. **`preprocessing` (Tiền xử lý):** Nhận ảnh, resize 224x224, Normalize, tokenizing text. Đưa Raw Data thành Tensor.
-3. **`embedding` (Trích xuất đặc trưng):** Gọi mạng nơ-ron inference Tensor thành Vector.
+### 2.1 AG-01: AIModule
+- **Đặc tả luồng xử lý:** Pipeline Inference chuyên dụng phân tách tính toán CPU/GPU (Feature Extraction).
+- **Ràng buộc I/O:** Output vector có số chiều bắt buộc phải ánh xạ cấu hình `global_configs.vector_dim` bằng cơ chế kiểm định strict.
+- **Luồng chức năng (Mắt xích phân rã):**
+  1. `warmup`: Trạng thái Pre-initialization. Load CLIP model mapping VRAM để loại trừ cold-start latency.
+  2. `image_embedding`: Pre-processing pipeline (224x224, Normalized RGB matrix) $\rightarrow$ Model Inference $\rightarrow$ Vector float32[].
+  3. `text_embedding`: Text Tokenization $\rightarrow$ Model Inference $\rightarrow$ Temporal Text Vector float32[].
 
-### 2.2 AG-02: StorageModule (The Storage)
-- **Tính chất Workflow:** Cơ sở hạ tầng. Cung cấp Migration scripts và khởi tạo hệ thống lưu trữ chứ không phải code chạy runtime như API.
-- **Input:** Khai báo Schema và Configurations.
-- **Output:** Hạ tầng sẵn sàng để Backend kết nối.
+### 2.2 AG-02: StorageModule
+- **Đặc tả luồng xử lý:** Infrastructure as Code (IaC) và Database Initialization scripts.
+- **Luồng chức năng (Mắt xích phân rã):**
+  1. `schema`: Quản trị Alembic Migrations (PostgreSQL) đảm bảo DDL cho Entities khớp `database_spec.postgresql`.
+  2. `collection`: Milvus Schema Initialization (HNSW Indexing, M: 16, efConstruction: 200) cho collection `sise_v1`.
+  3. `bucket`: MinIO Initial Setup (Lifecycles retention policy cho `raw-images` & `thumbnails`).
 
-**Các mắt xích (Links):**
-1. **`schema` (PostgreSQL):** Tạo bảng `users`, `friends`, `albums`, `images` (bằng Alembic Migration).
-2. **`collection` (Milvus):** Tạo bảng vector `sise_v1` bằng index chuẩn HNSW, Metric COSINE.
-3. **`bucket` (MinIO):** Thiết lập bucket `raw-images` (private), `thumbnails`, và policy lifecycle (Ví dụ sau 10 năm archive).
-
-### 2.3 AG-03: BackendModule (The Backbone)
-- **Tính chất Workflow:** Điều phối viên trung tâm. Router HTTP, quản lý State, Data Flow và Authorization. Bám chặt vào `data_schema.yaml`.
-- **Input:** HTTP Requests từ Frontend.
-- **Output:** JSON Data / Presigned URLs / Redirect.
-
-**Các mắt xích (Links):**
-1. **`auth`:** Đăng ký, đăng nhập JWT, giải mã lấy `user_id`.
-2. **`upload`:** Thực thi chuẩn xác luồng 5 bước "Transaction Semantics" (Tạo Presigned URL -> Client Upload binary MinIO -> DB pending status -> Enqueue -> Commit).
-3. **`indexing`:** Celery Worker ngầm hoạt động: Bốc ảnh từ MinIO -> gọi AIModule -> insert vector vào Milvus -> cập nhật trạng thái PostgreSQL thành `ready`.
-4. **`search`:** Nhận Image/Text từ người dùng -> gọi AIModule sinh vector -> gọi Milvus tìm kiếm **có kèm Privacy Filter** (Privacy-Aware Search theo metadata) -> Map với dữ liệu PostgreSQL để ra Output hoàn chỉnh.
-5. **`evaluation`:** Benchmark đánh giá MRR, HitRate (gọi test dataset).
+### 2.3 AG-03: BackendModule
+- **Đặc tả luồng xử lý:** Central API Gateway & Asynchronous Coordinator. Quản trị Dependency Injection và Transaction Semantics.
+- **Ràng buộc I/O:** Cổng giao tiếp bắt buộc tuân thủ Restful APIs theo `openapi.yaml`.
+- **Luồng chức năng (Mắt xích phân rã):**
+  1. `auth`: Bearer Token validation, JWT decode to extract identity payload.
+  2. `upload`: Orchestration of 5-step pipelining (Presigned URL initialization $\rightarrow$ Binary verification $\rightarrow$ Pending metadata persistence $\rightarrow$ Celery queueing $\rightarrow$ Ready commit).
+  3. `indexing`: Asynchronous Job Consumer. Liên kết AG-01 AI Inference & AG-02 Milvus Storage.
+  4. `search`: Multimodal query ingestion. Áp dụng Privacy-Aware Metadata Filter trên Milvus Engine.
+  5. `evaluation`: Benchmarking daemon trigger (MRR, HitRate, Precision computation).
 
 ### 2.4 AG-04 & AG-05: WebFrontend / MobileFrontend
-- **Tính chất Workflow:** UI Rendering, Client-side state, API Consumer. Không có quyền gọi Milvus/MinIO/AIModule trực tiếp, BẮT BUỘC gọi qua Backend.
-
-**Các mắt xích chung:**
-1. **`auth`:** Lưu Token cục bộ, validate session.
-2. **`upload`:** UI Upload progress, xử lý giao tiếp 2 bước (gọi Backend lấy presigned URL -> tự PUT tệp binary trực tiếp về MinIO).
-3. **`search`:** Thanh tìm kiếm đa phương thức, Filter giao diện, hiển thị ảnh dạng lưới (Grid).
-*(Riêng AG-05 Mobile sẽ có thêm `camera` cho phép chụp ảnh thực).*
-
----
-
-## 3. QUY TẮC TOÀN VẸN (VALIDATION RULES) & ANTI-PATTERNS
-
-### 3.1 Quy tắc định danh tên tệp
-- **Hành động hóa (Action-oriented):** Thay vì đặt tên là danh từ `image_services.py`, HÃY đặt theo động từ quy trình `upload_services.py` hoặc `indexing_services.py`.
-- **Cấm tên "Rác" (No Generic Names):** Tuyệt đối không sinh các tệp như `utils.py`, `helpers.py`, `common.py`. Các hàm tiện ích phải thuộc về Adapter hoặc Service cụ thể.
-- **Tên Adapter:** Phải định danh rõ external system. Ví dụ: `minio_adapters.py`, `clip_adapters.py`.
-
-### 3.2 Các Anti-Patterns cần tránh (Phải ghi nhớ)
-- **ANTI-PATTERN 1 (Logic in Entities):** Entities (Pydantic / SQLAlchemy / Interface / Types) chứa hàm giải quyết logic. (SAI! Entities chỉ được định hình dữ liệu).
-- **ANTI-PATTERN 2 (Service gọi thẳng Lõi Base/External Libs):** Service import thẳng `pymilvus`, `boto3`, hoặc mô hình `torch` vào để gọi. (SAI! Service phải gọi qua hàm của `[workflow]_adapters.py`).
-- **ANTI-PATTERN 3 (Hardcode):** Viết cứng mật khẩu hoặc URL vào trong Adapters. (SAI! Mọi cấu hình gọi từ thư mục `configs/`).
-- **ANTI-PATTERN 4 (Vòng luẩn quẩn):** `upload_services.py` import `search_services.py` và ngược lại. (SAI! Dependency phải theo chiều tuyến tính một chiều).
-
-### 3.3 Dependency Injection (DI)
-- **Rule:** Dùng thiết kế tiêm phụ thuộc qua Constructor. KHÔNG khởi tạo Adapter trực tiếp bên trong nội bộ Service.
-- **Dự án Python/FastAPI:** Sử dụng hàm `Depends()` trong Routers để inject Adapters vào Services.
-- **Lý do:** Rất dễ cho việc Mocking khi viết Unit Test.
-
-### 3.4 Giao tiếp chéo giữa các Modules (Cross-Module Comm)
-- Dựa theo `.context/openapi.yaml`, Modules chỉ được giao tiếp ngoại mạng với nhau qua **HTTP APIs**.
-- **Cấm:** Backend AG-03 không được sử dụng SQLAlchemy chọc thẳng vào file Database riêng của AIModule hoặc đọc qua biến bộ nhớ. Mọi request phải là RESTful API. Tương tự WebFrontend không được tự ý gửi gRPC tới Milvus.
-
-### 3.5 Chiến lược Testing theo Lớp
-- **Entities:** Chỉ Test Validation schema (kiểm tra Validate Error).
-- **Adapters:** Test bằng Mock external client (Mock MinIO put_object).
-- **Services:** Integration Test với Mock Adapters để bám sát logic xử lý if/else.
-- **Routers:** End-to-end Test Request / Response HTTP thật.
-- **Workflow:** Benchmark chạy thực tế luồng thông suốt từ Upload tới Search.
-
-### 3.6 Quản lý Độ Phức Tạp và Mở Rộng
-- **Rule:** Ưu tiên 1 mắt xích chỉ có 1 file. Trừ khi một tệp Services vượt quá 600 dòng code (ví dụ Workflow Upload quá dày).
-- Giữ sự liền mạch (Cohesion) quan trọng hơn kích thước tệp. Nếu thực sự cần chia nhỏ, hãy chia theo phase: `upload_init_services.py` và `upload_commit_services.py`.
+- **Đặc tả luồng xử lý:** Client State Management & Render Tree optimization. Áp dụng kiến trúc 5 lớp bán phần: tách biệt triệt để API calls (Adapters), Data types (Entities) và Logic trạng thái (Services) ra khỏi các Components hiển thị UI (Routers).
+- **Luồng chức năng (Mắt xích phân rã):**
+  1. `auth`: JWT Local/AsyncStorage management.
+  2. `upload`: Blob transport manipulation. Chunking/presigned dispatching protocols.
+  3. `search`: Grid computation & Infinite Scroll pagination mapping.
+  4. `camera` *(Chỉ áp dụng AG-05)*: Native Hardware Device Interface delegation.
 
 ---
 
-## 4. DEMO MINH HỌA VỚI AI MODULE (AG-01)
+## 3. QUY TẮC TOÀN VẸN (VALIDATION RULES) VÀ ANTI-PATTERNS
 
-### 4.1. Workflow của AIModule
-- **Mắt xích `metadata_warmup`:** Chuẩn bị Model.
-- **Mắt xích `image_embedding`:** Nhận ảnh, Resize -> Inference Vector.
-- **Mắt xích `text_embedding`:** Nhận Text, Tokenize -> Inference Vector.
+Phần này định hình các rào cản kỹ thuật tĩnh (Static Constraints) mà các tài liệu mã nguồn do Agents khởi tạo BẮT BUỘC phải thoả mãn nhằm bảo vệ kiến trúc `decoulped`.
 
-### 4.2. Vẽ Cây Thư Mục (Code Tree)
-```text
-modules/AIModule/
-├── configs/
-│   ├── ai.env.local
-│   └── ai.env.production
-├── app/
-│   ├── __init__.py
-│   ├── entities/
-│   │   ├── __init__.py
-│   │   ├── image_embedding_entities.py  (Chứa class ImageEmbedRequest)
-│   │   └── text_embedding_entities.py   (Chứa class TextEmbedRequest)
-│   ├── adapters/
-│   │   ├── __init__.py
-│   │   ├── clip_adapters.py             (Tương tác với thư viện PyTorch/HuggingFace)
-│   ├── services/
-│   │   ├── __init__.py
-│   │   ├── image_embedding_services.py  (Business logic kiểm tra ảnh, gọi Model qua Adapter)
-│   │   ├── text_embedding_services.py
-│   │   └── warmup_services.py
-│   ├── routers/
-│   │   ├── __init__.py
-│   │   └── embedding_routers.py         (Chứa @router.post("/inference/embed/image"))
-│   └── dependencies.py                  (Phụ trách DI kết nối Adapter và Service)
-├── main.py        (FastAPI global orchestrator)
-└── requirements.txt
-```
+### 3.1 Quy tắc định danh và Tổ chức Thư mục
+1. **Action-oriented Lexicon:** Danh pháp tệp phải miêu tả quá trình, không phản ánh danh từ mô tả mảng tĩnh. 
+   - *Valid:* `upload_services.py`, `indexing_adapters.py`.
+   - *Invalid:* `image_services.py`, `model_data.py`.
+2. **Explicit Adapter Declaration:** Lớp adapter bắt buộc gắn tiền tố chỉ định công nghệ nền tảng. (e.g. `minio_upload_adapters.py`).
+3. **Module Barrier:** `__init__.py` phải được khởi tạo tại mỗi thư viện con để bao bọc Context Variables thông qua `__all__ = []`. Cấm rò rỉ imports vượt ra ngoài Scope.
 
-### 4.3. Demo các Quy Tắc Toàn Vẹn trong Code
-- **Cấm Anti-Pattern 1 (Logic in Entities):**
-  Trong `image_embedding_entities.py`, chỉ khai báo dữ liệu kỳ vọng từ `openapi.yaml`:
-  ```python
-  from pydantic import BaseModel
-  class VectorResponse(BaseModel):
-      vector: list[float]
-      dim: int
-      model: str
-  ```
+### 3.2 Anti-Patterns Vận Hành Xây Dựng Ràng Buộc Cứng
+Dựa trên `agent_boundaries.yaml` và `DOS.md`, các tập vi phạm sau sẽ trigger Lỗi Hậu Kiểm (CI Reject):
 
-- **Dependency Injection (DI) & Anti-Pattern 2:**
-  Trong `image_embedding_services.py`, Service gọi AI Model nhưng không import PyTorch:
-  ```python
-  class ImageEmbeddingService:
-      # Inject Adapter vào
-      def __init__(self, clip_adapter: CLIPAdapter):
-          self.clip_adapter = clip_adapter
+- **[AP-1] Delegation Breach (Vi phạm Uỷ quyền Khối lượng):** AG-03 tự ý khởi tạo cấu trúc tính toán (như Resize Array hoặc Deep Learning Embedding) mà không sử dụng AG-01. (Nguyên tắc: `heavy_image_processing` bị cấm hoàn toàn tại lớp API Gateway).
+- **[AP-2] Direct Resource Manipulation (Cấm xâm phạm Hạ tầng Dữ liệu Chéo):** AG-03 gọi SQLAlchemy can thiệp cơ sở dữ liệu vật lý riêng của AG-01 hoặc AG-04 chọc thẳng HTTP tới Milvus. Mọi trao đổi phải đóng gói theo RESTful protocol quy định tại `openapi.yaml`.
+- **[AP-3] Hardcoded Configuration (Trạng thái Cứng):** Bí mật cấp cao hoặc tham chiếu URI nằm trong nội hàm của Adapter. (Thay vào đó, phải Inject từ Env config tại bước Startup).
+- **[AP-4] Logic Bleed in Entities (Tràn Logic thực thể):** Định nghĩa Data Types như `Pydantic BaseModel` chứa Methods có tính toán State.
+- **[AP-5] Circular Dependency (Phụ thuộc Tuyến tính Nghịch):** Module A.Service mapping sang Module B.Service, trong khi Module B.Service gọi trực tiếp module A. Tính Linear Directed Graph bị phá huỷ.
 
-      async def process(self, file_bytes: bytes) -> VectorResponse:
-          # Business logic (e.g., validate format, log processing time)
-          vector = self.clip_adapter.extract_image_features(file_bytes)
-          return VectorResponse(vector=vector, dim=len(vector), model="clip-vit-b-32")
-  ```
+### 3.3 Cơ chế Khởi tạo và Phụ thuộc (Dependency Injection)
+- Lớp Services không khởi tạo lớp Adapters. Adapters phải được Injected qua Constructor Object tại Initialization Runtime ở vòng Routers (vd thông qua hệ thống `Depends()` của FastAPI).
+- Việc inject này đảm bảo Unit Test Module có khả năng tách rời (Isolation Mocking) nhằm đánh giá riêng Business Logic của Lớp 4 (Services) mà không tiêu tốn Network I/O.
 
-- **__init__.py thông minh để né tên dài:**
-  Tại `app/services/__init__.py`:
-  ```python
-  from .image_embedding_services import ImageEmbeddingService
-  from .text_embedding_services import TextEmbeddingService
+### 3.4 Giao tiếp chéo và Idempotency (Cross-Module Communication)
+- Kế thừa chuẩn `openapi.yaml`: Liên lạc ngoại vi hệ thống được đảm bảo tính bất biến (Idempotent), dựa trên HTTP Header `Idempotency-Key` (TTL 24 hours).
+- Xác thực kích thước Vector (Vector-Dim Assertion): AG-01 khi trả kết quả, AG-03 tiến hành parse phải kiểm thử cấu trúc thông qua `X-Expected-Vector-Dim` probe endpoint `/health/readiness`. Mismatch phải trả `400 ERR_VECTOR_DIM_MISMATCH`.
 
-  __all__ = ["ImageEmbeddingService", "TextEmbeddingService"]
-  ```
+### 3.5 Chiến lược Đảm bảo Chất lượng theo Phân lớp (Layer Testing Matrix)
+- **Entities:** Runtime Constraint Validator Coverage (Input Type validation).
+- **Adapters:** Network Client Isolation Mockings.
+- **Services:** Pure Logic Integration Test bằng Stub Adapters.
+- **Routers & Workflow:** RESTful Endpoint E2E (End-to-end payload asserting). Đạt mốc `200/201/202` schema testing theo `openapi-generator`.
 
-Việc tuân thủ một khuôn gốc chuẩn mực như trên biến dự án SISE thành một bộ code có khả năng chống đạn với các rủi ro thay đổi hành vi trong quá trình phát triển (Regression bugs).
+### 3.6 Quản Trị Phức Tạp Thuật Toán (Complexity Management)
+- **Nguyên lý 1 - Cohesion Constraint:** Nếu chiều dài thuật toán của 1 Single Workflow file vượt 2000 loc (dòng) mà việc chia nhỏ bằng Interface làm tăng độ trừu tượng, BẮT BUỘC giữ nguyên để bảo toàn Context Cohesion.
+- **Nguyên lý 2 - Phase Splitting:** Nếu file chứa 2 phases rời rạc (Ví dụ: `upload` pipeline chứa "Upload_init" - presigned creation và "Upload_commit" - verify), lập trình viên được quyền rẽ nhánh file thành `upload_init_services.py` và `upload_commit_services.py`. Tuyệt đối không sinh thêm class chung như `utils.py`.
