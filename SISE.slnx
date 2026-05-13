@@ -6,7 +6,9 @@
     <File Path=".context/openapi.yaml" />
     <File Path=".context/Tasks.yaml" />
   </Folder>
-  <Folder Name="/.context/Sessions/" />
+  <Folder Name="/.context/Sessions/">
+    <File Path=".context/Sessions/report_template.md" />
+  </Folder>
   <Folder Name="/.github/" />
   <Folder Name="/.github/agents/">
     <File Path=".github/agents/AIModuleAgent.agent.md" />

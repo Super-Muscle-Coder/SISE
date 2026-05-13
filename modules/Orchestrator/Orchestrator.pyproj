@@ -11,6 +11,7 @@
     <OutputPath>.</OutputPath>
     <Name>Orchestrator</Name>
     <RootNamespace>Orchestrator</RootNamespace>
+    <InterpreterId>Global|PythonCore|3.13</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -35,6 +36,11 @@
     <Content Include="configs\orchestrator.env.example" />
     <Content Include="configs\orchestrator.env.local" />
     <Content Include="configs\orchestrator.env.staging" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="Global|PythonCore|3.11" />
+    <InterpreterReference Include="Global|PythonCore|3.13" />
+    <InterpreterReference Include="Global|PythonCore|3.14" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

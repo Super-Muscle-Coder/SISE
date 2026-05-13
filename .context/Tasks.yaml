@@ -115,21 +115,27 @@ phase_0:
 phase_1:
   name: "Storage Infrastructure"
   owner: AG-02
-  status: in_progress
+  status: review
+  notes_from_ag00: >
+    Ưu tiên theo Workflow-Centric (Workflow_Centric_Architecture.md §2.2):
+    schema (T001-01) → collection (T001-02) → bucket (T001-03). Các tiện ích
+    khác (docker-compose, seed data) làm sau khi 3 mắt xích cốt lõi hoàn tất.
 
   tasks:
 
     - id: T001-01
-      title: "PostgreSQL schema migration"
+      title: "[workflow:schema] PostgreSQL schema migration bundle"
       assigned_to: AG-02
       priority: P0
-      status: backlog
+      status: review
       description: >
-        Viết Alembic migration scripts tạo đủ 4 bảng: users, friends, albums, images.
-        Bao gồm tất cả indexes theo data_schema.yaml → database_spec.postgresql.
-        Chạy migration thành công trong môi trường Docker local.
+        Workflow bundle "schema": viết Alembic migrations + các file cùng prefix
+        `schema_...` (entities/adapters/services/routers nếu cần) để quản trị DDL.
+        Tạo đủ 4 bảng: users, friends, albums, images và indexes theo
+        data_schema.yaml → database_spec.postgresql. Chạy migration trong Docker local.
       depends_on: [T000-02]
       acceptance_criteria:
+        - Tất cả file thuộc workflow này bắt đầu bằng prefix `schema_`
         - alembic upgrade head chạy không lỗi
         - Tất cả bảng và indexes tồn tại đúng schema
         - alembic downgrade head~1 chạy không lỗi (rollback được)
@@ -138,61 +144,66 @@ phase_1:
         cho privacy_level = 1 (Friends). Xem data_schema.yaml → notes.privacy_level_1_query.
 
     - id: T001-02
-      title: "Milvus collection setup"
+      title: "[workflow:collection] Milvus collection setup bundle"
       assigned_to: AG-02
       priority: P0
-      status: backlog
+      status: review
       description: >
-        Tạo Milvus collection sise_v1 với schema đúng theo data_schema.yaml → milvus.
-        Cấu hình HNSW index với đúng M=16, efConstruction=200.
-        Viết script setup có thể chạy idempotent (chạy nhiều lần không lỗi).
+        Workflow bundle "collection": tạo collection sise_v1 với schema đúng
+        theo data_schema.yaml → milvus. Cấu hình HNSW M=16, efConstruction=200.
+        Script/setup thuộc workflow này dùng prefix `collection_...` và idempotent.
       depends_on: [T000-02]
       acceptance_criteria:
+        - Tất cả file thuộc workflow này bắt đầu bằng prefix `collection_`
         - Collection sise_v1 tồn tại và loaded
         - Index type HNSW với metric COSINE
         - vector_dim = 512 (theo data_schema.yaml → global_configs.vector_dim)
         - Insert test vector và query thành công
 
     - id: T001-03
-      title: "MinIO bucket initialization"
+      title: "[workflow:bucket] MinIO bucket initialization bundle"
       assigned_to: AG-02
       priority: P0
-      status: backlog
+      status: review
       description: >
-        Tạo 2 buckets: raw-images và thumbnails. Cấu hình lifecycle rules theo
-        data_schema.yaml → minio.lifecycle_rules. Viết script init idempotent.
+        Workflow bundle "bucket": tạo 2 buckets raw-images, thumbnails và
+        lifecycle rules theo data_schema.yaml → minio.lifecycle_rules. Script
+        init idempotent, file thuộc workflow dùng prefix `bucket_...`.
       depends_on: [T000-02]
       acceptance_criteria:
+        - Tất cả file thuộc workflow này bắt đầu bằng prefix `bucket_`
         - Cả 2 buckets tồn tại với đúng policy
         - Upload test object và download lại thành công
         - Lifecycle rules được apply
 
     - id: T001-04
-      title: "Docker Compose storage stack"
+      title: "[workflow:infra_compose] Docker Compose storage stack bundle"
       assigned_to: AG-02
       priority: P0
-      status: backlog
+      status: review
       description: >
-        Viết docker-compose.storage.yml bao gồm: postgres, milvus-standalone,
-        etcd, minio, redis. Cấu hình volumes để data persistent khi restart.
-        AG-00 sẽ merge vào docker-compose.yml chính sau.
+        Workflow bundle "infra_compose": docker-compose.storage.yml cho postgres,
+        milvus-standalone, etcd, minio, redis. File/script liên quan dùng prefix
+        `infra_compose_...` (nếu có). Cấu hình volumes persistent. AG-00 merge sau.
       depends_on: [T001-01, T001-02, T001-03]
       acceptance_criteria:
+        - Tất cả file thuộc workflow này bắt đầu bằng prefix `infra_compose_` 
         - docker compose up chạy thành công, tất cả containers healthy
         - Sau khi restart containers, data vẫn còn
         - Health check pass cho tất cả services
 
     - id: T001-05
-      title: "Seed script cho test data"
+      title: "[workflow:seed] Seed script test data bundle"
       assigned_to: AG-02
       priority: P1
-      status: backlog
+      status: review
       description: >
-        Viết scripts/seed/seed_test_data.py để tạo dữ liệu mẫu:
-        5 users, 10 albums, 50 images (metadata, không cần vector thật).
-        Dùng cho AG-03 và AG-04 test logic mà không cần chạy AI service.
+        Workflow bundle "seed": script tạo dữ liệu mẫu (5 users, 10 albums,
+        50 images metadata). File thuộc workflow dùng prefix `seed_...`.
+        Dùng cho AG-03 và AG-04 test logic mà không cần AI service.
       depends_on: [T001-01, T001-02, T001-03]
       acceptance_criteria:
+        - Tất cả file thuộc workflow này bắt đầu bằng prefix `seed_`
         - Script chạy không lỗi
         - Data tồn tại trong PostgreSQL và MinIO sau khi chạy
 
@@ -204,90 +215,100 @@ phase_2:
   name: "AI Inference Service"
   owner: AG-01
   status: backlog
+  notes_from_ag00: >
+    Ưu tiên theo Workflow-Centric (§2.1): warmup (T002-01) → image_embedding
+    (T002-02, T002-03) → text_embedding (T002-04). Batch và Dockerfile làm sau.
 
   tasks:
 
     - id: T002-01
-      title: "CLIP model loader & warm-up"
+      title: "[workflow:warmup] CLIP model loader & warm-up bundle"
       assigned_to: AG-01
       priority: P0
       status: backlog
       description: >
-        Implement EmbeddingService class: load CLIP ViT-B/32, thực hiện warm-up
-        với dummy forward pass khi khởi động. Model phải ở trạng thái eval() và
-        sẵn sàng nhận request ngay sau startup event.
+        Workflow bundle "warmup": load CLIP ViT-B/32, warm-up dummy forward pass
+        khi khởi động. File thuộc workflow dùng prefix `warmup_...`.
+        Model ở trạng thái eval() và sẵn sàng ngay sau startup event.
       depends_on: [T000-02]
       acceptance_criteria:
+        - Tất cả file thuộc workflow này bắt đầu bằng prefix `warmup_`
         - Service khởi động không có cold-start delay sau lần đầu
         - Model loaded đúng device (CPU/GPU auto-detect)
 
     - id: T002-02
-      title: "Image preprocessing pipeline"
+      title: "[workflow:image_embedding] Image preprocessing pipeline bundle"
       assigned_to: AG-01
       priority: P0
       status: backlog
       description: >
-        Implement ImagePreprocessor: nhận PIL.Image hoặc bytes, thực hiện
-        convert RGB, resize 224×224, normalize theo CLIP standard (mean/std của
-        CLIP). Output: torch.Tensor sẵn sàng đưa vào model.
+        Workflow bundle "image_embedding": ImagePreprocessor nhận PIL.Image hoặc
+        bytes, convert RGB, resize 224×224, normalize CLIP mean/std. File thuộc
+        workflow dùng prefix `image_embedding_...`.
       depends_on: [T002-01]
       acceptance_criteria:
+        - Tất cả file thuộc workflow này bắt đầu bằng prefix `image_embedding_`
         - Xử lý đúng ảnh grayscale (2D) bằng cách expand thành RGB
         - Xử lý đúng ảnh có alpha channel (RGBA → RGB)
         - Output tensor có shape (1, 3, 224, 224)
 
     - id: T002-03
-      title: "POST /embed/image endpoint"
+      title: "[workflow:image_embedding] POST /embed/image endpoint bundle"
       assigned_to: AG-01
       priority: P0
       status: backlog
       description: >
-        FastAPI endpoint nhận multipart/form-data (file ảnh), chạy qua
-        ImagePreprocessor → CLIP image encoder → trả về float32[] vector.
-        Output shape phải đúng với global_configs.vector_dim = 512.
+        Workflow bundle "image_embedding": endpoint nhận multipart/form-data,
+        chạy qua ImagePreprocessor → CLIP image encoder → trả float32[] vector.
+        File thuộc workflow dùng prefix `image_embedding_...`.
       depends_on: [T002-01, T002-02]
       acceptance_criteria:
+        - Tất cả file thuộc workflow này bắt đầu bằng prefix `image_embedding_`
         - Trả về vector có len() == 512
         - Latency < 500ms trên CPU (không có GPU)
         - Xử lý đúng content-type validation (chỉ nhận image/jpeg, image/png)
 
     - id: T002-04
-      title: "POST /embed/text endpoint"
+      title: "[workflow:text_embedding] POST /embed/text endpoint bundle"
       assigned_to: AG-01
       priority: P0
       status: backlog
       description: >
-        FastAPI endpoint nhận JSON {"text": "..."}, chạy qua CLIP text encoder
-        → trả về float32[] vector cùng chiều với image embedding.
+        Workflow bundle "text_embedding": endpoint nhận JSON {"text": "..."},
+        chạy CLIP text encoder → trả float32[] vector. File thuộc workflow dùng
+        prefix `text_embedding_...`.
       depends_on: [T002-01]
       acceptance_criteria:
+        - Tất cả file thuộc workflow này bắt đầu bằng prefix `text_embedding_`
         - Trả về vector có len() == 512
         - Text encoding nằm trong cùng vector space với image encoding (CLIP guarantee)
 
     - id: T002-05
-      title: "Batch embedding endpoint"
+      title: "[workflow:batch_embedding] Batch embedding endpoint bundle"
       assigned_to: AG-01
       priority: P1
       status: backlog
       description: >
-        POST /embed/batch nhận danh sách ảnh, trả về danh sách vectors.
-        Dùng cho bulk indexing khi nạp dữ liệu ban đầu.
+        Workflow bundle "batch_embedding": POST /embed/batch nhận danh sách ảnh,
+        trả danh sách vectors. File thuộc workflow dùng prefix `batch_embedding_...`.
       depends_on: [T002-03]
       acceptance_criteria:
+        - Tất cả file thuộc workflow này bắt đầu bằng prefix `batch_embedding_`
         - Hỗ trợ batch size tối thiểu 32 ảnh
         - Không OOM khi batch = 32 trên máy không có GPU
 
     - id: T002-06
-      title: "Dockerfile cho AI Service"
+      title: "[workflow:ai_container] Dockerfile cho AI Service bundle"
       assigned_to: AG-01
       priority: P0
       status: backlog
       description: >
-        Viết Dockerfile multi-stage cho AI Service. Image phải nhỏ gọn,
-        model weights không baked vào image (download khi startup hoặc
-        mount qua volume).
+        Workflow bundle "ai_container": Dockerfile multi-stage cho AI Service.
+        File thuộc workflow dùng prefix `ai_container_...` (nếu có). Image nhỏ
+        gọn, model weights không baked vào image.
       depends_on: [T002-03, T002-04]
       acceptance_criteria:
+        - Tất cả file thuộc workflow này bắt đầu bằng prefix `ai_container_` (nếu có)
         - docker build thành công
         - Container khởi động và /health/liveness trả 200
 
@@ -299,85 +320,89 @@ phase_3:
   name: "Backend API Service"
   owner: AG-03
   status: backlog
+  notes_from_ag00: >
+    Ưu tiên theo Workflow-Centric (§2.3): auth (T003-02) → upload (T003-03)
+    → indexing (phụ thuộc T003-03 + T002-03) → search (T003-04) → evaluation
+    (T003-06). CRUD (T003-05) và health probes (T003-07) làm sau scaffold.
 
   tasks:
 
     - id: T003-01
-      title: "Project scaffold & dependencies"
+      title: "[workflow:scaffold] Project scaffold & dependencies bundle"
       assigned_to: AG-03
       priority: P0
       status: backlog
       description: >
-        Khởi tạo FastAPI project trong modules/BackendModule/: pyproject.toml,
-        cấu hình Alembic, cấu trúc thư mục (routers/, services/, models/,
-        schemas/). Thiết lập Pydantic settings đọc env vars theo
+        Workflow bundle "scaffold": khởi tạo FastAPI project trong
+        modules/BackendModule/, cấu trúc 5 lớp. File thuộc workflow dùng prefix
+        `scaffold_...` (nếu có). Thiết lập Pydantic settings đọc env vars theo
         data_schema.yaml → security_and_secrets.required_env_vars.
       depends_on: [T001-04]
 
     - id: T003-02
-      title: "Auth Service (JWT)"
+      title: "[workflow:auth] Auth Service (JWT) bundle"
       assigned_to: AG-03
       priority: P0
       status: backlog
       description: >
-        Implement POST /auth/register, POST /auth/login theo openapi.yaml.
-        JWT access token + refresh token. Middleware xác thực cho protected routes.
+        Workflow bundle "auth": POST /auth/register, POST /auth/login theo
+        openapi.yaml. File thuộc workflow dùng prefix `auth_...`.
       depends_on: [T003-01]
 
     - id: T003-03
-      title: "Upload pipeline (5 bước)"
+      title: "[workflow:upload] Upload pipeline (5 bước) bundle"
       assigned_to: AG-03
       priority: P0
       status: backlog
       description: >
-        Implement đầy đủ upload pipeline theo data_schema.yaml → transaction_semantics.
-        Bao gồm: presigned URL generation, metadata insert, Celery task enqueue,
-        idempotency handling. Celery worker thực hiện S4_Async_Index.
+        Workflow bundle "upload": implement pipeline theo
+        data_schema.yaml → transaction_semantics. File thuộc workflow dùng prefix
+        `upload_...`. Gồm presigned URL, metadata insert, Celery enqueue, idempotency.
       depends_on: [T003-01, T001-04, T002-06]
       notes_from_ag00: >
         Xem data_schema.yaml → transaction_semantics.upload_pipeline.
         Đặc biệt chú ý S3: nếu PostgreSQL insert lỗi phải xóa MinIO object (compensating action).
 
     - id: T003-04
-      title: "Search Service (image + text)"
+      title: "[workflow:search] Search Service (image + text) bundle"
       assigned_to: AG-03
       priority: P0
       status: backlog
       description: >
-        Implement POST /search/image và POST /search/text theo openapi.yaml.
-        Privacy filter phải đúng theo data_schema.yaml → notes.privacy_level_1_query.
-        Bao gồm metadata enrichment từ PostgreSQL sau khi query Milvus.
+        Workflow bundle "search": POST /search/image và /search/text theo openapi.
+        File thuộc workflow dùng prefix `search_...`. Privacy filter đúng theo
+        data_schema.yaml → notes.privacy_level_1_query; enrich metadata từ PostgreSQL.
       depends_on: [T003-02, T001-01, T001-02, T002-03]
 
     - id: T003-05
-      title: "Album & Media CRUD"
+      title: "[workflow:media] Album & Media CRUD bundle"
       assigned_to: AG-03
       priority: P1
       status: backlog
       description: >
-        Implement đầy đủ CRUD cho albums và images theo openapi.yaml.
-        Bao gồm soft delete cho images (deleted_at).
+        Workflow bundle "media": CRUD cho albums/images theo openapi.yaml.
+        File thuộc workflow dùng prefix `media_...`. Có soft delete (deleted_at).
       depends_on: [T003-02]
 
     - id: T003-06
-      title: "Evaluation Service"
+      title: "[workflow:evaluation] Evaluation Service bundle"
       assigned_to: AG-03
       priority: P1
       status: backlog
       description: >
-        Implement POST /eval/run: chạy benchmark tự động trên test set,
-        tính MRR, HitRate@K, Precision@K, Recall. Trả về báo cáo JSON.
+        Workflow bundle "evaluation": POST /eval/run, tính MRR/HitRate@K/
+        Precision@K/Recall. File thuộc workflow dùng prefix `evaluation_...`.
       depends_on: [T003-04]
 
     - id: T003-07
-      title: "Health probes"
+      title: "[workflow:health] Health probes bundle"
       assigned_to: AG-03
       priority: P0
       status: backlog
       description: >
-        Implement GET /health/liveness và GET /health/readiness theo openapi.yaml.
-        Readiness phải check: postgres, milvus, minio, ai_service.
-        Readiness response phải include header X-Expected-Vector-Dim.
+        Workflow bundle "health": GET /health/liveness và /health/readiness.
+        File thuộc workflow dùng prefix `health_...`. Readiness check postgres,
+        milvus, minio, ai_service; include header X-Expected-Vector-Dim.
       depends_on: [T003-01]
 
 # ---------------------------------------------------------------------------
@@ -387,42 +412,46 @@ phase_3:
 phase_4:
   name: "Frontend Development"
   owner: AG-04   # AG-05 đồng thời
+  notes_from_ag00: >
+    Ưu tiên theo Workflow-Centric (§2.4): auth → upload → search; mobile thêm
+    camera sau khi search ổn định. Các tiện ích (offline cache/share extension)
+    làm sau khi các mắt xích chính hoàn tất.
 
   tasks:
 
     - id: T004-01
-      title: "[Web] Project scaffold"
+      title: "[Web][workflow:scaffold] Project scaffold bundle"
       assigned_to: AG-04
       priority: P0
       status: backlog
       description: >
-        Khởi tạo React project với Vite + Tailwind CSS. Cấu hình Axios instance
-        với base URL và interceptor cho JWT. Thiết lập routing cơ bản.
+        Workflow bundle "scaffold": React + Vite + Tailwind. File thuộc workflow
+        dùng prefix `scaffold_...` (TS/TSX). Cấu hình Axios base URL + JWT interceptor.
       depends_on: [T003-02]
 
     - id: T004-02
-      title: "[Web] Auth pages (Login / Register)"
+      title: "[Web][workflow:auth] Auth pages bundle"
       assigned_to: AG-04
       priority: P0
       status: backlog
       depends_on: [T004-01]
 
     - id: T004-03
-      title: "[Web] Dashboard & Album management"
+      title: "[Web][workflow:media] Dashboard & Album management bundle"
       assigned_to: AG-04
       priority: P1
       status: backlog
       depends_on: [T004-02]
 
     - id: T004-04
-      title: "[Web] Bulk upload với Drag & Drop"
+      title: "[Web][workflow:upload] Bulk upload Drag & Drop bundle"
       assigned_to: AG-04
       priority: P1
       status: backlog
       depends_on: [T004-02]
 
     - id: T004-05
-      title: "[Web] Search UI (image + text query)"
+      title: "[Web][workflow:search] Search UI bundle"
       assigned_to: AG-04
       priority: P0
       status: backlog
@@ -432,7 +461,7 @@ phase_4:
       depends_on: [T004-02]
 
     - id: T004-06
-      title: "[Web] Evaluation dashboard"
+      title: "[Web][workflow:evaluation] Evaluation dashboard bundle"
       assigned_to: AG-04
       priority: P1
       status: backlog
@@ -442,7 +471,7 @@ phase_4:
       depends_on: [T004-02]
 
     - id: T004-07
-      title: "[Mobile] Project scaffold"
+      title: "[Mobile][workflow:scaffold] Project scaffold bundle"
       assigned_to: AG-05
       priority: P0
       status: backlog
@@ -452,21 +481,21 @@ phase_4:
       depends_on: [T003-02]
 
     - id: T004-08
-      title: "[Mobile] Camera integration & Search"
+      title: "[Mobile][workflow:camera] Camera integration & Search bundle"
       assigned_to: AG-05
       priority: P0
       status: backlog
       depends_on: [T004-07]
 
     - id: T004-09
-      title: "[Mobile] Offline cache"
+      title: "[Mobile][workflow:offline_cache] Offline cache bundle"
       assigned_to: AG-05
       priority: P1
       status: backlog
       depends_on: [T004-08]
 
     - id: T004-10
-      title: "[Mobile] Share extension"
+      title: "[Mobile][workflow:share] Share extension bundle"
       assigned_to: AG-05
       priority: P2
       status: backlog
@@ -479,11 +508,14 @@ phase_5:
   name: "Integration, Benchmarking & CI/CD"
   owner: AG-00
   status: backlog
+  notes_from_ag00: >
+    Tập trung hoàn tất chuỗi workflow cốt lõi end-to-end trước, sau đó mới mở
+    rộng benchmarking và CI/CD nâng cao.
 
   tasks:
 
     - id: T005-01
-      title: "Docker Compose full stack integration"
+      title: "[workflow:integration] Docker Compose full stack integration bundle"
       assigned_to: AG-00
       priority: P0
       status: backlog
@@ -493,7 +525,7 @@ phase_5:
       depends_on: [T003-07, T002-06, T001-04]
 
     - id: T005-02
-      title: "E2E smoke test"
+      title: "[workflow:e2e] E2E smoke test bundle"
       assigned_to: AG-03
       priority: P0
       status: backlog
@@ -503,7 +535,7 @@ phase_5:
       depends_on: [T005-01]
 
     - id: T005-03
-      title: "Benchmarking: MRR, HitRate, Precision, Recall"
+      title: "[workflow:benchmark] Benchmarking bundle"
       assigned_to: AG-03
       priority: P0
       status: backlog
@@ -513,7 +545,7 @@ phase_5:
       depends_on: [T005-02]
 
     - id: T005-04
-      title: "GitHub Actions CI/CD hoàn chỉnh"
+      title: "[workflow:cicd] GitHub Actions CI/CD hoàn chỉnh bundle"
       assigned_to: AG-00
       priority: P1
       status: backlog

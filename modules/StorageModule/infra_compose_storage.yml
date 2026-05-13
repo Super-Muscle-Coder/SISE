@@ -1,0 +1,113 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: sise-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sise_password}
+      POSTGRES_DB: ${POSTGRES_DB:-sise}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - storage_net
+
+  etcd:
+    image: bitnami/etcd:3.5
+    container_name: sise-etcd
+    environment:
+      ETCD_ENABLE_V2: "true"
+      ALLOW_NONE_AUTHENTICATION: "yes"
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+    ports:
+      - "2379:2379"
+    volumes:
+      - etcd_data:/bitnami/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - storage_net
+
+  minio:
+    image: minio/minio:RELEASE.2024-05-10T01-41-38Z
+    container_name: sise-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - storage_net
+
+  milvus:
+    image: milvusdb/milvus:v2.4.8
+    container_name: sise-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: http://etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    volumes:
+      - milvus_data:/var/lib/milvus
+    depends_on:
+      - etcd
+      - minio
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - storage_net
+
+  redis:
+    image: redis:7
+    container_name: sise-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - storage_net
+
+volumes:
+  postgres_data:
+  etcd_data:
+  minio_data:
+  milvus_data:
+  redis_data:
+
+networks:
+  storage_net:
+    driver: bridge

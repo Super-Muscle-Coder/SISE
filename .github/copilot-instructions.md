@@ -6,6 +6,8 @@
 
 ## Project Guidelines
 - Viết tất cả các tệp .github hoàn toàn bằng tiếng Anh chuyên nghiệp (không có văn bản tiếng Việt).
+- Workflow files must exist per schema/collection/bucket across entities/adapters/services/routers.
+- Configs must declare required env vars.
 
 ### Kiến Trúc & Tổ Chức Tệp Tin
 - Áp dụng kiến trúc năm lớp độc quyền: configs, entities, adapters, services, routers.
@@ -13,6 +15,7 @@
 - Giới hạn tái sử dụng cross-domain: thực thi quyền sở hữu tệp/mô-đun và ngăn chặn các tệp hoạt động như "tự do" trên nhiều miền kinh doanh để đảm bảo tính đầy đủ và trách nhiệm minh bạch.
 - Gán và tài liệu hóa một chủ sở hữu rõ ràng cho mỗi tệp/mô-đun; thực thi quyền sở hữu và quy tắc tái sử dụng thông qua đánh giá mã và kiểm tra CI.
 - Xử lý các tên tệp dài bằng cách xuất các tên công khai ngắn gọn từ các tệp __init__.py của gói; tiết lộ các API ổn định thông qua xuất khẩu gói trong khi giữ các tên tệp nội bộ rõ ràng.
+- __init__.py must export via __all__. 
 
 ## Tài Liệu Đại Lý
 - Xác định audit_required cho các đại lý quan trọng: đặt audit_required: true trong tài liệu đại lý và giải thích lý do tại sao đại lý đó lại quan trọng.
