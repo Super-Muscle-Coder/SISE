@@ -12,6 +12,7 @@
     <Name>StorageModule</Name>
     <RootNamespace>StorageModule</RootNamespace>
     <InterpreterId>Global|PythonCore|3.13</InterpreterId>
+    <TestFramework>Pytest</TestFramework>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -60,25 +61,29 @@
     <Folder Include="app\routers\" />
     <Folder Include="app\services\" />
     <Folder Include="configs\" />
+    <Folder Include="documents\collection_workflow\" />
+    <Folder Include="documents\bucket_workflow\" />
+    <Folder Include="documents\infra_compose_workflow\" />
+    <Folder Include="documents\seed_workflow\" />
+    <Folder Include="documents\schema_workflow\" />
     <Folder Include="migrations\" />
     <Folder Include="migrations\versions\" />
+    <Folder Include="documents\" />
     <Folder Include="scripts\" />
     <Folder Include="scripts\seed\" />
     <Folder Include="tests\" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="ACTION_GUIDE.md" />
     <Content Include="configs\storage.env.local" />
     <Content Include="configs\storage.env.example" />
     <Content Include="configs\storage.env.staging" />
-    <Content Include="DIAGNOSTIC_REPORT.md" />
-    <Content Include="INDEX.md" />
     <Content Include="infra_compose_storage.yml" />
-    <Content Include="ISSUE_ANALYSIS_AND_FIXES.md" />
-    <Content Include="RESOLUTION_SUMMARY.md" />
     <Content Include="run_storage_tests.ps1" />
+    <Content Include="documents\schema_workflow\SCHEMA_WORKFLOW_COMPLETE_GUIDE.md" />
+    <Content Include="documents\schema_workflow\SCHEMA_WORKFLOW_EXAMPLES.md" />
+    <Content Include="documents\schema_workflow\SCHEMA_WORKFLOW_QUICK_REFERENCE.md" />
+    <Content Include="documents\schema_workflow\SCHEMA_WORKFLOW_TUTORIAL.md" />
     <Content Include="start_storage_stack.ps1" />
-    <Content Include="TESTING_GUIDE.md" />
     <Content Include="tests\run_workflow_test.ps1" />
     <Content Include="schema_alembic.ini" />
     <Content Include="storage_requirements.txt" />
