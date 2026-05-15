@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>0b068797-cc8c-4b93-a088-db9a84e0ccfa</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>storage_main.py</StartupFile>
+    <StartupFile>tests\test_schema_workflow.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -45,8 +45,13 @@
     <Compile Include="app\__init__.py" />
     <Compile Include="migrations\env.py" />
     <Compile Include="migrations\versions\schema_0001_create_storage_schema.py" />
+    <Compile Include="tests\run_workflow_test.py" />
     <Compile Include="scripts\seed\seed_test_data.py" />
     <Compile Include="storage_main.py" />
+    <Compile Include="tests\test_bucket_workflow.py" />
+    <Compile Include="tests\test_collection_workflow.py" />
+    <Compile Include="tests\test_schema_workflow.py" />
+    <Compile Include="tests\test_seed_workflow.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="app\" />
@@ -62,10 +67,19 @@
     <Folder Include="tests\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="ACTION_GUIDE.md" />
     <Content Include="configs\storage.env.local" />
     <Content Include="configs\storage.env.example" />
     <Content Include="configs\storage.env.staging" />
+    <Content Include="DIAGNOSTIC_REPORT.md" />
+    <Content Include="INDEX.md" />
     <Content Include="infra_compose_storage.yml" />
+    <Content Include="ISSUE_ANALYSIS_AND_FIXES.md" />
+    <Content Include="RESOLUTION_SUMMARY.md" />
+    <Content Include="run_storage_tests.ps1" />
+    <Content Include="start_storage_stack.ps1" />
+    <Content Include="TESTING_GUIDE.md" />
+    <Content Include="tests\run_workflow_test.ps1" />
     <Content Include="schema_alembic.ini" />
     <Content Include="storage_requirements.txt" />
   </ItemGroup>
@@ -84,6 +98,7 @@
     <InterpreterReference Include="Global|PythonCore|3.11" />
     <InterpreterReference Include="Global|PythonCore|3.13" />
     <InterpreterReference Include="Global|PythonCore|3.14" />
+    <InterpreterReference Include="Global|VisualStudio|Python313" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

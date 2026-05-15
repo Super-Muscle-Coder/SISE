@@ -9,7 +9,6 @@ from app.adapters.collection_adapters import (
     get_indexes,
     load_collection,
 )
-from app.adapters.redis_cache_adapters import create_redis_client
 from app.adapters.schema_adapters import (
     build_alembic_config,
     create_postgres_engine,
@@ -31,5 +30,4 @@ __all__ = [
     "get_indexes",
     "load_collection",
     "create_minio_client",
-    "create_redis_client",
 ]
