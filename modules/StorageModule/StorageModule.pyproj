@@ -77,6 +77,12 @@
     <Content Include="configs\storage.env.local" />
     <Content Include="configs\storage.env.example" />
     <Content Include="configs\storage.env.staging" />
+    <Content Include="documents\collection_workflow\COLLECTION_WORKFLOW_COMPLETE_GUIDE.md" />
+    <Content Include="documents\collection_workflow\COLLECTION_WORKFLOW_EXAMPLES.md" />
+    <Content Include="documents\collection_workflow\COLLECTION_WORKFLOW_INDEX.md" />
+    <Content Include="documents\collection_workflow\COLLECTION_WORKFLOW_QUICK_REFERENCE.md" />
+    <Content Include="documents\collection_workflow\COLLECTION_WORKFLOW_TUTORIAL.md" />
+    <Content Include="documents\INDEX.md" />
     <Content Include="infra_compose_storage.yml" />
     <Content Include="run_storage_tests.ps1" />
     <Content Include="documents\schema_workflow\SCHEMA_WORKFLOW_COMPLETE_GUIDE.md" />

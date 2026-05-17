@@ -773,7 +773,7 @@ Rollback successful!
   ├── PostgreSQL service running
   └── Database accessible at postgresql://localhost:5432
 ```
-
+ 
 ---
 
 ## PHẦN 6: COMMON OPERATIONS
@@ -841,16 +841,16 @@ alembic revision --autogenerate -m "description of change"
 │                   SCHEMA WORKFLOW SUMMARY                   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│ ✓ Chức năng:                                                │
+│   Chức năng:                                                │
 │   - Khởi tạo & quản lý database structure                   │
 │   - Upgrade/downgrade schemas safely                        │
 │   - Track thay đổi qua migration versions                   │
 │                                                             │
-│ ✓ Xử lý dữ liệu:                                            │
+│   Xử lý dữ liệu:                                            │
 │   - Tables, columns, constraints, indexes, extensions       │
 │   - KHÔNG xử lý: Actual data rows (dành cho Seed)           │
 │                                                             │
-│ ✓ Thành phần chính:                                         │
+│   Thành phần chính:                                         │
 │   1. Entities: PostgresConfig, SchemaConfig                 │
 │   2. Adapters: Alembic operations (upgrade/downgrade)       │
 │   3. Services: Orchestration logic                          │
@@ -858,7 +858,7 @@ alembic revision --autogenerate -m "description of change"
 │   5. Migrations: SQL templates (upgrade, downgrade)         │
 │   6. Config: schema_alembic.ini, storage.env.local          │
 │                                                             │
-│ ✓ Quy trình:                                                │
+│   Quy trình:                                                │
 │   User command → Router → Service → Adapter → Alembic       │
 │   → env.py → PostgreSQL → Database structure changed        │
 │                                                             │
