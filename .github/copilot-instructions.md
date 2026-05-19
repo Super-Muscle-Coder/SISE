@@ -8,7 +8,9 @@
 - Viết tất cả các tệp .github hoàn toàn bằng tiếng Anh chuyên nghiệp (không có văn bản tiếng Việt).
 - Workflow files must exist per schema/collection/bucket across entities/adapters/services/routers.
 - Configs must declare required env vars.
-- StorageModule Phase 1 workflow-centric architecture: Separate workflow chains (schema, collection, bucket, infra_compose, seed) with prefix-based entity/adapter/service/router organization. Always use Python 3.13.12 via 'py -3.13'. Test scripts use Path(__file__).parent for absolute path resolution. Helper scripts (start_storage_stack.ps1, run_storage_tests.ps1) for service management and test automation. Storage stack defined in infra_compose_storage.yml. Per-workflow testing validates structural correctness independently before end-to-end execution.
+- Env files cho StorageModule phải được đặt trong modules/StorageModule/configs/ folder, gồm storage.env.example (template) và storage.env.local (local config, không commit). Cấu hình phải bao gồm Docker Compose vars, Connection URLs, và workflow-specific configs cho Schema, Collection, Bucket, Seed.
+- StorageModule Phase 1 workflow-centric architecture: Separate workflow chains (schema, collection, bucket, infra_compose, seed) with prefix-based entity/adapter/service/router organization. Always use Python 3.13.12 via 'py -3.13'. Test scripts use Path(__file__).parent for absolute path resolution. Helper scripts (start_storage_stack.cmd, run_storage_tests.cmd) for service management and test automation. Storage stack defined in infra_compose_storage.yml. Per-workflow testing validates structural correctness independently before end-to-end execution.
+- StorageModule Docker stack chỉ cần có 5 services: PostgreSQL (16), etcd (v3.5.14), MinIO (RELEASE.2024-12-18), Milvus (v2.4.12), Redis (7). Các image tags phải luôn dùng phiên bản mới nhất hoặc tối đa lùi lại 1 phiên bản để đảm bảo ổn định và support. Không được dùng phiên bản quá cũ.
 
 ### Kiến Trúc & Tổ Chức Tệp Tin
 - Áp dụng kiến trúc năm lớp độc quyền: configs, entities, adapters, services, routers.

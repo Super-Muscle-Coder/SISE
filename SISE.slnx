@@ -63,6 +63,9 @@
     <File Path=".knowledge/shared/template/KnowledgeBase_template.md" />
     <File Path=".knowledge/shared/template/Log_template.md" />
     <File Path=".knowledge/shared/template/Skill_template.md" />
+    <File Path=".knowledge/shared/template/WORKFLOW_DEEP_GUIDE_TEMPLATE.md" />
+    <File Path=".knowledge/shared/template/WORKFLOW_QUICK_GUIDE_TEMPLATE.md" />
+    <File Path=".knowledge/shared/template/WORKFLOW_REFERENCES_TEMPLATE.md" />
   </Folder>
   <Folder Name="/modules/">
     <Project Path="modules/AIModule/AIModule.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="df3ad6ba-89c7-467b-84fc-50d576144dee">

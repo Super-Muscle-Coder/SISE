@@ -26,14 +26,17 @@ documents/
 │   ├── COLLECTION_WORKFLOW_QUICK_REFERENCE.md
 │   └── (other supporting docs)
 │
-├── 📂 bucket_workflow/              ⏳ SẮP TỚI
-│   └── (Documents sẽ được tạo)
+├── 📂 bucket_workflow/              ✅ COMPLETED
+│   ├── BUCKET_WORKFLOW_QUICK_GUIDE.md
+│   ├── BUCKET_WORKFLOW_DEEP_GUIDE.md
+│   ├── BUCKET_WORKFLOW_REFERENCES.md
+│   └── (structured under 3-file template)
 │
-├── 📂 seed_workflow/                ⏳ SẮP TỚI
-│   └── (Documents sẽ được tạo)
+├── 📂 seed_workflow/                ✅ COMPLETED
+│   └── SEED_WORKFLOW_README.md
 │
-├── 📂 infra_compose_workflow/       ⏳ SẮP TỚI
-│   └── (Documents sẽ được tạo)
+├── 📂 infra_workflow/               ✅ COMPLETED
+│   └── INFRA_WORKFLOW_README.md
 │
 └── 📄 INDEX.md           Navigation Hub
 ```
@@ -67,24 +70,30 @@ documents/
 ### 3️⃣ Bucket Workflow
 **Công nghệ**: MinIO + S3-compatible API  
 **Mục đích**: Thiết lập object storage cho ảnh  
-**Trạng thái**: Chuẩn bị (tài liệu sắp tạo)  
+**Trạng thái**: ✅ Hoàn thành  
 **Vị trí**: `bucket_workflow/`
+
+**Bắt đầu từ**: `bucket_workflow/BUCKET_WORKFLOW_QUICK_GUIDE.md`
 
 ---
 
 ### 4️⃣ Seed Workflow
 **Công nghệ**: Python + Seeding Logic  
 **Mục đích**: Populate initial data vào storage  
-**Trạng thái**: Chuẩn bị (tài liệu sắp tạo)  
+**Trạng thái**: ✅ Hoàn thành  
 **Vị trí**: `seed_workflow/`
+
+**Bắt đầu từ**: `seed_workflow/SEED_WORKFLOW_README.md`
 
 ---
 
-### 5️⃣ Infra Compose Workflow
+### 5️⃣ Infra Workflow
 **Công nghệ**: Docker Compose  
 **Mục đích**: Orchestrate tất cả services  
-**Trạng thái**: Chuẩn bị (tài liệu sắp tạo)  
-**Vị trí**: `infra_compose_workflow/`
+**Trạng thái**: ✅ Hoàn thành  
+**Vị trí**: `infra_workflow/`
+
+**Bắt đầu từ**: `infra_workflow/INFRA_WORKFLOW_README.md`
 
 ---
 
