@@ -33,9 +33,14 @@
     <Folder Include="app\services\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="AG01_PHASE2_HANDOFF_GUIDE.md" />
+    <Content Include="AG01_PHASE2_TASK_BOARD.md" />
     <Content Include="configs\orchestrator.env.example" />
     <Content Include="configs\orchestrator.env.local" />
     <Content Include="configs\orchestrator.env.staging" />
+    <Content Include="NAVIGATION_INDEX.md" />
+    <Content Include="PHASE1_COMPLETION_REPORT.md" />
+    <Content Include="SESSION_COMPLETION_SUMMARY.md" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="Global|PythonCore|3.11" />

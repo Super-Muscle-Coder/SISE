@@ -77,6 +77,7 @@
     <Content Include="configs\storage.env.local" />
     <Content Include="configs\storage.env.example" />
     <Content Include="configs\storage.env.staging" />
+    <Content Include="DEPLOYMENT.md" />
     <Content Include="documents\bucket_workflow\BUCKET_WORKFLOW_DEEP_GUIDE.md" />
     <Content Include="documents\bucket_workflow\BUCKET_WORKFLOW_QUICK_GUIDE.md" />
     <Content Include="documents\bucket_workflow\BUCKET_WORKFLOW_REFERENCES.md" />
@@ -93,7 +94,6 @@
     <Content Include="scripts\health_check.cmd" />
     <Content Include="scripts\README.md" />
     <Content Include="scripts\start_stack.cmd" />
-    <Content Include="scripts\start_storage_stack.ps1" />
     <Content Include="scripts\stop_stack.cmd" />
     <Content Include="scripts\view_logs.cmd" />
     <Content Include="tests\run_workflow_test.ps1" />

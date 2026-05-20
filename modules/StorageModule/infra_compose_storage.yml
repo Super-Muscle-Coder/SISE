@@ -37,7 +37,7 @@ services:
       - storage_net
 
   minio:
-    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    image: minio/minio:latest
     container_name: sise-minio
     command: server /data --console-address ":9001"
     environment:

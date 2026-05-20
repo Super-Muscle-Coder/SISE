@@ -1,0 +1,33 @@
+# =============================================================================
+# AI Module — Dependencies
+# =============================================================================
+# Python 3.13 required
+# Usage: pip install -r ai_requirements.txt
+
+# Core Framework
+fastapi>=0.110.0
+uvicorn>=0.27.0
+
+# AI/ML
+torch>=2.1.0
+open_clip_torch>=2.20.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# Data Validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Development & Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Utilities
+loguru>=0.7.0
+
+# Optional: GPU Support (uncomment if using CUDA)
+# torch-cuda  # Install via: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118

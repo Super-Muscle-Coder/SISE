@@ -32,13 +32,23 @@
     <Folder Include="tests\" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="configs\ai.env" />
     <Content Include="configs\ai.env.example" />
+    <Content Include="configs\ai.env.local" />
     <Content Include="configs\ai.env.staging" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ai_requirements.txt" />
     <Compile Include="ai_main.py" />
+    <Compile Include="ai_requirements.txt" />
+    <Compile Include="app\adapters\warmup_adapters.py" />
+    <Compile Include="app\adapters\__init__.py" />
+    <Compile Include="app\entities\warmup_entities.py" />
+    <Compile Include="app\entities\__init__.py" />
+    <Compile Include="app\routers\warmup_routers.py" />
+    <Compile Include="app\routers\__init__.py" />
+    <Compile Include="app\services\warmup_services.py" />
+    <Compile Include="app\services\__init__.py" />
+    <Compile Include="app\__init__.py" />
+    <Compile Include="tests\test_warmup_workflow.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="Global|PythonCore|3.13" />

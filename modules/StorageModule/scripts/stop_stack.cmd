@@ -23,17 +23,17 @@ if "%1"=="--remove-images" set REMOVE_IMAGES=1
 if "%2"=="--remove-images" set REMOVE_IMAGES=1
 
 echo [INFO] Stopping containers...
-docker compose -f infra_compose_storage.yml down
 
-if %REMOVE_VOLUMES%==1 (
-	echo [INFO] Removing volumes...
-	docker compose -f infra_compose_storage.yml down --volumes
-)
+REM Build the docker compose down command with optional flags
+set COMPOSE_CMD=docker compose -f infra_compose_storage.yml down
+if %REMOVE_VOLUMES%==1 set COMPOSE_CMD=!COMPOSE_CMD! --volumes
+if %REMOVE_IMAGES%==1 set COMPOSE_CMD=!COMPOSE_CMD! --rmi all
 
-if %REMOVE_IMAGES%==1 (
-	echo [INFO] Removing images...
-	docker compose -f infra_compose_storage.yml down --rmi all
-)
+REM Display what we're about to do
+if %REMOVE_VOLUMES%==1 echo [INFO] Removing volumes...
+if %REMOVE_IMAGES%==1 echo [INFO] Removing images...
+
+!COMPOSE_CMD!
 
 echo [OK] Docker stack stopped successfully
 echo.
