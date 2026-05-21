@@ -253,36 +253,36 @@ phase_2:
         - Model loaded đúng device (CPU/GPU auto-detect)
 
     - id: T002-02
-      title: "[workflow:image_embedding] Image preprocessing pipeline bundle"
+      title: "[workflow:image_embedding_preprocessing] Image preprocessing pipeline bundle"
       assigned_to: AG-01
       priority: P0
-      status: backlog
+      status: done
       description: >
-        Workflow bundle "image_embedding": ImagePreprocessor nhận PIL.Image hoặc
+        Workflow bundle "image_embedding_preprocessing": ImagePreprocessor nhận PIL.Image hoặc
         bytes, convert RGB, resize 224×224, normalize CLIP mean/std. File thuộc
         workflow dùng prefix `image_embedding_...`.
       depends_on: [T002-01]
       acceptance_criteria:
-        - Tất cả file thuộc workflow này bắt đầu bằng prefix `image_embedding_`
-        - Xử lý đúng ảnh grayscale (2D) bằng cách expand thành RGB
-        - Xử lý đúng ảnh có alpha channel (RGBA → RGB)
-        - Output tensor có shape (1, 3, 224, 224)
+        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `image_embedding_`
+        - ✓ Xử lý đúng ảnh grayscale (2D) bằng cách expand thành RGB
+        - ✓ Xử lý đúng ảnh có alpha channel (RGBA → RGB)
+        - ✓ Output tensor có shape (1, 3, 224, 224)
 
     - id: T002-03
-      title: "[workflow:image_embedding] POST /embed/image endpoint bundle"
+      title: "[workflow:image_embedding_endpoint] POST /embed/image endpoint bundle"
       assigned_to: AG-01
       priority: P0
-      status: backlog
+      status: done
       description: >
-        Workflow bundle "image_embedding": endpoint nhận multipart/form-data,
+        Workflow bundle "image_embedding_endpoint": endpoint nhận multipart/form-data,
         chạy qua ImagePreprocessor → CLIP image encoder → trả float32[] vector.
         File thuộc workflow dùng prefix `image_embedding_...`.
       depends_on: [T002-01, T002-02]
       acceptance_criteria:
-        - Tất cả file thuộc workflow này bắt đầu bằng prefix `image_embedding_`
-        - Trả về vector có len() == 512
-        - Latency < 500ms trên CPU (không có GPU)
-        - Xử lý đúng content-type validation (chỉ nhận image/jpeg, image/png)
+        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `image_embedding_`
+        - ✓ Trả về vector có len() == 512
+        - ✓ Latency < 500ms trên CPU (không có GPU)
+        - ✓ Xử lý đúng content-type validation (chỉ nhận image/jpeg, image/png)
 
     - id: T002-04
       title: "[workflow:text_embedding] POST /embed/text endpoint bundle"

@@ -21,7 +21,7 @@ from app import (
     WarmupExecutor,
     WarmupService,
 )
-from ai_main import load_warmup_config
+from ai_main import _build_warmup_config, _load_env_file
 
 
 class TestDeviceManager:
@@ -106,13 +106,29 @@ class TestWarmupResult:
 class TestCLIPConfigLoading:
     """Tests for config loading from env vars."""
 
-    def test_load_warmup_config_defaults(self):
-        """Test loading config with default env vars."""
-        config = load_warmup_config()
+    def test_build_warmup_config_from_env(self):
+        """Test building config from environment variables."""
+        import os
+
+        # Set up environment variables
+        os.environ["CLIP_MODEL_NAME"] = "ViT-B/32"
+        os.environ["DEVICE"] = "auto"
+        os.environ["MODEL_CACHE_DIR"] = "./models"
+        os.environ["WARMUP_ITERATIONS"] = "5"
+        os.environ["WARMUP_TIMEOUT_SEC"] = "30.0"
+
+        # Build config
+        config = _build_warmup_config()
+
+        # Verify
         assert config.model_name == "ViT-B/32"
         assert config.device == "auto"
+        assert config.model_cache_dir == "./models"
         assert config.warmup_iterations == 5
-        print("Config loaded with defaults")
+        assert config.warmup_timeout_sec == 30.0
+
+        print("✅ Config built from environment")
+
 
 
 class TestWarmupServiceStructure:

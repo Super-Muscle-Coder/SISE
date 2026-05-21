@@ -7,9 +7,36 @@ CONSTRAINT: Entities layer exports only pure dataclasses, no logic functions.
 """
 
 from app.entities.warmup_entities import CLIPConfig, WarmupResult
+from app.entities.image_embedding_entities import (
+    ImagePreprocessConfig,
+    ImageEmbeddingRequest,
+    ImageEmbeddingResult,
+)
+from app.entities.text_embedding_entities import (
+    TextEmbeddingRequest,
+    TextEmbeddingResult,
+    TextProcessConfig,
+)
+from app.entities.batch_embedding_entities import (
+    BatchEmbeddingConfig,
+    BatchEmbeddingRequest,
+    BatchEmbeddingResult,
+)
 
 __all__ = [
+    # Warmup workflow
     "CLIPConfig",
     "WarmupResult",
+    # Image embedding workflow
+    "ImagePreprocessConfig",
+    "ImageEmbeddingRequest",
+    "ImageEmbeddingResult",
+    # Text embedding workflow
+    "TextEmbeddingRequest",
+    "TextEmbeddingResult",
+    "TextProcessConfig",
+    # Batch embedding workflow
+    "BatchEmbeddingConfig",
+    "BatchEmbeddingRequest",
+    "BatchEmbeddingResult",
 ]
-

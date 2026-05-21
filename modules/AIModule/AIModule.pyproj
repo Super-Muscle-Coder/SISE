@@ -4,8 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>df3ad6ba-89c7-467b-84fc-50d576144dee</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>
-    </StartupFile>
+    <StartupFile>tests\test_warmup_workflow.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -13,6 +12,7 @@
     <Name>AIModule</Name>
     <RootNamespace>AIModule</RootNamespace>
     <InterpreterId>Global|PythonCore|3.13</InterpreterId>
+    <TestFramework>Pytest</TestFramework>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -29,25 +29,54 @@
     <Folder Include="app\routers\" />
     <Folder Include="app\services\" />
     <Folder Include="configs\" />
+    <Folder Include="documents\" />
+    <Folder Include="documents\image_embedding_workflow\" />
+    <Folder Include="documents\ai_container_workflow\" />
+    <Folder Include="documents\text_embedding_workflow\" />
+    <Folder Include="documents\warmup_workflow\" />
+    <Folder Include="scripts\" />
     <Folder Include="tests\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include=".dockerignore" />
+    <Content Include="ai_container_Dockerfile" />
     <Content Include="configs\ai.env.example" />
     <Content Include="configs\ai.env.local" />
     <Content Include="configs\ai.env.staging" />
+    <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_DEEP_GUIDE.md" />
+    <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_QUICK_GUIDE.md" />
+    <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_REFERENCES.md" />
+    <Content Include="documents\warmup_workflow\WARMUP_DEEP_GUIDE.md" />
+    <Content Include="documents\warmup_workflow\WARMUP_QUICK_GUIDE.md" />
+    <Content Include="documents\warmup_workflow\WARMUP_REFERENCES.md" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ai_main.py" />
     <Compile Include="ai_requirements.txt" />
+    <Compile Include="app\adapters\batch_embedding_adapters.py" />
+    <Compile Include="app\adapters\image_embedding_adapters.py" />
+    <Compile Include="app\adapters\text_embedding_adapters.py" />
     <Compile Include="app\adapters\warmup_adapters.py" />
     <Compile Include="app\adapters\__init__.py" />
+    <Compile Include="app\entities\batch_embedding_entities.py" />
+    <Compile Include="app\entities\image_embedding_entities.py" />
+    <Compile Include="app\entities\text_embedding_entities.py" />
     <Compile Include="app\entities\warmup_entities.py" />
     <Compile Include="app\entities\__init__.py" />
+    <Compile Include="app\routers\batch_embedding_routers.py" />
+    <Compile Include="app\routers\image_embedding_routers.py" />
+    <Compile Include="app\routers\text_embedding_routers.py" />
     <Compile Include="app\routers\warmup_routers.py" />
     <Compile Include="app\routers\__init__.py" />
+    <Compile Include="app\services\batch_embedding_services.py" />
+    <Compile Include="app\services\image_embedding_services.py" />
+    <Compile Include="app\services\text_embedding_services.py" />
     <Compile Include="app\services\warmup_services.py" />
     <Compile Include="app\services\__init__.py" />
     <Compile Include="app\__init__.py" />
+    <Compile Include="tests\test_batch_embedding_workflow.py" />
+    <Compile Include="tests\test_image_embedding_workflow.py" />
+    <Compile Include="tests\test_text_embedding_workflow.py" />
     <Compile Include="tests\test_warmup_workflow.py" />
   </ItemGroup>
   <ItemGroup>

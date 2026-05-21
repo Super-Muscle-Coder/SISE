@@ -1,0 +1,88 @@
+# =============================================================================
+# Docker Ignore — AI Service Container
+# =============================================================================
+# Tránh sao chép những file/thư mục không cần thiết vào Docker image
+# Giúp giảm kích thước image và tăng tốc độ build
+# NOTE: Patterns here prevent COPY commands from including these files
+
+# Python cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Testing and development
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+tests/
+
+# Environment files (local-only configs)
+.env.local
+.env.*.local
+.env.dev
+.venv/
+env/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+.gitmodules
+
+# Documentation
+docs/
+README.md
+*.md
+CHANGELOG.md
+
+# CI/CD pipelines (not needed in runtime image)
+.github/
+.gitlab-ci.yml
+.circleci/
+azure-pipelines.yml
+
+# Config templates and examples
+configs/*.example
+configs/*.template
+
+# Logs and temporary runtime files
+*.log
+*.tmp
+*.pid
+
+# Model cache (will be mounted as volume at runtime)
+# Uncomment only if you want to pre-bake models into image:
+# model_cache/
+
+# Docker-related
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Build helper scripts
+build_ai_container.ps1
+build_ai_container.sh
+
+# License and legal
+LICENSE
+COPYING
+AUTHORS
