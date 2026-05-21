@@ -15,11 +15,11 @@ import open_clip
 from app.entities import CLIPConfig, WarmupResult
 
 
-class DeviceManager:
+class DeviceManager: # Lớp này quản lý việc phát hiện thiết bị (GPU/CPU) cho mô hình CLIP.
     """Manages CLIP model device placement (GPU/CPU auto-detection)."""
 
     @staticmethod
-    def get_device(device_arg: str) -> str:
+    def get_device(device_arg: str) -> str: # Phương thức xác định thiết bị tính toán cho mô hình dựa trên đối số đầu vào ('cuda', 'cpu', hoặc 'auto').
         """
         Determine compute device for model.
 
@@ -39,8 +39,8 @@ class DeviceManager:
         else:
             return "cpu"
 
-
-class CLIPModelLoader:
+         
+class CLIPModelLoader: # Lớp chịu trách nhiệm tải mô hình CLIP từ OpenAI/HuggingFace, bao gồm cả việc xử lý lỗi và xác thực cấu trúc mô hình.
     """Loads CLIP model from OpenAI/HuggingFace weights."""
 
     def __init__(self, config: CLIPConfig):
@@ -49,7 +49,7 @@ class CLIPModelLoader:
         self.model = None
         self.preprocess = None
 
-    def load(self) -> tuple:
+    def load(self) -> tuple: # Phương thức tải mô hình CLIP và hàm tiền xử lý, trả về mô hình, hàm tiền xử lý và thiết bị đã xác định. Nó cũng xử lý lỗi nếu quá trình tải thất bại.
         """
         Load CLIP model and preprocessing function.
 
@@ -77,7 +77,7 @@ class CLIPModelLoader:
         except Exception as e:
             raise RuntimeError(f"Failed to load CLIP model: {e}")
 
-    def validate_model(self, model) -> bool:
+    def validate_model(self, model) -> bool: # Phương thức kiểm tra xem mô hình đã tải có chứa các phương thức cần thiết (encode_image và encode_text) hay không, đảm bảo rằng mô hình có cấu trúc hợp lệ để sử dụng trong quá trình warm-up.
         """
         Validate loaded model structure.
 
@@ -97,7 +97,7 @@ class CLIPModelLoader:
             return False
 
 
-class WarmupExecutor:
+class WarmupExecutor: # Lớp này thực hiện quá trình warm-up cho mô hình CLIP bằng cách chạy một số lần forward pass với dữ liệu giả để kích hoạt caching trên GPU/CPU, đồng thời đo thời gian và xử lý lỗi nếu có.
     """Executes model warm-up to eliminate cold-start latency."""
 
     def __init__(self, model, preprocess, device: str, config: CLIPConfig):
@@ -106,7 +106,7 @@ class WarmupExecutor:
         self.device = device
         self.config = config
 
-    def warmup(self) -> WarmupResult:
+    def warmup(self) -> WarmupResult: # Phương thức thực hiện quá trình warm-up bằng cách chạy một số lần forward pass với dữ liệu giả (dummy data) để kích hoạt caching trên GPU/CPU. Nó đo thời gian thực hiện và trả về kết quả dưới dạng WarmupResult, bao gồm thông tin về thành công, thiết bị, tên mô hình, thời gian warm-up và bất kỳ lỗi nào nếu xảy ra.
         """
         Run warm-up forward passes to trigger CUDA/CPU caching.
 

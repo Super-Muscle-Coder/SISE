@@ -46,9 +46,17 @@
     <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_DEEP_GUIDE.md" />
     <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_QUICK_GUIDE.md" />
     <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_REFERENCES.md" />
+    <Content Include="documents\text_embedding_workflow\TEXT_EMBEDDING_DEEP_GUIDE.md" />
+    <Content Include="documents\text_embedding_workflow\TEXT_EMBEDDING_QUICK_GUIDE.md" />
+    <Content Include="documents\text_embedding_workflow\TEXT_EMBEDDING_REFERENCES.md" />
     <Content Include="documents\warmup_workflow\WARMUP_DEEP_GUIDE.md" />
     <Content Include="documents\warmup_workflow\WARMUP_QUICK_GUIDE.md" />
     <Content Include="documents\warmup_workflow\WARMUP_REFERENCES.md" />
+    <Content Include="scripts\build.ps1" />
+    <Content Include="scripts\container.sh" />
+    <Content Include="scripts\entrypoint.sh" />
+    <Content Include="scripts\health-check.sh" />
+    <Content Include="scripts\test-endpoints.bat" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ai_main.py" />

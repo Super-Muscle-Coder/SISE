@@ -14,7 +14,7 @@ from app.services import WarmupService
 warmup_service: WarmupService = None
 
 
-def create_warmup_router(warmup_svc: WarmupService) -> APIRouter:
+def create_warmup_router(warmup_svc: WarmupService) -> APIRouter: # Phương thức tạo router FastAPI với các endpoint kiểm tra sức khỏe (/health/liveness, /health/readiness, /health/debug) sử dụng dịch vụ warm-up đã khởi tạo. Nó cũng lưu trữ instance của WarmupService trong một biến toàn cục để sử dụng trong các endpoint.
     """
     Create FastAPI router with health check endpoints.
 

@@ -7,8 +7,8 @@ Architecture:
   5-Layer Workflow-Centric: configs → entities → adapters → services → routers
 
 Workflows (Phase 2):
-  T002-01: [workflow:warmup] — Model loading & warm-up ✅ COMPLETE
-  T002-02: [workflow:image_embedding] — Image preprocessing pipeline ✅ COMPLETE
+  T002-01: [workflow:warmup] — Model loading & warm-up COMPLETE
+  T002-02: [workflow:image_embedding] — Image preprocessing pipeline COMPLETE
   T002-03: [workflow:image_embedding] — POST /embed/image endpoint (T002-02 includes this)
   T002-04: [workflow:text_embedding] — POST /embed/text endpoint
   T002-05: [workflow:batch_embedding] — Batch embedding endpoint
