@@ -52,11 +52,9 @@
     <Content Include="documents\warmup_workflow\WARMUP_DEEP_GUIDE.md" />
     <Content Include="documents\warmup_workflow\WARMUP_QUICK_GUIDE.md" />
     <Content Include="documents\warmup_workflow\WARMUP_REFERENCES.md" />
-    <Content Include="scripts\build.ps1" />
-    <Content Include="scripts\container.sh" />
-    <Content Include="scripts\entrypoint.sh" />
-    <Content Include="scripts\health-check.sh" />
-    <Content Include="scripts\test-endpoints.bat" />
+    <Content Include="scripts\build.cmd" />
+    <Content Include="scripts\container.cmd" />
+    <Content Include="scripts\health-check.cmd" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ai_main.py" />
@@ -82,6 +80,7 @@
     <Compile Include="app\services\warmup_services.py" />
     <Compile Include="app\services\__init__.py" />
     <Compile Include="app\__init__.py" />
+    <Compile Include="scripts\entrypoint.py" />
     <Compile Include="tests\test_batch_embedding_workflow.py" />
     <Compile Include="tests\test_image_embedding_workflow.py" />
     <Compile Include="tests\test_text_embedding_workflow.py" />

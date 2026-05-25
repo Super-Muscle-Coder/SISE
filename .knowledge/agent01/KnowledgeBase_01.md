@@ -28,6 +28,8 @@
 - **Warm-up / Cold-start Mitigation**: The Machine Learning model must be loaded into memory immediately upon service boot (e.g., FastAPI Startup Event). Avoid instantiating the model on a per-request basis.
 - **Batching & Normalization**: Before inference, image tensors must be rigorously pre-processed (e.g., 224x224 resizing, RGB norm) using PyTorch/Numpy to reduce latency.
 - **Graceful Hardware Fallback**: The inference service must dynamically check and prioritize appropriate compute targets (`cuda`/`mps`/`cpu`) depending on the deployment environment.
+- **Container Optimization**: Multi-stage Docker builds separate builder (with compilation tools) from runtime (minimal, wheels only). CPU-only PyTorch reduces image size by 60% and build time by 70%, critical for fast deployments.
+- **FastAPI Lifespan + Uvicorn Factory**: Use `@asynccontextmanager lifespan()` with `--factory` flag to defer app creation to startup, enabling async model loading without blocking request handlers.
 
 ---
 
@@ -50,6 +52,24 @@
    - type: Official Docs
    - trust_level: High
    - notes: Architecture for injecting models at startup without blocking handlers.
+4. **Docker Multi-Stage Builds**
+   - title: Docker Docs - Multi-stage builds
+   - url: https://docs.docker.com/build/building/multi-stage/
+   - type: Official Docs
+   - trust_level: High
+   - notes: Best practices for reducing image size by separating builder and runtime stages.
+5. **Uvicorn Application Factories**
+   - title: Uvicorn Documentation - Application Factories
+   - url: https://www.uvicorn.org/
+   - type: Official Docs
+   - trust_level: High
+   - notes: Using --factory flag for factory functions; critical for async lifespan context.
+6. **PyTorch CPU Installation**
+   - title: PyTorch Get Started - CPU
+   - url: https://pytorch.org/get-started/locally/
+   - type: Official Docs
+   - trust_level: High
+   - notes: Installation instructions and pip wheel optimization for CPU-only deployments.
 
 ---
 
@@ -64,11 +84,16 @@
 - ATTEMPT DATABASE CONNECTIVITY: The AI Service (AG-01) is strictly a stateless computational node. Do not invoke PostgreSQL or Milvus drivers.
 - SILENTLY UPGRADE MODELS: Changing the underlying model (e.g., dimensions from 512 to 768) will irreparably break the Vector DB (AG-02). Alterations require AG-00 approval and schema migrations.
 - ARBITRARY RESPONSE WRAPPING: Ensure the output response precisely matches the structure mandated in `data_schema.yaml` for AG-03 compatibility.
+- USE BASH ENTRYPOINTS IN CONTAINERS: Bash is not portable across Windows dev + Linux container. Use Python entrypoints instead.
+- SKIP ENV VAR DEFAULTS IN DOCKERFILE: Always set sensible defaults (AI_SERVICE_PORT, CLIP_MODEL_NAME, DEVICE, MODEL_CACHE_DIR) to prevent startup crashes.
+- INCLUDE BUILD TOOLS IN RUNTIME LAYER: Use multi-stage builds to isolate builder dependencies from final image; don't copy build-essential, git, etc. to runtime stage.
+- USE --index-url FOR CPU PYTORCH: Use `--extra-index-url https://download.pytorch.org/whl/cpu` in pip commands, not `--index-url` (which replaces PyPI).
 
 ---
 
 ## Provenance and Change Log  
-- 2024-05-18 | Project Owner + AI | Translated | Converted to professional technical English.
+- 2026-05-18 | Project Owner + AI | Translated | Converted to professional technical English.
+- 2026-05-09 | AIModuleAgent | Updated | Added Docker & Container references (multi-stage builds, uvicorn factory, PyTorch CPU installation). Enhanced with container deployment knowledge.
 
 ---
 
@@ -80,11 +105,11 @@
 
 ## Review Cadence  
 - **review_interval_days**: 90
-- **next_review_due**: 2026-08-18
+- **next_review_due**: 2026-08-09 (updated from 2026-08-18 after container knowledge refresh)
 
 ---
 
 ## Tags and Search Metadata  
-- **tags**: [ai, clip, embedding, pytorch, computer-vision, multimodal]
-- **keywords**: model warmup, vector dimension, vit-b/32, inference, tensor, fallback
+- **tags**: [ai, clip, embedding, pytorch, computer-vision, multimodal, docker, container, cpu-optimization, deployment]
+- **keywords**: model warmup, vector dimension, vit-b/32, inference, tensor, fallback, multi-stage-build, entrypoint, uvicorn-factory, non-root-user
 - **canonical_id**: kb.ag01.clip.1

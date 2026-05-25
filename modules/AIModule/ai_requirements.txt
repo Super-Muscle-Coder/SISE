@@ -7,8 +7,10 @@
 # Core Framework
 fastapi>=0.110.0
 uvicorn>=0.27.0
+python-multipart>=0.0.6
 
-# AI/ML
+# AI/ML - CPU-only PyTorch to reduce image size and build time
+# CPU-only version avoids CUDA libraries
 torch>=2.1.0
 open_clip_torch>=2.20.0
 
@@ -28,6 +30,4 @@ pytest-asyncio>=0.21.0
 
 # Utilities
 loguru>=0.7.0
-
-# Optional: GPU Support (uncomment if using CUDA)
 # torch-cuda  # Install via: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118

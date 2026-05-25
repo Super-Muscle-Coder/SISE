@@ -16,7 +16,7 @@
 
 # Stage 1: Builder
 # Purpose: Compile dependencies into wheels for faster final image build
-FROM python:3.13-slim as builder
+FROM python:3.13-slim AS builder
 
 LABEL stage=builder
 
@@ -34,13 +34,15 @@ COPY modules/AIModule/ai_requirements.txt .
 
 # Create wheels directory and build wheels
 RUN pip install --upgrade pip setuptools wheel && \
-	pip wheel --no-cache-dir --wheel-dir /build/wheels -r ai_requirements.txt
+	pip wheel --no-cache-dir --default-timeout=300 \
+	--extra-index-url https://download.pytorch.org/whl/cpu \
+	--wheel-dir /build/wheels -r ai_requirements.txt
 
 # =============================================================================
 # Stage 2: Runtime
 # Purpose: Minimal production image with only necessary runtime dependencies
 # =============================================================================
-FROM python:3.13-slim as runtime
+FROM python:3.13-slim AS runtime
 
 LABEL maintainer="SISE Project"
 LABEL version="1.0.0"
@@ -71,18 +73,27 @@ RUN pip install --no-cache-dir --no-index --find-links=/build/wheels -r ai_requi
 # Copy application code (entire app layer structure)
 COPY modules/AIModule/app ./app
 COPY modules/AIModule/ai_main.py .
-COPY modules/AIModule/scripts/entrypoint.sh .
+COPY modules/AIModule/scripts/entrypoint.py .
 COPY modules/AIModule/configs ./configs
 
-# Make entrypoint script executable
-RUN chmod +x entrypoint.sh
+# Create model cache directory with proper permissions
+RUN mkdir -p /app/ai-service/model_cache
 
-# Set environment variables for runtime (keys only, no values)
-# Values must be injected at container runtime via docker-compose or orchestration
+# Make entrypoint script executable
+RUN chmod +x entrypoint.py
+
+# Set environment variables for runtime
+# CRITICAL: All AI_SERVICE_PORT, CLIP_MODEL_NAME, DEVICE, MODEL_CACHE_DIR must be set
+# at container startup via docker-compose or orchestration
+# However, we provide sensible defaults to allow container to start
 ENV PYTHONUNBUFFERED=1 \
 	PYTHONDONTWRITEBYTECODE=1 \
 	PYTHONPATH=/app/ai-service \
-	LOG_LEVEL=INFO
+	LOG_LEVEL=INFO \
+	AI_SERVICE_PORT=8001 \
+	CLIP_MODEL_NAME=ViT-B/32 \
+	DEVICE=cpu \
+	MODEL_CACHE_DIR=/app/ai-service/model_cache
 
 # Expose port for FastAPI service
 # Port is configurable via AI_SERVICE_PORT env var
@@ -102,8 +113,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 	response = conn.getresponse(); \
 	exit(0 if response.status == 200 else 1)"
 
-# Entry point: Use bash script for validation and startup
-ENTRYPOINT ["/app/ai-service/entrypoint.sh"]
+# Entry point: Use Python script for validation and startup
+ENTRYPOINT ["python", "/app/ai-service/entrypoint.py"]
 
 # =============================================================================
 # Notes:
