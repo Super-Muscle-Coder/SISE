@@ -124,7 +124,23 @@ paths:
         '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ, ví dụ thiếu trường bắt buộc hoặc định dạng sai.
           $ref: '#/components/responses/StandardError'
 
-  # --- MEDIA & INGESTION -----------------------------------------------------------------------------------------
+  /auth/me: # Retrieve the authenticated user's profile information. Endpoint này yêu cầu xác thực và cho phép user lấy thông tin profile của chính mình. Server sẽ kiểm tra JWT token và trả về thông tin người dùng hiện tại.
+    get:
+      operationId: getCurrentUser
+      summary: Retrieve authenticated user's profile
+      tags: [Auth]
+      security:
+        - BearerAuth: []
+      responses:
+        '200': # Status 200: OK, có nghĩa là thông tin profile người dùng đã được truy xuất thành công.
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+
   /media/upload-url: # Request a presigned URL for direct upload to MinIO. Endpoint này yêu cầu xác thực (Bearer token) và cho phép client yêu cầu một URL có chữ ký để tải tệp trực tiếp lên MinIO mà không cần đi qua backend. Client cung cấp filename, content_type và optional expected_size_mb để server có thể tạo URL phù hợp với chính sách lưu trữ và bảo mật.
     post:
       operationId: requestUploadUrl
@@ -211,8 +227,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  # ------------------------------------------------------------------------------------------------------------------
-  /media/{image_id}: # Retrieve image metadata and signed GET URL (if authorized). Endpoint này yêu cầu xác thực và cho phép client truy xuất metadata của ảnh cùng với URL có chữ ký để truy cập ảnh nếu client có quyền. Client cung cấp image_id trong đường dẫn, và server kiểm tra quyền truy cập dựa trên metadata (ví dụ user_id, album_id, privacy_level) trước khi trả về thông tin.
+
+  /media/upload/confirm: # Confirm and finalize an upload (completes S5 step). Endpoint này yêu cầu xác thực và cho phép client xác nhận rằng file đã được tải lên thành công và sẵn sàng để được xử lý. Đây là bước cuối (S5) trong quy trình tải lên. Client gửi object_key từ presigned upload, server sẽ verify file tồn tại trên MinIO, lưu metadata vào PostgreSQL, và queue file cho việc embedding và indexing.
+    post:
+      operationId: confirmUpload
+      summary: Confirm and finalize an upload (completes S5 step)
+      tags: [Media]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [object_key, album_id, privacy_level]
+              properties:
+                object_key: { type: string, description: "The MinIO object key from presigned upload" }
+                album_id: { type: integer }
+                privacy_level: { $ref: '#/components/schemas/PrivacyLevel' }
+                tags:
+                  type: array
+                  items: { type: string }
+                  description: Optional tags for the uploaded image
+      responses:
+        '200': # Status 200: OK, có nghĩa là file đã được xác nhận thành công. Server sẽ bắt đầu process embedding và indexing.
+          description: Upload confirmed and queued for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ.
+          $ref: '#/components/responses/StandardError'
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+
     get:
       operationId: getMediaMetadata
       summary: Retrieve image metadata and signed GET URL (if authorized)
@@ -237,6 +288,113 @@ paths:
           $ref: '#/components/responses/StandardError'
         '404': # Status 404: Not Found, có nghĩa là không tìm thấy ảnh với image_id được cung cấp. Phản hồi sẽ bao gồm mã lỗi và thông điệp giải thích rằng ảnh không tồn tại.
           $ref: '#/components/responses/StandardError'
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+
+  /media/{image_id}/update: # Update image metadata (album, privacy, tags). Endpoint này yêu cầu xác thực và cho phép owner của ảnh cập nhật metadata như album_id, privacy_level, hoặc tags.
+    put:
+      operationId: updateMediaMetadata
+      summary: Update image metadata (album, privacy, tags)
+      tags: [Media]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: image_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                album_id: { type: integer }
+                privacy_level: { $ref: '#/components/schemas/PrivacyLevel' }
+                tags:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200': # Status 200: OK, có nghĩa là metadata đã được cập nhật thành công.
+          description: Image metadata updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageMetadata'
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ.
+          $ref: '#/components/responses/StandardError'
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+        '403': # Status 403: Forbidden, có nghĩa là client không phải là owner của ảnh này.
+          $ref: '#/components/responses/StandardError'
+        '404': # Status 404: Not Found, có nghĩa là không tìm thấy ảnh.
+          $ref: '#/components/responses/StandardError'
+
+  /media/{image_id}/delete: # Delete (soft delete) an image. Endpoint này yêu cầu xác thực và cho phép owner của ảnh xóa (soft delete) ảnh.
+    delete:
+      operationId: deleteMedia
+      summary: Delete (soft delete) an image
+      tags: [Media]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: image_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204': # Status 204: No Content, có nghĩa là ảnh đã được xóa thành công.
+          description: Image deleted successfully
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+        '403': # Status 403: Forbidden, có nghĩa là client không phải là owner của ảnh này.
+          $ref: '#/components/responses/StandardError'
+        '404': # Status 404: Not Found, có nghĩa là không tìm thấy ảnh.
+          $ref: '#/components/responses/StandardError'
+
+  /media: # List images for the authenticated user. Endpoint này yêu cầu xác thực và cho phép user lấy danh sách các ảnh của chính mình.
+    get:
+      operationId: listMedia
+      summary: List images for the authenticated user
+      tags: [Media]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: album_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by album ID
+      responses:
+        '200': # Status 200: OK, có nghĩa là danh sách ảnh đã được truy xuất thành công.
+          description: List of images
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ImageMetadata'
+                  total: { type: integer }
+                  offset: { type: integer }
+                  limit: { type: integer }
         '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
 
@@ -306,10 +464,73 @@ paths:
         '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
         '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình xử lý yêu cầu, có thể do lỗi code hoặc sự cố môi trường.
+                   $ref: '#/components/responses/StandardError'
+
+
+  # --- SEARCH (APPLICATION-LEVEL WRAPPERS) -------------------------------------------------------------------------------------------------
+  /search/image: # Search by image (app-level wrapper around inference + hybrid search). Endpoint này yêu cầu xác thực và cho phép user tìm kiếm ảnh tương tự bằng cách gửi một tệp ảnh.
+    post:
+      operationId: searchByImage
+      summary: Search by image (app-level wrapper around inference + hybrid search)
+      tags: [Search]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                top_k: { type: integer, default: 10 }
+                metric: { $ref: '#/components/schemas/MetricType' }
+                album_id: { type: integer, description: "Optional: filter results to specific album" }
+      responses:
+        '200': # Status 200: OK, có nghĩa là tìm kiếm đã thực hiện thành công.
+          description: Search results by image
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ.
           $ref: '#/components/responses/StandardError'
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
 
+  /search/text: # Search by text query (app-level wrapper around text embedding + hybrid search). Endpoint này yêu cầu xác thực và cho phép user tìm kiếm ảnh bằng cách gửi một chuỗi văn bản mô tả.
+    post:
+      operationId: searchByText
+      summary: Search by text query (app-level wrapper around text embedding + hybrid search)
+      tags: [Search]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query_text]
+              properties:
+                query_text: { type: string }
+                top_k: { type: integer, default: 10 }
+                metric: { $ref: '#/components/schemas/MetricType' }
+                album_id: { type: integer, description: "Optional: filter results to specific album" }
+      responses:
+        '200': # Status 200: OK, có nghĩa là tìm kiếm đã thực hiện thành công.
+          description: Search results by text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ.
+          $ref: '#/components/responses/StandardError'
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
 
-  # --- VECTOR INDEXING & SEARCH -------------------------------------------------------------------------------------------------
+          # --- VECTOR INDEXING & SEARCH -------------------------------------------------------------------------------------------------
   /vector/index: # Index a vector into the vector DB and associate with image metadata. Endpoint này yêu cầu xác thực và cho phép client gửi một vector embedding cùng với image_id để lập chỉ mục vào vector DB. Client cũng có thể gửi metadata bổ sung nếu cần. Server sẽ lưu vector vào vector DB và liên kết nó với metadata của ảnh. Lưu ý rằng quá trình lập chỉ mục có thể là bất đồng bộ, vì vậy ngay cả khi yêu cầu trả về thành công, vector có thể vẫn đang chờ để được lập chỉ mục.
     post:
       operationId: indexVector
@@ -397,9 +618,231 @@ paths:
         '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
           $ref: '#/components/responses/Unauthorized'
         '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình xử lý yêu cầu, có thể do lỗi code hoặc sự cố môi trường.
+                   $ref: '#/components/responses/StandardError'
+
+
+
+  # --- ALBUMS (CRUD) -------------------------------------------------------------------------------------------------
+  /albums: # List and create albums for the authenticated user.
+    get:
+      operationId: listAlbums
+      summary: List albums for the authenticated user
+      tags: [Albums]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200': # Status 200: OK, có nghĩa là danh sách album đã được truy xuất thành công.
+          description: List of albums
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Album'
+                  total: { type: integer }
+                  offset: { type: integer }
+                  limit: { type: integer }
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createAlbum
+      summary: Create a new album
+      tags: [Albums]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string }
+                description: { type: string }
+                is_public: { type: boolean, default: false }
+      responses:
+        '201': # Status 201: Created, có nghĩa là album mới đã được tạo thành công.
+          description: Album created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Album'
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ.
+          $ref: '#/components/responses/StandardError'
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+
+  /albums/{album_id}: # Retrieve, update, and delete individual albums.
+    get:
+      operationId: getAlbumDetails
+      summary: Get album details
+      tags: [Albums]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: album_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200': # Status 200: OK, có nghĩa là thông tin album đã được truy xuất thành công.
+          description: Album details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Album'
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+        '403': # Status 403: Forbidden, có nghĩa là client không phải là owner của album này.
+          $ref: '#/components/responses/StandardError'
+        '404': # Status 404: Not Found, có nghĩa là không tìm thấy album.
+          $ref: '#/components/responses/StandardError'
+    put:
+      operationId: updateAlbum
+      summary: Update album details
+      tags: [Albums]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: album_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                description: { type: string }
+                is_public: { type: boolean }
+      responses:
+        '200': # Status 200: OK, có nghĩa là album đã được cập nhật thành công.
+          description: Album updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Album'
+        '400': # Status 400: Bad Request, có nghĩa là dữ liệu đầu vào không hợp lệ.
+          $ref: '#/components/responses/StandardError'
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+        '403': # Status 403: Forbidden, có nghĩa là client không phải là owner của album này.
+          $ref: '#/components/responses/StandardError'
+        '404': # Status 404: Not Found, có nghĩa là không tìm thấy album.
+          $ref: '#/components/responses/StandardError'
+    delete:
+      operationId: deleteAlbum
+      summary: Delete (soft delete) an album
+      tags: [Albums]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: album_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204': # Status 204: No Content, có nghĩa là album đã được xóa thành công.
+          description: Album deleted
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+        '403': # Status 403: Forbidden, có nghĩa là client không phải là owner của album này.
+          $ref: '#/components/responses/StandardError'
+        '404': # Status 404: Not Found, có nghĩa là không tìm thấy album.
           $ref: '#/components/responses/StandardError'
 
+  # --- EVALUATION -------------------------------------------------------------------------------------------------
+  /eval/run: # Trigger an evaluation run on a subset of indexed images.
+    post:
+      operationId: runEvaluation
+      summary: Trigger an evaluation run on indexed images
+      tags: [EvaluationService]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  default: 100
+                  description: Limit evaluation to N random indexed images
+                seed: { type: integer, description: "Random seed for reproducibility" }
+      responses:
+        '202': # Status 202: Accepted, có nghĩa là yêu cầu đánh giá đã được chấp nhận và đang chạy.
+          description: Evaluation job started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  eval_id: { type: string, format: uuid }
+                  status: { type: string, example: "running" }
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+        '403': # Status 403: Forbidden, có nghĩa là client không có quyền admin để chạy đánh giá.
+          $ref: '#/components/responses/StandardError'
+        '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình xử lý yêu cầu.
+          $ref: '#/components/responses/StandardError'
 
+  /eval/results/{eval_id}: # Retrieve results of a completed evaluation run.
+    get:
+      operationId: getEvaluationResults
+      summary: Retrieve results of a completed evaluation run
+      tags: [EvaluationService]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: eval_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200': # Status 200: OK, có nghĩa là kết quả đánh giá đã được truy xuất thành công.
+          description: Evaluation results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  eval_id: { type: string, format: uuid }
+                  status: { type: string, example: "completed" }
+                  mrr: { type: number }
+                  hit_rate: { type: number }
+                  precision: { type: number }
+                  recall: { type: number }
+                  query_count: { type: integer }
+                  completed_at: { type: string, format: date-time }
+        '401': # Status 401: Unauthorized, có nghĩa là yêu cầu không có token hợp lệ hoặc token đã hết hạn.
+          $ref: '#/components/responses/Unauthorized'
+        '404': # Status 404: Not Found, có nghĩa là không tìm thấy evaluation run với eval_id này.
+          $ref: '#/components/responses/StandardError'
 
   # --- EVALUATION & ADMIN -------------------------------------------------------------------------------------------------
   /eval/metrics: # Retrieve performance benchmarking indices (MRR, HitRate, Precision, Recall). Endpoint này yêu cầu xác thực và cho phép client truy xuất các chỉ số đánh giá hiệu suất của hệ thống, bao gồm MRR (Mean Reciprocal Rank), HitRate, Precision, và Recall. Các chỉ số này được tính toán dựa trên các truy vấn đánh giá đã được thực hiện trước đó và phản hồi của hệ thống. Phản hồi bao gồm các chỉ số này để giúp đánh giá chất lượng của mô hình tìm kiếm và lập chỉ mục.
@@ -698,6 +1141,7 @@ components:
         description: { type: string }
         is_public: { type: boolean }
         created_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true, description: "Soft delete timestamp; null if not deleted" }
 
     # --- HEALTH & ERROR -----------------------------------
     HealthStatus: # Response schema for health and readiness endpoints, including dependency status
@@ -734,15 +1178,19 @@ components:
 tags: # Logical grouping of endpoints for better organization and documentation
   - name: System # System-level endpoints (health, readiness)
     description: System-level endpoints (health, readiness)
-  - name: Auth   # Authentication endpoints (register, login)
-    description: Authentication endpoints (register, login)
+  - name: Auth   # Authentication endpoints (register, login, profile)
+    description: Authentication endpoints (register, login, profile)
   - name: Media  # Media upload and retrieval endpoints
-    description: Upload and media retrieval
+    description: Upload, retrieval, and metadata operations
+  - name: Search # Application-level search wrappers
+    description: Image search by image/text (application-level wrappers)
+  - name: Albums # Album management endpoints
+    description: Album CRUD operations
   - name: AIModule # AI inference endpoints (embedding extraction)
     description: Embedding extraction endpoints
   - name: StorageModule # Vector DB indexing and search endpoints
     description: Vector DB indexing and search
   - name: EvaluationService  # Metrics and evaluation endpoints
-    description: Metrics and evaluation endpoints
+    description: Evaluation runs and metrics reporting
   - name: Admin # Admin-only endpoints for maintenance and reindexing
     description: Admin operations (reindex, maintenance)

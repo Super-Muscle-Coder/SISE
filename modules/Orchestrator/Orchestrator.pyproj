@@ -35,6 +35,7 @@
   <ItemGroup>
     <Content Include="AG01_PHASE2_HANDOFF_GUIDE.md" />
     <Content Include="AG01_PHASE2_TASK_BOARD.md" />
+    <Content Include="AG03_PHASE3_HANDOFF_GUIDE.md" />
     <Content Include="configs\orchestrator.env.example" />
     <Content Include="configs\orchestrator.env.local" />
     <Content Include="configs\orchestrator.env.staging" />

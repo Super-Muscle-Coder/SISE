@@ -4,7 +4,8 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>ff80f0c4-3dc3-48a7-a7bd-a571ef3f0ad3</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>backend_main.py</StartupFile>
+    <StartupFile>
+    </StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -12,6 +13,7 @@
     <Name>BackendModule</Name>
     <RootNamespace>BackendModule</RootNamespace>
     <InterpreterId>Global|PythonCore|3.13</InterpreterId>
+    <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,7 +24,37 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="app\adapters\auth_adapters.py" />
+    <Compile Include="app\adapters\scaffold_adapters.py" />
+    <Compile Include="app\adapters\search_adapters.py" />
+    <Compile Include="app\adapters\upload_adapters.py" />
+    <Compile Include="app\adapters\__init__.py" />
+    <Compile Include="app\dependencies.py" />
+    <Compile Include="app\entities\auth_entities.py" />
+    <Compile Include="app\entities\scaffold_entities.py" />
+    <Compile Include="app\entities\search_entities.py" />
+    <Compile Include="app\entities\upload_entities.py" />
+    <Compile Include="app\entities\__init__.py" />
+    <Compile Include="app\main.py" />
+    <Compile Include="app\routers\auth_routers.py" />
+    <Compile Include="app\routers\scaffold_routers.py" />
+    <Compile Include="app\routers\search_routers.py" />
+    <Compile Include="app\routers\upload_routers.py" />
+    <Compile Include="app\routers\__init__.py" />
+    <Compile Include="app\services\auth_services.py" />
+    <Compile Include="app\services\scaffold_services.py" />
+    <Compile Include="app\services\search_services.py" />
+    <Compile Include="app\services\upload_services.py" />
+    <Compile Include="app\services\__init__.py" />
+    <Compile Include="app\tasks\upload_celery_tasks.py" />
+    <Compile Include="app\tasks\__init__.py" />
+    <Compile Include="app\__init__.py" />
     <Compile Include="backend_main.py" />
+    <Compile Include="tests\test_auth_workflow.py" />
+    <Compile Include="tests\test_scaffold_workflow.py" />
+    <Compile Include="tests\test_search_workflow.py" />
+    <Compile Include="tests\test_upload_workflow.py" />
+    <Compile Include="tests\__init__.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="app\" />
@@ -30,7 +62,17 @@
     <Folder Include="app\entities\" />
     <Folder Include="app\routers\" />
     <Folder Include="app\services\" />
+    <Folder Include="app\tasks\" />
     <Folder Include="configs\" />
+    <Folder Include="documents\" />
+    <Folder Include="documents\auth_workflow\" />
+    <Folder Include="documents\media_workflow\" />
+    <Folder Include="documents\evaluation_workflow\" />
+    <Folder Include="documents\health_workflow\" />
+    <Folder Include="documents\search_workflow\" />
+    <Folder Include="documents\upload_workflow\" />
+    <Folder Include="documents\scaffold_workflow\" />
+    <Folder Include="scripts\" />
     <Folder Include="tests\" />
   </ItemGroup>
   <ItemGroup>
@@ -38,6 +80,7 @@
     <Content Include="configs\backend.env.example" />
     <Content Include="configs\backend.env.staging" />
     <Content Include="backend_requirements.txt" />
+    <Content Include="pytest.ini" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="env1\">
