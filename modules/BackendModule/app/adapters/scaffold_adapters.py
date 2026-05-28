@@ -178,3 +178,9 @@ class ScaffoldConfigAdapter:
     def get_app_config(self) -> AppConfig:
         """Convenience getter for app configuration."""
         return self.loader.get_app_config()
+
+
+__all__ = [
+    "ConfigLoader",
+    "ScaffoldConfigAdapter",
+]

@@ -293,3 +293,8 @@ class SearchService:
                 )
                 for r in search_results
             ]
+
+
+__all__ = [
+    "SearchService",
+]

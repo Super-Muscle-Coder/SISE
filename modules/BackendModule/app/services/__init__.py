@@ -1,5 +1,5 @@
 """
-Services Layer: Business logic and orchestration for scaffold, auth, and upload workflows.
+Services Layer: Business logic and orchestration for all workflows.
 Exported by workflow for use in routers and main application.
 """
 
@@ -13,11 +13,19 @@ from .auth_services import (
 from .upload_services import (
     UploadService,
 )
+from .search_services import (
+    SearchService,
+)
+from .media_services import (
+    MediaService,
+)
 
 __all__ = [
     "ScaffoldService",
     "AppLifecycleService",
     "AuthService",
     "UploadService",
+    "SearchService",
+    "MediaService",
 ]
 

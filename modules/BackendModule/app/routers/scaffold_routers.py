@@ -33,3 +33,6 @@ async def validate_config(scaffold_service: ScaffoldService = Depends(get_scaffo
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+__all__ = ["router"]

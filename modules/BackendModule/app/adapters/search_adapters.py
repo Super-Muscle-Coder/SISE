@@ -284,3 +284,10 @@ class AIServiceSearchAdapter:
         except Exception as e:
             logger.error(f"AI Service text embedding failed: {str(e)}")
             raise
+
+
+__all__ = [
+    "MilvusSearchAdapter",
+    "PostgreSQLSearchAdapter",
+    "AIServiceSearchAdapter",
+]

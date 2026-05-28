@@ -158,3 +158,6 @@ async def search_by_text(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during text search",
         )
+
+
+__all__ = ["search_router"]

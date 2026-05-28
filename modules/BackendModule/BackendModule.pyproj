@@ -25,23 +25,27 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="app\adapters\auth_adapters.py" />
+    <Compile Include="app\adapters\media_adapters.py" />
     <Compile Include="app\adapters\scaffold_adapters.py" />
     <Compile Include="app\adapters\search_adapters.py" />
     <Compile Include="app\adapters\upload_adapters.py" />
     <Compile Include="app\adapters\__init__.py" />
     <Compile Include="app\dependencies.py" />
     <Compile Include="app\entities\auth_entities.py" />
+    <Compile Include="app\entities\media_entities.py" />
     <Compile Include="app\entities\scaffold_entities.py" />
     <Compile Include="app\entities\search_entities.py" />
     <Compile Include="app\entities\upload_entities.py" />
     <Compile Include="app\entities\__init__.py" />
     <Compile Include="app\main.py" />
     <Compile Include="app\routers\auth_routers.py" />
+    <Compile Include="app\routers\media_routers.py" />
     <Compile Include="app\routers\scaffold_routers.py" />
     <Compile Include="app\routers\search_routers.py" />
     <Compile Include="app\routers\upload_routers.py" />
     <Compile Include="app\routers\__init__.py" />
     <Compile Include="app\services\auth_services.py" />
+    <Compile Include="app\services\media_services.py" />
     <Compile Include="app\services\scaffold_services.py" />
     <Compile Include="app\services\search_services.py" />
     <Compile Include="app\services\upload_services.py" />
@@ -50,7 +54,9 @@
     <Compile Include="app\tasks\__init__.py" />
     <Compile Include="app\__init__.py" />
     <Compile Include="backend_main.py" />
+    <Compile Include="tests\manual_test_search.py" />
     <Compile Include="tests\test_auth_workflow.py" />
+    <Compile Include="tests\test_media_workflow.py" />
     <Compile Include="tests\test_scaffold_workflow.py" />
     <Compile Include="tests\test_search_workflow.py" />
     <Compile Include="tests\test_upload_workflow.py" />

@@ -4,7 +4,7 @@ Prefix: search_
 """
 
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 
 
@@ -24,21 +24,22 @@ class FilterExpressionLeaf(BaseModel):
 
 class FilterExpression(BaseModel):
     """Recursive boolean filter for metadata."""
+    model_config = ConfigDict(populate_by_name=True)
+
     and_: Optional[List[Dict[str, Any]]] = Field(None, alias="and")
     or_: Optional[List[Dict[str, Any]]] = Field(None, alias="or")
     field: Optional[str] = None
     op: Optional[str] = None
     value: Optional[Any] = None
 
-    class Config:
-        populate_by_name = True
-
 
 class SearchResultItem(BaseModel):
     """Individual search result item."""
-    image_id: str = Field(..., format="uuid")
+    model_config = ConfigDict(from_attributes=True)
+
+    image_id: str = Field(..., description="Image UUID (UUID format)")
     score: float = Field(..., description="Similarity score")
-    minio_url: str = Field(..., format="uri")
+    minio_url: str = Field(..., description="Presigned MinIO URL")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Image metadata (user_id, album_id, tags, etc.)")
 
 
@@ -70,3 +71,15 @@ class VectorSearchRequest(BaseModel):
     top_k: int = Field(..., description="Number of top results")
     metric: MetricType = Field(..., description="Similarity metric")
     filter: Optional[Dict[str, Any]] = Field(None, description="Structured metadata filter")
+
+
+__all__ = [
+    "MetricType",
+    "FilterExpressionLeaf",
+    "FilterExpression",
+    "SearchResultItem",
+    "SearchResponse",
+    "SearchByImageRequest",
+    "SearchByTextRequest",
+    "VectorSearchRequest",
+]

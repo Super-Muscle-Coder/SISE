@@ -77,3 +77,9 @@ class AppLifecycleService:
     def is_initialized(self) -> bool:
         """Check if application is initialized."""
         return self._initialized
+
+
+__all__ = [
+    "ScaffoldService",
+    "AppLifecycleService",
+]

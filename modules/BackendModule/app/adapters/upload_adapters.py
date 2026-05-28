@@ -23,7 +23,7 @@ from uuid import UUID
 
 from minio import Minio
 from minio.error import S3Error
-import aioredis
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, and_
 
@@ -171,7 +171,7 @@ class IdempotencyAdapter:
     - Returns 409 Conflict if duplicate detected
     """
 
-    def __init__(self, redis_client: aioredis.Redis, ttl_hours: int = 24):
+    def __init__(self, redis_client: Redis, ttl_hours: int = 24):
         """
         Initialize idempotency adapter.
 

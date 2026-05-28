@@ -17,6 +17,15 @@ from .upload_adapters import (
     IdempotencyAdapter,
     PostgreSQLImageAdapter,
 )
+from .search_adapters import (
+    MilvusSearchAdapter,
+    PostgreSQLSearchAdapter,
+    AIServiceSearchAdapter,
+)
+from .media_adapters import (
+    AlbumAdapter,
+    ImageAdapter,
+)
 
 __all__ = [
     "ScaffoldConfigAdapter",
@@ -27,5 +36,10 @@ __all__ = [
     "MinIOAdapter",
     "IdempotencyAdapter",
     "PostgreSQLImageAdapter",
+    "MilvusSearchAdapter",
+    "PostgreSQLSearchAdapter",
+    "AIServiceSearchAdapter",
+    "AlbumAdapter",
+    "ImageAdapter",
 ]
 

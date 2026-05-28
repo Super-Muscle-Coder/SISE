@@ -1,5 +1,5 @@
 """
-Entities Layer: Domain models for scaffold, auth, and upload workflows.
+Entities Layer: Domain models for all workflows.
 Exported by workflow for use in adapters and services.
 """
 
@@ -27,6 +27,24 @@ from .upload_entities import (
     ImageMetadata,
     ImageMetadataList,
 )
+from .search_entities import (
+    MetricType,
+    FilterExpressionLeaf,
+    FilterExpression,
+    SearchResultItem,
+    SearchResponse,
+    SearchByImageRequest,
+    SearchByTextRequest,
+    VectorSearchRequest,
+)
+from .media_entities import (
+    AlbumCreateRequest,
+    AlbumUpdateRequest,
+    AlbumResponse,
+    AlbumListResponse,
+    ImageUpdateMetadataRequest,
+    ImageListResponse,
+)
 
 __all__ = [
     "AppConfig",
@@ -47,4 +65,18 @@ __all__ = [
     "UploadResponse",
     "ImageMetadata",
     "ImageMetadataList",
+    "MetricType",
+    "FilterExpressionLeaf",
+    "FilterExpression",
+    "SearchResultItem",
+    "SearchResponse",
+    "SearchByImageRequest",
+    "SearchByTextRequest",
+    "VectorSearchRequest",
+    "AlbumCreateRequest",
+    "AlbumUpdateRequest",
+    "AlbumResponse",
+    "AlbumListResponse",
+    "ImageUpdateMetadataRequest",
+    "ImageListResponse",
 ]
