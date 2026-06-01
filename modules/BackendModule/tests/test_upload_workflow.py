@@ -28,7 +28,7 @@ import pytest
 import json
 from uuid import uuid4, UUID
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import Pydantic schemas
 from app.entities.upload_entities import (
@@ -99,7 +99,7 @@ def mock_postgres_adapter():
             "privacy_level": 2,
             "tags": ["nature"],
             "index_status": "pending",
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
     )
     adapter.get_image = AsyncMock()
@@ -159,33 +159,27 @@ class TestS1PresignedUrl:
     @pytest.mark.asyncio
     async def test_s1_invalid_content_type(self, upload_service):
         """✗ S1: Reject invalid content_type"""
-        request = PresignedUploadRequest(
-            filename="vacation.bmp",
-            content_type="image/bmp",  # Not allowed per data_schema
-            expected_size_mb=5,
-        )
+        from pydantic import ValidationError
 
-        with pytest.raises(ValueError, match="content_type must be one of"):
-            await upload_service.request_presigned_url(
-                request=request,
-                current_user_id=42,
-                idempotency_key=None,
+        # Pydantic validation should reject invalid content_type at instantiation
+        with pytest.raises(ValidationError, match="content_type"):
+            PresignedUploadRequest(
+                filename="vacation.bmp",
+                content_type="image/bmp",  # Not allowed per data_schema
+                expected_size_mb=5,
             )
 
     @pytest.mark.asyncio
     async def test_s1_file_size_exceeds_max(self, upload_service):
         """✗ S1: Reject file size > 20MB per data_schema"""
-        request = PresignedUploadRequest(
-            filename="large.jpg",
-            content_type="image/jpeg",
-            expected_size_mb=25,  # Exceeds max_file_size_mb: 20
-        )
+        from pydantic import ValidationError
 
-        with pytest.raises(ValueError, match="expected_size_mb must be ≤ 20 MB"):
-            await upload_service.request_presigned_url(
-                request=request,
-                current_user_id=42,
-                idempotency_key=None,
+        # Pydantic validation should reject oversized expected_size_mb at instantiation
+        with pytest.raises(ValidationError, match="expected_size_mb"):
+            PresignedUploadRequest(
+                filename="large.jpg",
+                content_type="image/jpeg",
+                expected_size_mb=25,  # Exceeds max_file_size_mb: 20
             )
 
     @pytest.mark.asyncio
@@ -326,15 +320,15 @@ class TestS3MetadataCommit:
     @pytest.mark.asyncio
     async def test_s3_invalid_privacy_level(self, upload_service):
         """✗ S3: Reject invalid privacy_level"""
-        request = UploadConfirmRequest(
-            object_key="raw-images/42/uuid/file.jpg",
-            album_id=10,
-            privacy_level=99,  # Invalid
-        )
+        from pydantic import ValidationError
 
-        # Pydantic should catch this during validation
-        with pytest.raises(ValueError):
-            request.privacy_level = 99  # Force invalid value
+        # Pydantic validation should reject invalid privacy_level (enum) at instantiation
+        with pytest.raises(ValidationError, match="privacy_level"):
+            UploadConfirmRequest(
+                object_key="raw-images/42/uuid/file.jpg",
+                album_id=10,
+                privacy_level=99,  # Invalid enum value
+            )
 
     @pytest.mark.asyncio
     async def test_s3_idempotency_caching(self, upload_service, mock_idempotency_adapter):
@@ -426,7 +420,7 @@ class TestEntitySchemas:
             minio_url="http://minio:9000/...",
             privacy_level=PrivacyLevel.PUBLIC,
             tags=["nature"],
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             index_status="ready",
         )
         assert metadata.privacy_level == PrivacyLevel.PUBLIC
@@ -476,28 +470,30 @@ class TestDataSchemaConstraints:
         """✓ Max file size: 20 MB per data_schema"""
         # Already tested in test_s1_file_size_exceeds_max
         # This verifies the constraint is enforced
-        request = PresignedUploadRequest(
-            filename="photo.jpg",
-            content_type="image/jpeg",
-            expected_size_mb=20,  # Max allowed
-        )
-        # Should pass
-        await upload_service.request_presigned_url(
-            request=request,
-            current_user_id=42,
-        )
+        @pytest.mark.asyncio
+        async def test_max_file_size_constraint(self, upload_service):
+            """✓ Validate data_schema max_file_size_mb: 20"""
+            from pydantic import ValidationError
 
-        request_over = PresignedUploadRequest(
-            filename="photo.jpg",
-            content_type="image/jpeg",
-            expected_size_mb=21,  # Over limit
-        )
-        # Should fail
-        with pytest.raises(ValueError):
+            # Max allowed should work
+            request = PresignedUploadRequest(
+                filename="photo.jpg",
+                content_type="image/jpeg",
+                expected_size_mb=20,  # Max allowed
+            )
+            # Should pass
             await upload_service.request_presigned_url(
-                request=request_over,
+                request=request,
                 current_user_id=42,
             )
+
+            # Over limit should fail at instantiation
+            with pytest.raises(ValidationError, match="expected_size_mb"):
+                PresignedUploadRequest(
+                    filename="photo.jpg",
+                    content_type="image/jpeg",
+                    expected_size_mb=21,  # Over limit
+                )
 
 
 # ============================================================================

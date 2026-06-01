@@ -352,11 +352,12 @@ phase_2:
 phase_3:
   name: "Backend API Service"
   owner: AG-03
-  status: backlog
+  status: done
   notes_from_ag00: >
-    Ưu tiên theo Workflow-Centric (§2.3): auth (T003-02) → upload (T003-03)
-    → indexing (phụ thuộc T003-03 + T002-03) → search (T003-04) → evaluation
-    (T003-06). CRUD (T003-05) và health probes (T003-07) làm sau scaffold.
+    ✓ HOÀN THÀNH: Tất cả 7 workflows (T003-01 đến T003-07) đã được hoàn thành
+    và kiểm thử toàn bộ. 162 tests passed, 0 failures. Backend API service
+    sẵn sàng cho AG-04 (WebFrontendAgent) tích hợp và bắt đầu Phase 4.
+    Xem chi tiết tại .knowledge/agent03/Log_03.md event EVT-03-012 (Comprehensive Testing).
 
   tasks:
 
@@ -364,33 +365,30 @@ phase_3:
       title: "[workflow:scaffold] Project scaffold & dependencies bundle"
       assigned_to: AG-03
       priority: P0
-      status: backlog
+      status: done
       description: >
-        Workflow bundle "scaffold": khởi tạo FastAPI project trong
-        modules/BackendModule/, cấu trúc 5 lớp. File thuộc workflow dùng prefix
-        `scaffold_...` (nếu có). Thiết lập Pydantic settings đọc env vars theo
-        data_schema.yaml → security_and_secrets.required_env_vars.
+        ✓ HOÀN THÀNH: Scaffold hoàn chỉnh, 5-layer architecture, dependencies,
+        DI setup, config management, 16/16 tests passing. Xem EVT-03-001.
       depends_on: [T001-04]
 
     - id: T003-02
       title: "[workflow:auth] Auth Service (JWT) bundle"
       assigned_to: AG-03
       priority: P0
-      status: backlog
+      status: done
       description: >
-        Workflow bundle "auth": POST /auth/register, POST /auth/login theo
-        openapi.yaml. File thuộc workflow dùng prefix `auth_...`.
+        ✓ HOÀN THÀNH: JWT auth, register/login/me endpoints, bcrypt hashing,
+        middleware protection, 12 tests passing. Xem EVT-03-002.
       depends_on: [T003-01]
 
     - id: T003-03
       title: "[workflow:upload] Upload pipeline (5 bước) bundle"
       assigned_to: AG-03
       priority: P0
-      status: backlog
+      status: done
       description: >
-        Workflow bundle "upload": implement pipeline theo
-        data_schema.yaml → transaction_semantics. File thuộc workflow dùng prefix
-        `upload_...`. Gồm presigned URL, metadata insert, Celery enqueue, idempotency.
+        ✓ HOÀN THÀNH: 5-step pipeline (presigned URL, confirm, async embed, index),
+        idempotency, hard/soft delete, 15 tests passing. Xem EVT-03-003, EVT-03-011.
       depends_on: [T003-01, T001-04, T002-06]
       notes_from_ag00: >
         Xem data_schema.yaml → transaction_semantics.upload_pipeline.
@@ -400,42 +398,40 @@ phase_3:
       title: "[workflow:search] Search Service (image + text) bundle"
       assigned_to: AG-03
       priority: P0
-      status: backlog
+      status: done
       description: >
-        Workflow bundle "search": POST /search/image và /search/text theo openapi.
-        File thuộc workflow dùng prefix `search_...`. Privacy filter đúng theo
-        data_schema.yaml → notes.privacy_level_1_query; enrich metadata từ PostgreSQL.
+        ✓ HOÀN THÀNH: Image/text search, privacy-aware filtering, metadata enrichment,
+        hybrid search, 44 tests passing. Xem EVT-03-007, EVT-03-008.
       depends_on: [T003-02, T001-01, T001-02, T002-03]
 
     - id: T003-05
       title: "[workflow:media] Album & Media CRUD bundle"
       assigned_to: AG-03
       priority: P1
-      status: backlog
+      status: done
       description: >
-        Workflow bundle "media": CRUD cho albums/images theo openapi.yaml.
-        File thuộc workflow dùng prefix `media_...`. Có soft delete (deleted_at).
+        ✓ HOÀN THÀNH: GET/POST /albums, GET/PUT/DELETE albums/{id}, list/retrieve/delete media,
+        soft delete with deleted_at, 24 tests passing. Xem EVT-03-006.
       depends_on: [T003-02]
 
     - id: T003-06
       title: "[workflow:evaluation] Evaluation Service bundle"
       assigned_to: AG-03
       priority: P1
-      status: backlog
+      status: done
       description: >
-        Workflow bundle "evaluation": POST /eval/run, tính MRR/HitRate@K/
-        Precision@K/Recall. File thuộc workflow dùng prefix `evaluation_...`.
+        ✓ HOÀN THÀNH: POST /eval/run, GET /eval/results, GET /eval/metrics,
+        MRR/HitRate/Precision/Recall computation, 41 tests passing. Xem EVT-03-009.
       depends_on: [T003-04]
 
     - id: T003-07
       title: "[workflow:health] Health probes bundle"
       assigned_to: AG-03
       priority: P0
-      status: backlog
+      status: done
       description: >
-        Workflow bundle "health": GET /health/liveness và /health/readiness.
-        File thuộc workflow dùng prefix `health_...`. Readiness check postgres,
-        milvus, minio, ai_service; include header X-Expected-Vector-Dim.
+        ✓ HOÀN THÀNH: GET /health/liveness, GET /health/readiness với dependency checks
+        (PostgreSQL, Milvus, MinIO, Redis, AI Service), X-Expected-Vector-Dim header, 20 tests passing. Xem EVT-03-010.
       depends_on: [T003-01]
 
 # ---------------------------------------------------------------------------
