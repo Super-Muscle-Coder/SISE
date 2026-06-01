@@ -8,6 +8,8 @@ from . import auth_routers
 from . import upload_routers
 from . import search_routers
 from . import media_routers
+from . import evaluation_routers
+from . import health_routers
 
 __all__ = [
     "scaffold_routers",
@@ -15,5 +17,7 @@ __all__ = [
     "upload_routers",
     "search_routers",
     "media_routers",
+    "evaluation_routers",
+    "health_routers",
 ]
 

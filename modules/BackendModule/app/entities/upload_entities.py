@@ -123,8 +123,8 @@ class UploadResponse(BaseModel):
     Matches openapi.yaml UploadResponse schema.
     Represents media after S3 (metadata committed but S4 may still be pending).
     """
-    image_id: str = Field(..., format="uuid", description="Unique image identifier (UUID)")
-    minio_url: str = Field(..., format="uri", description="MinIO access URL (presigned)")
+    image_id: str = Field(..., description="Unique image identifier (UUID)", json_schema_extra={"format": "uuid"})
+    minio_url: str = Field(..., description="MinIO access URL (presigned)", json_schema_extra={"format": "uri"})
     status: str = Field(default="pending", description="Media status (pending, ready, failed)")
     index_status: str = Field(
         default="pending",
@@ -141,10 +141,10 @@ class ImageMetadata(BaseModel):
     Used in GET /media/{image_id} response and search result enrichment.
     Includes privacy filtering context for search queries.
     """
-    image_id: str = Field(..., format="uuid", description="Image UUID")
+    image_id: str = Field(..., description="Image UUID", json_schema_extra={"format": "uuid"})
     user_id: int = Field(..., ge=1, description="Owner user ID")
     album_id: Optional[int] = Field(None, ge=1, description="Album ID (optional)")
-    minio_url: str = Field(..., format="uri", description="MinIO presigned GET URL")
+    minio_url: str = Field(..., description="MinIO presigned GET URL", json_schema_extra={"format": "uri"})
     privacy_level: PrivacyLevel = Field(
         ...,
         description="Privacy level: 0=Private, 1=Friends, 2=Public"

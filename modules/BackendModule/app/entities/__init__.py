@@ -45,6 +45,21 @@ from .media_entities import (
     ImageUpdateMetadataRequest,
     ImageListResponse,
 )
+from .evaluation_entities import (
+    EvaluationStatus,
+    EvaluationRunRequest,
+    EvaluationRunResponse,
+    EvaluationMetrics,
+    EvaluationResult,
+    EvaluationResultResponse,
+    EvaluationMetricsResponse,
+)
+from .health_entities import (
+    DependencyState,
+    HealthStatus,
+    ReadinessCheckResult,
+    ReadinessCheckResults,
+)
 
 __all__ = [
     "AppConfig",
@@ -79,4 +94,15 @@ __all__ = [
     "AlbumListResponse",
     "ImageUpdateMetadataRequest",
     "ImageListResponse",
+    "EvaluationStatus",
+    "EvaluationRunRequest",
+    "EvaluationRunResponse",
+    "EvaluationMetrics",
+    "EvaluationResult",
+    "EvaluationResultResponse",
+    "EvaluationMetricsResponse",
+    "DependencyState",
+    "HealthStatus",
+    "ReadinessCheckResult",
+    "ReadinessCheckResults",
 ]

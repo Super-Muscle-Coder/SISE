@@ -19,6 +19,12 @@ from .search_services import (
 from .media_services import (
     MediaService,
 )
+from .evaluation_services import (
+    EvaluationService,
+)
+from .health_services import (
+    HealthService,
+)
 
 __all__ = [
     "ScaffoldService",
@@ -27,5 +33,7 @@ __all__ = [
     "UploadService",
     "SearchService",
     "MediaService",
+    "EvaluationService",
+    "HealthService",
 ]
 

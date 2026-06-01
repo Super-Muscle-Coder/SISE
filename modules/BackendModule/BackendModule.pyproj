@@ -25,6 +25,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="app\adapters\auth_adapters.py" />
+    <Compile Include="app\adapters\evaluation_adapters.py" />
+    <Compile Include="app\adapters\health_adapters.py" />
     <Compile Include="app\adapters\media_adapters.py" />
     <Compile Include="app\adapters\scaffold_adapters.py" />
     <Compile Include="app\adapters\search_adapters.py" />
@@ -32,6 +34,8 @@
     <Compile Include="app\adapters\__init__.py" />
     <Compile Include="app\dependencies.py" />
     <Compile Include="app\entities\auth_entities.py" />
+    <Compile Include="app\entities\evaluation_entities.py" />
+    <Compile Include="app\entities\health_entities.py" />
     <Compile Include="app\entities\media_entities.py" />
     <Compile Include="app\entities\scaffold_entities.py" />
     <Compile Include="app\entities\search_entities.py" />
@@ -39,12 +43,16 @@
     <Compile Include="app\entities\__init__.py" />
     <Compile Include="app\main.py" />
     <Compile Include="app\routers\auth_routers.py" />
+    <Compile Include="app\routers\evaluation_routers.py" />
+    <Compile Include="app\routers\health_routers.py" />
     <Compile Include="app\routers\media_routers.py" />
     <Compile Include="app\routers\scaffold_routers.py" />
     <Compile Include="app\routers\search_routers.py" />
     <Compile Include="app\routers\upload_routers.py" />
     <Compile Include="app\routers\__init__.py" />
     <Compile Include="app\services\auth_services.py" />
+    <Compile Include="app\services\evaluation_services.py" />
+    <Compile Include="app\services\health_services.py" />
     <Compile Include="app\services\media_services.py" />
     <Compile Include="app\services\scaffold_services.py" />
     <Compile Include="app\services\search_services.py" />
@@ -56,6 +64,8 @@
     <Compile Include="backend_main.py" />
     <Compile Include="tests\manual_test_search.py" />
     <Compile Include="tests\test_auth_workflow.py" />
+    <Compile Include="tests\test_evaluation_workflow.py" />
+    <Compile Include="tests\test_health_workflow.py" />
     <Compile Include="tests\test_media_workflow.py" />
     <Compile Include="tests\test_scaffold_workflow.py" />
     <Compile Include="tests\test_search_workflow.py" />

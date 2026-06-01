@@ -26,6 +26,15 @@ from .media_adapters import (
     AlbumAdapter,
     ImageAdapter,
 )
+from .evaluation_adapters import (
+    EvaluationAdapter,
+)
+from .health_adapters import (
+    PostgreSQLHealthChecker,
+    MilvusHealthChecker,
+    MinIOHealthChecker,
+    AIServiceHealthChecker,
+)
 
 __all__ = [
     "ScaffoldConfigAdapter",
@@ -41,5 +50,10 @@ __all__ = [
     "AIServiceSearchAdapter",
     "AlbumAdapter",
     "ImageAdapter",
+    "EvaluationAdapter",
+    "PostgreSQLHealthChecker",
+    "MilvusHealthChecker",
+    "MinIOHealthChecker",
+    "AIServiceHealthChecker",
 ]
 
