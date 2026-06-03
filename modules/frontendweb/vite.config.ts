@@ -1,10 +1,22 @@
-import { defineConfig } from 'vite';
-import plugin from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
 
-// https://vitejs.dev/config/
 export default defineConfig({
-    plugins: [plugin()],
+    plugins: [react()],
+    resolve: {
+        alias: {
+            '@': path.resolve(__dirname, './src'),
+        },
+    },
     server: {
-        port: 63049,
-    }
+        port: 5173,
+        strictPort: false,
+        open: true,
+    },
+    build: {
+        target: 'ES2020',
+        outDir: 'dist',
+        minify: 'terser',
+    },
 })

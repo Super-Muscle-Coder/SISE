@@ -77,7 +77,6 @@
     <Content Include="configs\storage.env.local" />
     <Content Include="configs\storage.env.example" />
     <Content Include="configs\storage.env.staging" />
-    <Content Include="DEPLOYMENT.md" />
     <Content Include="documents\bucket_workflow\BUCKET_WORKFLOW_DEEP_GUIDE.md" />
     <Content Include="documents\bucket_workflow\BUCKET_WORKFLOW_QUICK_GUIDE.md" />
     <Content Include="documents\bucket_workflow\BUCKET_WORKFLOW_REFERENCES.md" />

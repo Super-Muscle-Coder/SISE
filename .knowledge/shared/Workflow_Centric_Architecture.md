@@ -49,7 +49,7 @@ project_root/
 ├── configs
 │	├── backend.env.local
 │	├── backend.env.staging
-│	├── backend.env.example  
+│	└── backend.env.example  
 ├── app/
 │   ├── entities/
 │   │    ├── search_entities.py    
