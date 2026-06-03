@@ -11,4 +11,9 @@
   <ItemGroup>
     <None Include=".vscode\settings.json" />
   </ItemGroup>
+  <ProjectExtensions>
+    <VisualStudio>
+      <UserProperties tsconfig_1app_1json__JsonSchema="" />
+    </VisualStudio>
+  </ProjectExtensions>
 </Project>
