@@ -1,20 +1,26 @@
-import { ScaffoldContextProvider, ScaffoldErrorBoundary, ScaffoldAppShell } from './routers/scaffold_routers'
+/**
+ * @file App.tsx
+ * @layer routers (root)
+ * @description Root application component with scaffold shell and router.
+ *              FIX R1: Routes wrapped in AppRouter to handle sessionStarted/sessionEnded events.
+ * @owner AG-04
+ */
+
+import { ScaffoldContextProvider, ScaffoldErrorBoundary, ScaffoldAppShell } from './routers/scaffold_routers';
+import { AppRouter, RouterConfig } from './routers/router';
 
 function App() {
-    return (
-        <ScaffoldErrorBoundary>
-            <ScaffoldContextProvider>
-                <ScaffoldAppShell>
-                    <div className="mx-auto max-w-7xl px-6 py-8">
-                        <h2 className="text-3xl font-bold text-gray-900">Welcome to SISE</h2>
-                        <p className="mt-4 text-gray-600">
-                            Smart Image Search Engine - Multimodal Retrieval Platform
-                        </p>
-                    </div>
-                </ScaffoldAppShell>
-            </ScaffoldContextProvider>
-        </ScaffoldErrorBoundary>
-    )
+  return (
+    <ScaffoldErrorBoundary>
+      <ScaffoldContextProvider>
+        <ScaffoldAppShell>
+          <AppRouter>
+            <RouterConfig />
+          </AppRouter>
+        </ScaffoldAppShell>
+      </ScaffoldContextProvider>
+    </ScaffoldErrorBoundary>
+  );
 }
 
-export default App
+export default App;

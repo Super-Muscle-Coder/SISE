@@ -1,7 +1,17 @@
+/**
+ * @file scaffold_routers.tsx
+ * @layer routers
+ * @description Global app shell with context provider, error boundary, and session management.
+ *              FIX 1.4: Added cross-tab synchronization via 'storage' event listener.
+ *              Listens for token changes in localStorage across browser tabs and dispatches logout event.
+ * @owner AG-04
+ */
+
 import React, { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { useScaffoldService } from '../services/scaffold_services'
 import type { ScaffoldContextState } from '../entities/scaffold_entities'
+import { AUTH_CONFIG } from '../configs/auth_config'
 
 export const ScaffoldContext = createContext<ScaffoldContextState | undefined>(
     undefined
@@ -36,6 +46,38 @@ export const ScaffoldContextProvider: React.FC<
 
         window.addEventListener('sessionExpired', handleSessionExpired)
         return () => window.removeEventListener('sessionExpired', handleSessionExpired)
+    }, [])
+
+    /**
+     * FIX 1.4: Cross-Tab Synchronization
+     * Listen to localStorage changes from other tabs (e.g., Tab A logs out).
+     * When token is removed, dispatch logout event to clear UI in this tab.
+     */
+    React.useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            // Check if the auth token was removed in another tab
+            if (e.key === AUTH_CONFIG.storage.tokenKey) {
+                if (e.newValue === null || e.newValue === '') {
+                    // Token was cleared - likely logout in another tab
+                    console.info('[Cross-Tab] Token cleared. Syncing session end.')
+                    const event = new CustomEvent(AUTH_CONFIG.events.sessionEnded, {
+                        detail: { reason: 'token_cleared_in_another_tab' },
+                    })
+                    window.dispatchEvent(event)
+                    setSessionExpired(true)
+                } else if (e.newValue !== e.oldValue) {
+                    // Token changed - might be new login in another tab
+                    console.info('[Cross-Tab] Token changed. Syncing session start.')
+                    const event = new CustomEvent(AUTH_CONFIG.events.sessionStarted, {
+                        detail: { reason: 'token_updated_in_another_tab' },
+                    })
+                    window.dispatchEvent(event)
+                }
+            }
+        }
+
+        window.addEventListener('storage', handleStorageChange)
+        return () => window.removeEventListener('storage', handleStorageChange)
     }, [])
 
     if (sessionExpired) {

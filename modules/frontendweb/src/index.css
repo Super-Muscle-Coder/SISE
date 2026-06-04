@@ -16,7 +16,26 @@ html, body, #root {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Đảm bảo viết chuẩn cấu trúc @layer để IDE không bị bắt lỗi cú pháp lồng nhau */
+/**
+ * FIX 2.4: Browser Autofill Override
+ * Prevents Chrome/Safari autofill from breaking pill-shaped input styling.
+ * Uses -webkit-transition-delay to defer autofill animations.
+ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px white inset !important;
+    -webkit-text-fill-color: #1f2937 !important;
+    -webkit-transition-delay: 99999s !important;
+    transition-delay: 99999s !important;
+    border-radius: 32px !important;
+}
+
+input:-webkit-autofill::first-line {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Đảm bảo cơ chế viết chuẩn cấu trúc @layer để IDE không bị bắt lỗi cú pháp lồng nhau */
 @layer components {
     .masonry-grid {
         @apply columns-2 gap-4 sm:columns-3 md:columns-4 lg:columns-5;

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { scaffoldAdapter } from '../adapters/scaffold_adapters'
+import { scaffoldAdapter } from '../adapters/scaffold_adapter_instance'
 import type {
     HealthStatus,
     StandardError,
