@@ -11,7 +11,7 @@ import React, { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { useScaffoldService } from '../services/scaffold_services'
 import type { ScaffoldContextState } from '../entities/scaffold_entities'
-import { AUTH_CONFIG } from '../configs/auth_config'
+import { AUTH_CONFIG } from '../configs/auth_configs'
 
 export const ScaffoldContext = createContext<ScaffoldContextState | undefined>(
     undefined

@@ -1,0 +1,433 @@
+/**
+ * @file globals.css
+ * @layer globals
+ * @description Global CSS setup, typography definitions, and CSS custom properties.
+ *              Applied to entire application via main.tsx import.
+ * @owner AG-04
+ * @reference design_tokens.ts for values
+ */
+
+/* ========================================================================
+   1. CSS CUSTOM PROPERTIES (Design Tokens as CSS Variables)
+   ======================================================================== */
+
+:root {
+    /* ====================================================================
+     Colors
+     ==================================================================== */
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f9f9f9;
+    --color-bg-tertiary: #f4f4f5;
+    --color-text-primary: #000000;
+    --color-text-secondary: #71717a;
+    --color-text-tertiary: #a1a1aa;
+    --color-text-inverted: #ffffff;
+    --color-brand-primary: #e60023;
+    --color-brand-secondary: #000000;
+    --color-border-light: #e4e4e7;
+    --color-border-medium: #d4d4d8;
+    --color-border-dark: #71717a;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-info: #3b82f6;
+    /* ====================================================================
+     Typography
+     ==================================================================== */
+    --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'Fira Code', 'Courier New', monospace;
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+    --font-size-4xl: 2.25rem;
+    /* ====================================================================
+     Spacing
+     ==================================================================== */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 0.75rem;
+    --spacing-base: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 2.5rem;
+    --spacing-3xl: 3rem;
+    --spacing-4xl: 4rem;
+    /* ====================================================================
+     Border Radius
+     ==================================================================== */
+    --radius-none: 0;
+    --radius-sm: 0.25rem;
+    --radius-base: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+    --radius-2xl: 2rem;
+    --radius-full: 9999px;
+    /* ====================================================================
+     Shadows
+     ==================================================================== */
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-base: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    /* ====================================================================
+     Z-Index
+     ==================================================================== */
+    --z-base: 0;
+    --z-floating: 10;
+    --z-dropdown: 20;
+    --z-modal-backdrop: 30;
+    --z-modal: 40;
+    --z-toast: 50;
+    /* ====================================================================
+     Transitions
+     ==================================================================== */
+    --duration-fast: 150ms;
+    --duration-base: 300ms;
+    --duration-slow: 500ms;
+    --duration-slower: 700ms;
+    --easing-linear: linear;
+    --easing-in: cubic-bezier(0.4, 0, 1, 1);
+    --easing-out: cubic-bezier(0, 0, 0.2, 1);
+    --easing-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================================================================
+   2. RESET & BASE STYLES
+   ======================================================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    /*Smooth scroll behavior scroll-behavior: smooth;*/
+}
+
+body {
+    font-family: var(--font-sans);
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========================================================================
+   3. TYPOGRAPHY (SEMANTIC HTML ELEMENTS)
+   ======================================================================== */
+
+h1 {
+    font-size: var(--font-size-4xl);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+h2 {
+    font-size: var(--font-size-3xl);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+
+h3 {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+h4 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+h5 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+h6 {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+p {
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-base);
+}
+
+small {
+    font-size: var(--font-size-sm);
+}
+
+code {
+    font-family: var(--font-mono);
+    background-color: var(--color-bg-tertiary);
+    padding: 0.125rem 0.375rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9em;
+}
+
+/* ========================================================================
+   4. FORMS (INPUTS, TEXTAREAS, BUTTONS)
+   ======================================================================== */
+
+input,
+textarea,
+select {
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-base);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border-light);
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    transition: all var(--duration-base) var(--easing-in-out);
+}
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+        outline: none;
+        border-color: var(--color-brand-primary);
+        box-shadow: 0 0 0 3px rgba(230, 0, 35, 0.12);
+    }
+
+    input:disabled,
+    textarea:disabled,
+    select:disabled {
+        background-color: var(--color-bg-tertiary);
+        color: var(--color-text-tertiary);
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+button {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-full);
+    border: none;
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    background-color: var(--color-brand-primary);
+    color: var(--color-text-inverted);
+    cursor: pointer;
+    transition: all var(--duration-base) var(--easing-in-out);
+    box-shadow: var(--shadow-sm);
+}
+
+    button:hover:not(:disabled) {
+        background-color: #cc001f;
+        box-shadow: var(--shadow-md);
+    }
+
+    button:active:not(:disabled) {
+        transform: scale(0.98);
+    }
+
+    button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+/* ========================================================================
+   5. LINKS & ANCHORS
+   ======================================================================== */
+
+a {
+    color: var(--color-brand-primary);
+    text-decoration: none;
+    transition: color var(--duration-fast) var(--easing-out);
+}
+
+    a:hover {
+        color: #cc001f;
+        text-decoration: underline;
+    }
+
+    a:focus-visible {
+        outline: 2px solid var(--color-brand-primary);
+        outline-offset: 2px;
+    }
+
+/* ========================================================================
+   6. LISTS
+   ======================================================================== */
+
+ul,
+ol {
+    margin-left: var(--spacing-lg);
+    margin-bottom: var(--spacing-base);
+}
+
+li {
+    margin-bottom: var(--spacing-sm);
+}
+
+/* ========================================================================
+   7. IMAGES
+   ======================================================================== */
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* ========================================================================
+   8. TABLES
+   ======================================================================== */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: var(--spacing-lg);
+}
+
+th {
+    background-color: var(--color-bg-tertiary);
+    padding: var(--spacing-md) var(--spacing-base);
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--color-border-medium);
+}
+
+td {
+    padding: var(--spacing-md) var(--spacing-base);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+/* ========================================================================
+   9. SCROLLBAR STYLING (Webkit browsers)
+   ======================================================================== */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-medium);
+    border-radius: var(--radius-full);
+}
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-border-dark);
+    }
+
+/* ========================================================================
+   10. UTILITY CLASSES (Tailwind will generate these, but explicit fallbacks)
+   ======================================================================== */
+
+/* Cách tối ưu nhất cho lưới Pinterest */
+.masonry-container {
+    columns: 2;
+    gap: var(--spacing-base);
+}
+
+/* Áp dụng trực tiếp lên các item con trong lưới */
+.masonry-item {
+    break-inside: avoid;
+    margin-bottom: var(--spacing-base); /* Ép khoảng cách đẩy xuống dưới */
+}
+
+@media (min-width: 640px) {
+    .masonry-container {
+        columns: 3;
+    }
+}
+
+@media (min-width: 768px) {
+    .masonry-container {
+        columns: 4;
+    }
+}
+
+@media (min-width: 1024px) {
+    .masonry-container {
+        columns: 5;
+    }
+}
+
+/* Masonry Item */
+.masonry-item {
+    break-inside: avoid;
+    margin-bottom: var(--spacing-base);
+}
+
+/* Smooth Transition All */
+.transition-smooth {
+    transition: all var(--duration-base) var(--easing-in-out);
+}
+
+/* Group Hover State */
+.group {
+    position: relative;
+}
+
+.group-hover\:opacity-100:hover {
+    opacity: 1;
+}
+
+.group-hover\:scale-105:hover {
+    transform: scale(1.05);
+}
+
+/* ========================================================================
+   11. ACCESSIBILITY & FOCUS VISIBLE
+   ======================================================================== */
+
+*:focus-visible {
+    outline: 2px solid var(--color-brand-primary);
+    outline-offset: 2px;
+}
+
+/* Disable outline for mouse users (only show for keyboard) */
+::-moz-focus-inner {
+    border: 0;
+}
+
+button::-moz-focus-inner {
+    border: 0;
+}
+
+/* ========================================================================
+   12. PRINT STYLES
+   ======================================================================== */
+
+@media print {
+    body {
+        background-color: white;
+        color: black;
+    }
+
+    a {
+        text-decoration: underline;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+        border: 1px solid black;
+    }
+}

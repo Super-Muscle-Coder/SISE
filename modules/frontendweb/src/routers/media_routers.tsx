@@ -1,661 +1,668 @@
-// src/routers/media_routers.tsx
-// React components for T004-03: Dashboard, ImageCard with status polling, UploadModal, DetailModal
-// Strict TypeScript, zero utils, responsive Tailwind masonry
+/**
+ * @file media_routers.tsx
+ * @layer routers
+ * @description Media dashboard router: gallery + bulk drag-drop upload modal
+ *              T004-04: Bulk upload with queue UI, progress bars, retry controls
+ * @owner AG-04
+ */
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import {
-  MediaItem,
-  Album,
-  PrivacyLevel,
-  IndexStatus,
-  ImageMetadata,
-} from '@/entities/media_entities';
-import { MEDIA_CONFIG } from '@/configs/media_configs';
-import {
-  useMediaGallery,
-  useMediaUpload,
-  useImageStatusPolling,
-} from '@/services/media_services';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useMediaGallery, useMediaUpload } from '@/services/media_services';
+import { useBulkUploadQueue } from '@/services/bulk_media_services';
 import { mediaAdapter } from '@/adapters/media_adapters';
+import { PrivacyLevel, MediaItem, Album } from '@/entities/media_entities';
+import { MEDIA_CONFIG } from '@/configs/media_configs';
 
 // ============================================================================
-// IMAGE CARD COMPONENT with embedded local polling (Q2 Decision)
+// TYPE DEFINITIONS
 // ============================================================================
 
-interface ImageCardProps {
-  item: MediaItem;
-  onDelete: (imageId: string) => void;
-  onMetadataUpdate: (imageId: string) => void;
-  onShowDetail: (imageId: string) => void;
-}
-
-function ImageCard({
-  item,
-  onDelete,
-  onMetadataUpdate,
-  onShowDetail,
-}: ImageCardProps): React.ReactElement {
-  const { imageMetadata, loading, error, isFinalized, pollRetries, manualRefresh } =
-    useImageStatusPolling(item.id);
-
-  const [imageLoadFailed, setImageLoadFailed] = useState(false);
-
-  // Q1: Dynamic aspect-ratio with fallback to 4:3 for corrupted metadata
-  const aspectRatio = useMemo(() => {
-    if (item.width && item.height && item.width > 0 && item.height > 0) {
-      return item.width / item.height;
-    }
-    // Fallback: 4:3 aspect ratio (common photo standard)
-    return 4 / 3;
-  }, [item.width, item.height]);
-
-  const aspectStyle: React.CSSProperties = {
-    aspectRatio: aspectRatio,
-  };
-
-  // Determine status badge display logic (Q6)
-  const getStatusContent = (): React.ReactNode => {
-    const status = imageMetadata?.index_status || item.index_status;
-
-    if (status === IndexStatus.PENDING || status === IndexStatus.PROCESSING) {
-      return (
-        <div className="flex items-center gap-1 text-xs font-medium text-gray-700">
-          <div className="animate-spin w-3 h-3 border-2 border-gray-300 border-t-gray-700 rounded-full" />
-          {MEDIA_CONFIG.indexStatusLabels.processing}
-        </div>
-      );
-    }
-
-    if (status === IndexStatus.FAILED) {
-      return (
-        <div className="flex items-center gap-1 text-xs font-medium text-red-700">
-          <span>❌</span>
-          {MEDIA_CONFIG.indexStatusLabels.failed}
-        </div>
-      );
-    }
-
-    if (status === IndexStatus.TIMEOUT_RETRY) {
-      return (
-        <div className="flex items-center gap-1 text-xs font-medium text-amber-700">
-          <span>⏱️</span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              manualRefresh();
-            }}
-            className="underline hover:no-underline"
-          >
-            {MEDIA_CONFIG.indexStatusLabels.timeout_retry}
-          </button>
-        </div>
-      );
-    }
-
-    // READY status: show nothing (badge fades, image fully visible)
-    return null;
-  };
-
-  // Render card
-  return (
-    <div
-      onClick={() => onShowDetail(item.id)}
-      className="cursor-pointer break-inside-avoid rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white"
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          onShowDetail(item.id);
-        }
-      }}
-    >
-      {/* Image Container with Aspect Ratio */}
-      <div
-        style={aspectStyle}
-        className="relative bg-gray-200 overflow-hidden flex items-center justify-center"
-      >
-        {loading && !imageMetadata ? (
-          // Skeleton Loader
-          <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse" />
-        ) : error || !item.minio_url || imageLoadFailed ? (
-          // Error State with user-facing message
-          <div
-            className={`absolute inset-0 ${MEDIA_CONFIG.imageCard.errorBg} flex flex-col items-center justify-center gap-1`}
-          >
-            <span className="text-2xl">⚠️</span>
-            <span className="text-xs text-gray-600 text-center px-2">
-              {imageLoadFailed ? 'Image failed to load' : 'Unable to fetch image'}
-            </span>
-          </div>
-        ) : (
-          // Image Load with error handling
-          <img
-            src={item.minio_url}
-            alt={`Media item ${item.id}`}
-            className="w-full h-full object-cover"
-            onError={() => {
-              // Mark as failed and preserve space via aspect-ratio
-              setImageLoadFailed(true);
-            }}
-            onLoad={() => {
-              // Only clear error state on successful load
-              setImageLoadFailed(false);
-            }}
-          />
-        )}
-
-        {/* Status Badge Overlay (Q6) */}
-        {getStatusContent() && (
-          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-            {getStatusContent()}
-          </div>
-        )}
-
-        {/* Privacy Badge (Top-Right) */}
-        <div className="absolute top-2 right-2 bg-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow">
-          {MEDIA_CONFIG.privacyIcons[item.privacy_level as keyof typeof MEDIA_CONFIG.privacyIcons] || '❓'}
-        </div>
-      </div>
-
-      {/* Metadata Footer */}
-      <div className="p-2 bg-white text-xs text-gray-600">
-        <div className="font-semibold text-gray-800 truncate">
-          {item.album_id ? `Album #${item.album_id}` : 'No Album'}
-        </div>
-        <div className="text-gray-500 truncate">
-          {new Date(item.created_at).toLocaleDateString()}
-        </div>
-        {item.tags && item.tags.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1">
-            {item.tags.slice(0, 2).map((tag) => (
-              <span key={tag} className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                {tag}
-              </span>
-            ))}
-            {item.tags.length > 2 && <span className="text-gray-500 text-xs">+{item.tags.length - 2}</span>}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+interface DragDropUploadModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    albums: Album[];
+    defaultAlbumId?: number;
+    onUploadSuccess?: (imageIds: string[]) => void;
 }
 
 // ============================================================================
-// UPLOAD MODAL COMPONENT
+// COMPONENT: BulkUploadQueueItem UI Card
 // ============================================================================
 
-interface UploadModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onUploadSuccess: (imageId: string) => void;
-  albums: Album[];
-}
+function UploadQueueItemCard({
+    item,
+    onRetry,
+    onCancel,
+}: {
+    item: any; // BulkUploadQueueItem from hook
+    onRetry: () => void;
+    onCancel: () => void;
+}) {
+    const progressPercent =
+        item.progress.total > 0
+            ? Math.round((item.progress.loaded / item.progress.total) * 100)
+            : 0;
 
-function UploadModal({
-  isOpen,
-  onClose,
-  onUploadSuccess,
-  albums,
-}: UploadModalProps): React.ReactElement | null {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const {
-    uploadFile,
-    uploadProgress,
-    currentFile,
-    uploadError,
-    imageIdRegistered,
-    indexStatus,
-    isUploading,
-    cancel,
-    resetState,
-  } = useMediaUpload();
+    const statusColor =
+        item.state === 'done'
+            ? 'text-green-600'
+            : item.state === 'error' || item.state === 'cancelled'
+                ? 'text-red-600'
+                : 'text-blue-600';
 
-  const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(
-    albums.length > 0 ? albums[0].id : null,
-  );
-  const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyLevel>(PrivacyLevel.PRIVATE);
-  const [isDragActive, setIsDragActive] = useState(false);
+    const statusLabel =
+        item.state === 'pending'
+            ? 'Queued'
+            : item.state === 'presigning'
+                ? 'Preparing...'
+                : item.state === 'uploading'
+                    ? 'Uploading...'
+                    : item.state === 'confirming'
+                        ? 'Confirming...'
+                        : item.state === 'done'
+                            ? 'Complete'
+                            : item.state === 'error'
+                                ? 'Failed'
+                                : 'Cancelled';
 
-  const handleFilePicked = useCallback(
-    async (file: File) => {
-      try {
-        const imageId = await uploadFile(file, selectedAlbumId, selectedPrivacy);
-        onUploadSuccess(imageId);
-        resetState();
-        onClose();
-      } catch (err) {
-        // Error already in state.uploadError
-      }
-    },
-    [uploadFile, selectedAlbumId, selectedPrivacy, onUploadSuccess, resetState, onClose],
-  );
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      setIsDragActive(false);
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        handleFilePicked(files[0]);
-      }
-    },
-    [handleFilePicked],
-  );
-
-  const handleCancel = useCallback(() => {
-    cancel();
-    resetState();
-    onClose();
-  }, [cancel, resetState, onClose]);
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Upload Image</h2>
-
-        {!currentFile ? (
-          // File Selection UI
-          <>
-            <div
-              onDragOver={() => setIsDragActive(true)}
-              onDragLeave={() => setIsDragActive(false)}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition ${
-                isDragActive
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-300 hover:border-gray-400'
-              }`}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  fileInputRef.current?.click();
-                }
-              }}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={MEDIA_CONFIG.upload.allowedMimeTypes.join(',')}
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.currentTarget.files?.[0];
-                  if (file) handleFilePicked(file);
-                }}
-              />
-              <span className="text-4xl">📤</span>
-              <p className="text-gray-600 text-sm mt-2">
-                Drag & drop or click to select image
-              </p>
-              <p className="text-gray-400 text-xs mt-1">
-                Max {MEDIA_CONFIG.upload.maxFileSizeMb}MB • JPEG/PNG only
-              </p>
+    return (
+        <div className="flex items-center gap-3 border rounded p-3 bg-white">
+            {/* File Icon + Name */}
+            <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{item.file.name}</p>
+                <p className={`text-xs ${statusColor}`}>{statusLabel}</p>
+                {item.error && <p className="text-xs text-red-500 mt-1">{item.error.message}</p>}
             </div>
 
-            {/* Album & Privacy Selection */}
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Album</label>
-                <select
-                  value={selectedAlbumId || ''}
-                  onChange={(e) => setSelectedAlbumId(e.target.value ? parseInt(e.target.value, 10) : null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">No Album</option>
-                  {albums.map((album) => (
-                    <option key={album.id} value={album.id}>
-                      {album.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Privacy Level</label>
-                <select
-                  value={selectedPrivacy}
-                  onChange={(e) => setSelectedPrivacy(parseInt(e.target.value, 10) as PrivacyLevel)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value={PrivacyLevel.PRIVATE}>
-                    🔒 {MEDIA_CONFIG.privacyLabels[PrivacyLevel.PRIVATE]}
-                  </option>
-                  <option value={PrivacyLevel.FRIENDS}>
-                    👥 {MEDIA_CONFIG.privacyLabels[PrivacyLevel.FRIENDS]}
-                  </option>
-                  <option value={PrivacyLevel.PUBLIC}>
-                    🌐 {MEDIA_CONFIG.privacyLabels[PrivacyLevel.PUBLIC]}
-                  </option>
-                </select>
-              </div>
-            </div>
-          </>
-        ) : (
-          // Upload Progress UI
-          <>
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-2">{currentFile.name}</p>
-              <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                <div
-                  className="bg-blue-500 h-2 rounded-full transition-all"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
-              <p className="text-xs text-gray-500">{uploadProgress}%</p>
-
-              {indexStatus && (
-                <div className="mt-3 p-2 bg-blue-50 rounded text-xs text-blue-700">
-                  Status: {MEDIA_CONFIG.indexStatusLabels[indexStatus] || indexStatus}
+            {/* Progress Bar */}
+            {(item.state === 'uploading' || item.state === 'presigning') && (
+                <div className="w-24">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold text-gray-600">{progressPercent}%</span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-blue-500 transition-all"
+                            style={{ width: `${progressPercent}%` }}
+                        />
+                    </div>
                 </div>
-              )}
-
-              {uploadError && (
-                <div className="mt-3 p-2 bg-red-50 rounded text-xs text-red-700">
-                  {uploadError.message}
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* Modal Footer */}
-        <div className="mt-6 flex gap-2 justify-end">
-          <button
-            onClick={handleCancel}
-            disabled={isUploading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-          >
-            {isUploading ? 'Uploading...' : 'Cancel'}
-          </button>
-          {currentFile && isUploading && (
-            <button
-              onClick={() => cancel()}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-            >
-              Stop
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// IMAGE DETAIL MODAL COMPONENT
-// ============================================================================
-
-interface ImageDetailModalProps {
-  imageId: string | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onDelete: (imageId: string) => void;
-  onRefresh: () => void;
-}
-
-function ImageDetailModal({
-  imageId,
-  isOpen,
-  onClose,
-  onDelete,
-  onRefresh,
-}: ImageDetailModalProps): React.ReactElement | null {
-  const [metadata, setMetadata] = React.useState<ImageMetadata | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<Error | null>(null);
-
-  React.useEffect(() => {
-    if (!isOpen || !imageId) return;
-
-    const fetchMetadata = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await mediaAdapter.getImageMetadata(imageId);
-        setMetadata(data);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMetadata();
-  }, [isOpen, imageId]);
-
-  if (!isOpen || !imageId) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full p-6 max-h-96 overflow-y-auto">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Image Details</h2>
-
-        {loading ? (
-          <div className="text-center text-gray-500">Loading…</div>
-        ) : error ? (
-          <div className="p-3 bg-red-50 rounded text-red-700 text-sm">{error.message}</div>
-        ) : metadata ? (
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-700">Image ID:</span>
-              <code className="text-gray-600 font-mono text-xs break-all">{metadata.id}</code>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-700">Privacy:</span>
-              <span>
-                {MEDIA_CONFIG.privacyIcons[metadata.privacy_level]} {MEDIA_CONFIG.privacyLabels[metadata.privacy_level]}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-700">Album:</span>
-              <span>{metadata.album_id ? `#${metadata.album_id}` : 'None'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-700">Status:</span>
-              <span>{MEDIA_CONFIG.indexStatusLabels[metadata.index_status]}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-700">Created:</span>
-              <span>{new Date(metadata.created_at).toLocaleString()}</span>
-            </div>
-            {metadata.tags.length > 0 && (
-              <div className="py-2 border-t border-gray-200">
-                <span className="font-medium text-gray-700 block mb-1">Tags:</span>
-                <div className="flex flex-wrap gap-1">
-                  {metadata.tags.map((tag) => (
-                    <span key={tag} className="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
             )}
-          </div>
-        ) : null}
 
-        <div className="mt-6 flex gap-2 justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Close
-          </button>
-          <button
-            onClick={() => {
-              onDelete(imageId);
-              onClose();
-            }}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-          >
-            Delete
-          </button>
+            {/* Actions */}
+            <div className="flex gap-2">
+                {item.state === 'error' && (
+                    <button
+                        onClick={onRetry}
+                        className="px-2 py-1 text-xs font-medium text-white bg-blue-500 rounded hover:bg-blue-600"
+                    >
+                        Retry
+                    </button>
+                )}
+                {(item.state === 'pending' ||
+                    item.state === 'presigning' ||
+                    item.state === 'uploading' ||
+                    item.state === 'confirming') && (
+                        <button
+                            onClick={onCancel}
+                            className="px-2 py-1 text-xs font-medium text-white bg-red-500 rounded hover:bg-red-600"
+                        >
+                            Stop
+                        </button>
+                    )}
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }
 
 // ============================================================================
-// DASHBOARD PAGE COMPONENT (Main Entry Point)
+// COMPONENT: Drag-Drop Upload Modal
 // ============================================================================
 
-export function DashboardPage(): React.ReactElement {
-  const { items, loading, error, pagination, setPage, setAlbumId } = useMediaGallery();
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [detailModalImageId, setDetailModalImageId] = useState<string | null>(null);
-  const [albums, setAlbums] = useState<Album[]>([]);
-  const [selectedAlbumFilter, setSelectedAlbumFilter] = useState<number | undefined>();
+function BulkUploadModal({
+    isOpen,
+    onClose,
+    albums,
+    defaultAlbumId,
+    onUploadSuccess,
+}: DragDropUploadModalProps) {
+    const [isDragActive, setIsDragActive] = useState(false);
+    const [selectedAlbumId, setSelectedAlbumId] = useState<number | undefined>(defaultAlbumId);
+    const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyLevel>(
+        PrivacyLevel.PUBLIC
+    );
+    const [batchError, setBatchError] = useState<string | null>(null);
+    const dragCounterRef = useRef(0);
 
-  // Fetch albums on mount (Q7: minimal album selection)
-  React.useEffect(() => {
-    const fetchAlbums = async () => {
-      try {
-        const data = await mediaAdapter.getAlbumList();
-        setAlbums(data);
-      } catch (err) {
-        console.error('Failed to fetch albums:', err);
-      }
+    const { state, enqueueFiles, cancelFile, retryFile, clearQueue } =
+        useBulkUploadQueue({
+            maxConcurrency: MEDIA_CONFIG.bulkUpload.maxConcurrentUploads,
+            maxRetries: MEDIA_CONFIG.bulkUpload.maxRetries,
+            maxFiles: MEDIA_CONFIG.bulkUpload.maxFilesPerBatch,
+        });
+
+    // ========================================================================
+    // HANDLER: Drag Enter
+    // ========================================================================
+
+    const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounterRef.current += 1;
+        setIsDragActive(true);
+    }, []);
+
+    // ========================================================================
+    // HANDLER: Drag Leave
+    // ========================================================================
+
+    const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounterRef.current -= 1;
+        if (dragCounterRef.current === 0) {
+            setIsDragActive(false);
+        }
+    }, []);
+
+    // ========================================================================
+    // HANDLER: Drag Over
+    // ========================================================================
+
+    const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, []);
+
+    // ========================================================================
+    // HANDLER: Drop
+    // ========================================================================
+
+    const handleDrop = useCallback(
+        async (e: React.DragEvent<HTMLDivElement>) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragActive(false);
+            dragCounterRef.current = 0;
+            setBatchError(null);
+
+            if (!selectedAlbumId) {
+                setBatchError('Please select an album before uploading.');
+                return;
+            }
+
+            const droppedFiles = Array.from(e.dataTransfer.files).filter((file) =>
+                file.type.startsWith('image/')
+            );
+
+            if (droppedFiles.length === 0) {
+                setBatchError('No image files detected. Please drop image files only.');
+                return;
+            }
+
+            try {
+                await enqueueFiles(droppedFiles, selectedAlbumId, selectedPrivacy);
+            } catch (error: any) {
+                setBatchError(error.message || 'Failed to queue files.');
+            }
+        },
+        [selectedAlbumId, selectedPrivacy, enqueueFiles]
+    );
+
+    // ========================================================================
+    // HANDLER: File Input (fallback for non-drag browsers)
+    // ========================================================================
+
+    const handleFileInputChange = useCallback(
+        async (e: React.ChangeEvent<HTMLInputElement>) => {
+            setBatchError(null);
+
+            if (!selectedAlbumId) {
+                setBatchError('Please select an album before uploading.');
+                return;
+            }
+
+            const selectedFiles = Array.from(e.target.files || []);
+            if (selectedFiles.length === 0) return;
+
+            try {
+                await enqueueFiles(selectedFiles, selectedAlbumId, selectedPrivacy);
+            } catch (error: any) {
+                setBatchError(error.message || 'Failed to queue files.');
+            }
+
+            // Reset input
+            e.target.value = '';
+        },
+        [selectedAlbumId, selectedPrivacy, enqueueFiles]
+    );
+
+    // ========================================================================
+    // HANDLER: Close Modal
+    // ========================================================================
+
+    const handleClose = useCallback(() => {
+        clearQueue();
+        setBatchError(null);
+        onClose();
+    }, [clearQueue, onClose]);
+
+    // ========================================================================
+    // HANDLER: Confirm & Close (after all complete)
+    // ========================================================================
+
+    const isQueueDone = state.totalCount > 0 && state.uploadingCount === 0 && state.pendingCount === 0;
+
+    const handleConfirmClose = useCallback(() => {
+        const successImageIds = state.items
+            .filter((i) => i.state === 'done' && i.uploadedImage)
+            .map((i) => i.uploadedImage?.image_id || i.uploadId);
+
+        if (onUploadSuccess && successImageIds.length > 0) {
+            onUploadSuccess(successImageIds);
+        }
+
+        handleClose();
+    }, [state.items, onUploadSuccess, handleClose]);
+
+    if (!isOpen) return null;
+
+    // ========================================================================
+    // RENDER
+    // ========================================================================
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="w-full max-w-2xl max-h-[80vh] bg-white rounded-lg shadow-lg flex flex-col">
+                {/* HEADER */}
+                <div className="flex items-center justify-between border-b p-4">
+                    <h2 className="text-xl font-bold">Bulk Upload Images</h2>
+                    <button
+                        onClick={handleClose}
+                        className="text-gray-400 hover:text-gray-600"
+                    >
+                        <svg
+                            className="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* CONTENT */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {/* ALBUM & PRIVACY SELECTOR */}
+                    <div className="grid grid-cols-2 gap-4 p-3 bg-gray-50 rounded">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Album
+                            </label>
+                            <select
+                                value={selectedAlbumId || ''}
+                                onChange={(e) =>
+                                    setSelectedAlbumId(e.target.value ? parseInt(e.target.value) : undefined)
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-pinterest"
+                            >
+                                <option value="">-- Select Album --</option>
+                                {albums.map((album) => (
+                                    <option key={album.id} value={album.id}>
+                                        {album.title}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Privacy
+                            </label>
+                            <select
+                                value={selectedPrivacy}
+                                onChange={(e) =>
+                                    setSelectedPrivacy(parseInt(e.target.value) as PrivacyLevel)
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-pinterest"
+                            >
+                                <option value={PrivacyLevel.PRIVATE}>
+                                    Private {MEDIA_CONFIG.privacy.icons[PrivacyLevel.PRIVATE]}
+                                </option>
+                                <option value={PrivacyLevel.FRIENDS}>
+                                    Friends {MEDIA_CONFIG.privacy.icons[PrivacyLevel.FRIENDS]}
+                                </option>
+                                <option value={PrivacyLevel.PUBLIC}>
+                                    Public {MEDIA_CONFIG.privacy.icons[PrivacyLevel.PUBLIC]}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* ERROR MESSAGE */}
+                    {batchError && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                            {batchError}
+                        </div>
+                    )}
+
+                    {/* DRAG-DROP ZONE (when queue is empty) */}
+                    {state.totalCount === 0 && (
+                        <div
+                            onDragEnter={handleDragEnter}
+                            onDragLeave={handleDragLeave}
+                            onDragOver={handleDragOver}
+                            onDrop={handleDrop}
+                            className={`border-2 border-dashed rounded p-8 text-center transition-colors ${isDragActive ? 'border-pinterest bg-red-50' : 'border-gray-300 bg-gray-50'
+                                }`}
+                        >
+                            <svg
+                                className="mx-auto h-12 w-12 text-gray-400 mb-2"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={1.5}
+                                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                                />
+                            </svg>
+                            <p className="text-gray-600 font-medium mb-2">
+                                Drag and drop images here
+                            </p>
+                            <p className="text-sm text-gray-500 mb-4">
+                                or click to select (max {MEDIA_CONFIG.upload.maxFileSizeMb}MB per file, up to{' '}
+                                {MEDIA_CONFIG.bulkUpload.maxFilesPerBatch} files)
+                            </p>
+                            <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                onChange={handleFileInputChange}
+                                className="hidden"
+                                id="file-input"
+                            />
+                            <label
+                                htmlFor="file-input"
+                                className="inline-block px-4 py-2 bg-pinterest text-white text-sm font-medium rounded hover:bg-red-700 cursor-pointer"
+                            >
+                                Browse Files
+                            </label>
+                        </div>
+                    )}
+
+                    {/* UPLOAD QUEUE LIST */}
+                    {state.totalCount > 0 && (
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between p-3 bg-blue-50 rounded">
+                                <span className="text-sm font-medium text-blue-900">
+                                    {state.pendingCount > 0
+                                        ? `Uploading: ${state.doneCount + (state.uploadingCount > 0 ? state.uploadingCount : 0)} of ${state.totalCount}`
+                                        : `Completed: ${state.doneCount} of ${state.totalCount}`}
+                                </span>
+                                {state.errorCount > 0 && (
+                                    <span className="text-sm font-medium text-red-600">{state.errorCount} failed</span>
+                                )}
+                            </div>
+
+                            <div className="space-y-2 max-h-96 overflow-y-auto">
+                                {state.items.map((item) => (
+                                    <UploadQueueItemCard
+                                        key={item.uploadId}
+                                        item={item}
+                                        onRetry={() => retryFile(item.uploadId)}
+                                        onCancel={() => cancelFile(item.uploadId)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* FOOTER */}
+                <div className="border-t p-4 flex gap-3 justify-end">
+                    {isQueueDone ? (
+                        <button
+                            onClick={handleConfirmClose}
+                            className="px-4 py-2 bg-green-500 text-white font-medium rounded hover:bg-green-600"
+                        >
+                            Done & Close
+                        </button>
+                    ) : (
+                        <>
+                            <button
+                                onClick={handleClose}
+                                className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-50"
+                            >
+                                {state.uploadingCount > 0 ? 'Stop & Close' : 'Close'}
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ============================================================================
+// PAGE: Dashboard with Bulk Upload Integration
+// ============================================================================
+
+export function DashboardPage() {
+    const [bulkUploadModalOpen, setBulkUploadModalOpen] = useState(false);
+    const [selectedAlbumId, setSelectedAlbumId] = useState<number | undefined>();
+    const [albums, setAlbums] = useState<Album[]>([]);
+    const [albumsLoading, setAlbumsLoading] = useState(false);
+
+    const {
+        items: galleryItems,
+        loading: galleryLoading,
+        error: galleryError,
+        pagination,
+        setPage,
+        refetch,
+        setAlbumId,
+    } = useMediaGallery(selectedAlbumId);
+
+    // ========================================================================
+    // Fetch albums on mount
+    // ========================================================================
+
+    useEffect(() => {
+        setAlbumsLoading(true);
+        mediaAdapter
+            .getAlbumList()
+            .then(setAlbums)
+            .catch((err) => console.error('Failed to load albums:', err))
+            .finally(() => setAlbumsLoading(false));
+    }, []);
+
+    // ========================================================================
+    // HANDLER: Upload Success (refresh gallery)
+    // ========================================================================
+
+    const handleBulkUploadSuccess = (imageIds: string[]) => {
+        console.log(`Successfully uploaded ${imageIds.length} images`, imageIds);
+        // Refresh gallery to show new images
+        refetch();
+        setBulkUploadModalOpen(false);
     };
-    fetchAlbums();
-  }, []);
 
-  const handleUploadSuccess = useCallback(
-    (imageId: string) => {
-      // Refresh gallery to show newly uploaded item
-      setPage(1);
-    },
-    [setPage],
-  );
+    return (
+        <div className="min-h-screen bg-gray-100">
+            {/* HEADER */}
+            <div className="bg-white shadow">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                    <div className="flex items-center justify-between">
+                        <h1 className="text-2xl font-bold text-gray-900">Media Gallery</h1>
+                        <button
+                            onClick={() => setBulkUploadModalOpen(true)}
+                            className="px-4 py-2 bg-pinterest text-white font-medium rounded hover:bg-red-700"
+                        >
+                            Bulk Upload
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-  const handleDeleteImage = useCallback(
-    async (imageId: string) => {
-      try {
-        await mediaAdapter.deleteImage(imageId);
-        setPage(1); // Refresh
-      } catch (err) {
-        console.error('Delete failed:', err);
-      }
-    },
-    [setPage],
-  );
+            {/* CONTROLS */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div className="flex gap-4">
+                    <select
+                        value={selectedAlbumId || ''}
+                        onChange={(e) => {
+                            const albumId = e.target.value ? parseInt(e.target.value) : undefined;
+                            setSelectedAlbumId(albumId);
+                            setAlbumId(albumId);
+                        }}
+                        className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-pinterest"
+                        disabled={albumsLoading}
+                    >
+                        <option value="">-- All Albums --</option>
+                        {albums.map((album) => (
+                            <option key={album.id} value={album.id}>
+                                {album.title}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
 
-  const handleAlbumFilterChange = useCallback(
-    (albumId: number | undefined) => {
-      setSelectedAlbumFilter(albumId);
-      setAlbumId(albumId);
-      setPage(1);
-    },
-    [setAlbumId, setPage],
-  );
+            {/* GALLERY */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                {galleryError && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700">
+                        {galleryError.message}
+                    </div>
+                )}
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">My Gallery</h1>
-        <p className="text-gray-600 text-sm mt-1">
-          Manage and organize your images
-        </p>
-      </div>
+                {galleryLoading && <p className="text-gray-600">Loading...</p>}
 
-      {/* Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        {/* Album Filter */}
-        <select
-          value={selectedAlbumFilter || ''}
-          onChange={(e) => handleAlbumFilterChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-          className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All Albums</option>
-          {albums.map((album) => (
-            <option key={album.id} value={album.id}>
-              {album.title}
-            </option>
-          ))}
-        </select>
+                {!galleryLoading && galleryItems.length === 0 && (
+                    <p className="text-gray-600 text-center py-8">No images yet.</p>
+                )}
 
-        {/* Upload Button */}
-        <button
-          onClick={() => setUploadModalOpen(true)}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition"
-        >
-          + Upload Image
-        </button>
-      </div>
+                {galleryItems.length > 0 && (
+                    <>
+                        {/* MASONRY GRID */}
+                        <div className={MEDIA_CONFIG.masonry.gridClass}>
+                            {galleryItems.map((item) => (
+                                <div key={item.id} className="break-inside-avoid">
+                                    <ImageCard item={item} />
+                                </div>
+                            ))}
+                        </div>
 
-      {/* Error Display */}
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-          {error.message}
+                        {/* PAGINATION */}
+                        <div className="flex gap-2 justify-center mt-8">
+                            <button
+                                onClick={() => setPage(pagination.currentPage - 1)}
+                                disabled={pagination.currentPage === 1}
+                                className="px-3 py-2 border rounded disabled:opacity-50"
+                            >
+                                Prev
+                            </button>
+                            <span className="px-3 py-2">Page {pagination.currentPage}</span>
+                            <button
+                                onClick={() => setPage(pagination.currentPage + 1)}
+                                disabled={!pagination.hasNext}
+                                className="px-3 py-2 border rounded disabled:opacity-50"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            {/* BULK UPLOAD MODAL */}
+            <BulkUploadModal
+                isOpen={bulkUploadModalOpen}
+                onClose={() => setBulkUploadModalOpen(false)}
+                albums={albums}
+                defaultAlbumId={selectedAlbumId}
+                onUploadSuccess={handleBulkUploadSuccess}
+            />
         </div>
-      )}
+    );
+}
 
-      {/* Loading State */}
-      {loading && items.length === 0 ? (
-        <div className="text-center text-gray-500 py-12">Loading gallery…</div>
-      ) : items.length === 0 ? (
-        <div className="text-center text-gray-500 py-12">
-          No images yet. Upload one to get started!
+// ============================================================================
+// COMPONENT: Image Card (extracted component)
+// ============================================================================
+
+function ImageCard({ item }: { item: MediaItem }) {
+    const [imageLoadFailed, setImageLoadFailed] = useState(false);
+
+    const aspectRatio = item.width && item.height ? item.width / item.height : 1;
+
+    return (
+        <div className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow">
+            <div
+                className="relative bg-gray-200 overflow-hidden"
+                style={{ aspectRatio }}
+            >
+                {!imageLoadFailed ? (
+                    <img
+                        src={item.minio_url}
+                        alt={item.tags?.join(', ') || 'Image'}
+                        className="w-full h-full object-cover"
+                        onError={() => setImageLoadFailed(true)}
+                        onLoad={() => setImageLoadFailed(false)}
+                    />
+                ) : (
+                    <div className="flex items-center justify-center h-full bg-red-50">
+                        <p className="text-sm text-red-600">Failed to load image</p>
+                    </div>
+                )}
+
+                {/* INDEX STATUS BADGE */}
+                {item.index_status && (
+                    <div className="absolute top-2 right-2 px-2 py-1 bg-white rounded text-xs font-medium text-gray-700">
+                        {MEDIA_CONFIG.indexStatusLabels[
+                            item.index_status as keyof typeof MEDIA_CONFIG.indexStatusLabels
+                        ] || item.index_status}
+                    </div>
+                )}
+
+                {/* PRIVACY ICON */}
+                {item.privacy_level !== undefined && (
+                    <div className="absolute bottom-2 left-2 text-lg">
+                        {MEDIA_CONFIG.privacy.icons[
+                            item.privacy_level as keyof typeof MEDIA_CONFIG.privacy.icons
+                        ] || ''}
+                    </div>
+                )}
+            </div>
+
+            {/* METADATA */}
+            <div className="p-3">
+                {item.tags && item.tags.length > 0 && (
+                    <div className="flex gap-1 flex-wrap mb-2">
+                        {item.tags.slice(0, 3).map((tag: string) => (
+                            <span
+                                key={tag}
+                                className="inline-block px-2 py-1 bg-gray-100 rounded text-xs text-gray-700"
+                            >
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
+                <p className="text-xs text-gray-500">
+                    {new Date(item.created_at).toLocaleDateString()}
+                </p>
+            </div>
         </div>
-      ) : (
-        <>
-          {/* Masonry Grid (Q1: Vanilla CSS Columns via Tailwind) */}
-          <div className={MEDIA_CONFIG.masonry.gridClass}>
-            {items.map((item) => (
-              <ImageCard
-                key={item.id}
-                item={item}
-                onDelete={handleDeleteImage}
-                onMetadataUpdate={() => setPage(pagination.currentPage)}
-                onShowDetail={setDetailModalImageId}
-              />
-            ))}
-          </div>
-
-          {/* Pagination */}
-          <div className="mt-8 flex items-center justify-center gap-2">
-            <button
-              onClick={() => setPage(Math.max(1, pagination.currentPage - 1))}
-              disabled={pagination.currentPage === 1}
-              className="px-3 py-1 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              ← Previous
-            </button>
-            <span className="text-sm text-gray-600">
-              Page {pagination.currentPage} of {Math.ceil(pagination.totalItems / pagination.pageSize)}
-            </span>
-            <button
-              onClick={() => setPage(pagination.currentPage + 1)}
-              disabled={!pagination.hasNext}
-              className="px-3 py-1 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next →
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Upload Modal */}
-      <UploadModal
-        isOpen={uploadModalOpen}
-        onClose={() => setUploadModalOpen(false)}
-        onUploadSuccess={handleUploadSuccess}
-        albums={albums}
-      />
-
-      {/* Image Detail Modal */}
-      <ImageDetailModal
-        imageId={detailModalImageId}
-        isOpen={detailModalImageId !== null}
-        onClose={() => setDetailModalImageId(null)}
-        onDelete={handleDeleteImage}
-        onRefresh={() => setPage(pagination.currentPage)}
-      />
-    </div>
-  );
+    );
 }
 
 export default DashboardPage;

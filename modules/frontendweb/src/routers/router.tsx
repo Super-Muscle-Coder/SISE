@@ -11,7 +11,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { LoginPage } from '../routers/auth_routers';
 import { RegisterPage } from '../routers/auth_routers';
-import { AUTH_CONFIG } from '../configs/auth_config';
+import { AUTH_CONFIG } from '../configs/auth_configs';
 import { getStoredToken } from '../services/auth_services';
 
 /**
