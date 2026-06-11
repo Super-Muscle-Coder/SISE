@@ -4,7 +4,13 @@
  * @description Pure TypeScript interfaces for auth domain.
  *              Maps 1-to-1 with openapi.yaml schemas.
  *              No business logic, no state, only type definitions.
+ * 
+ * Công dụng: Định nghĩa kiểu dữ liệu (TypeScript types)
+  - LoginRequest, RegisterRequest (payload gửi tới backend)
+  - AuthResponse, User (phản hồi từ backend)
+  Nếu backend response format thay đổi, update type ở đây
  * @owner AG-04
+ * @reference .context/openapi.yaml, DOS.md (Auth Workflow T003-02)
  */
 
 /**
@@ -12,85 +18,104 @@
  * Matches Error schema in openapi.yaml.
  */
 export interface StandardError {
-    code: string; // e.g., 'ERR_INVALID_CREDENTIALS', 'ERR_USER_ALREADY_EXISTS'
-    message: string;
+    code?: string; // e.g., 'ERR_INVALID_CREDENTIALS', 'ERR_USER_ALREADY_EXISTS'
+    detail?: string; // Main error message from backend
+    message?: string; // Alternative error message field
     details?: Record<string, unknown>;
 }
 
 /**
- * Login request payload.
- * Matches AuthRequest schema in openapi.yaml → POST /auth/login
+ * LOGIN REQUEST
+ * Endpoint: POST /auth/login
+ * Fields: username + password only (no email)
+ * 
+ * Backend validates:
+ * - username: required (not empty)
+ * - password: required (not empty)
+ * 
+ * Possible errors:
+ * - 400: Missing required fields
+ * - 401: Invalid username or password
  */
 export interface LoginRequest {
-    username: string; // email or username
+    username: string; // Can be email or username
     password: string;
 }
 
 /**
- * Register request payload.
- * Extends AuthRequest with email field.
- * Matches request schema in openapi.yaml → POST /auth/register
+ * REGISTER REQUEST
+ * Endpoint: POST /auth/register
+ * Fields: username + email + password
+ * 
+ * Backend validates:
+ * - username: 3-50 characters, unique
+ * - email: valid email format, unique
+ * - password: minimum 8 characters
+ * 
+ * Possible errors:
+ * - 400: Invalid format or duplicate
+ * - 400: validation error
  */
 export interface RegisterRequest {
-    username: string;
-    email: string;
-    password: string;
+    username: string; // 3-50 chars, unique
+    email: string; // Valid email format, unique
+    password: string; // Minimum 8 characters
 }
 
 /**
- * Authentication response containing JWT token.
- * Matches AuthResponse schema in openapi.yaml.
- * Returned by POST /auth/login and POST /auth/register.
+ * AUTHENTICATION RESPONSE
+ * Returned by:
+ * - POST /auth/login (200 OK)
+ * - POST /auth/register (201 Created)
+ * 
+ * Contains JWT token that frontend must store and use for subsequent requests
  */
 export interface AuthResponse {
-    access_token: string; // JWT token
-    token_type: string; // typically "bearer"
-    expires_in: number; // token lifetime in seconds
+    access_token: string; // JWT token (HS256 algorithm)
+    token_type: string; // Typically "bearer"
+    expires_in: number; // Token lifetime in seconds (86400 = 24 hours)
 }
 
 /**
- * User profile information.
- * Matches User schema in openapi.yaml.
- * Returned by GET /auth/me.
+ * USER OBJECT
+ * Returned by: GET /auth/me
+ * Contains user information after successful authentication
  */
 export interface User {
-    id: number; // User DB ID
+    id: number;
     username: string;
     email: string;
-    created_at: string; // ISO 8601 datetime
+    created_at: string; // ISO 8601 timestamp
 }
 
 /**
- * Local form state during auth operations.
- * Used by useLogin() and useRegister() hooks.
+ * AUTH STATE
+ * Frontend state management for authentication
  */
 export interface AuthState {
-    isLoading: boolean; // True while request in-flight
-    error: string | null; // User-friendly error message
-    errorCode: string | null; // Machine-readable error code
+    isAuthenticated: boolean;
+    user: User | null;
+    token: string | null;
+    isLoading: boolean;
+    error: string | null;
 }
 
 /**
- * Unified auth context state.
- * Combines auth operation state + authenticated user profile.
- */
-export interface AuthContextState extends AuthState {
-    user: User | null; // Current authenticated user (null if not logged in)
-    isAuthenticated: boolean; // Boolean convenience flag
-}
-
-/**
- * Form validation error map.
- * Maps field names to validation error messages.
- */
-export interface FormValidationErrors {
-    [fieldName: string]: string;
-}
-
-/**
- * Form validation result.
+ * FORM VALIDATION RESULT
+ * Used for form-level validation errors before submission
  */
 export interface FormValidationResult {
-    valid: boolean;
-    errors: FormValidationErrors;
+    isValid: boolean;
+    errors: Record<string, string>;
+}
+
+/**
+ * AUTH CONTEXT STATE
+ * Provided by AuthContextProvider to entire app
+ */
+export interface AuthContextState extends AuthState {
+    login: (credentials: LoginRequest) => Promise<void>;
+    register: (credentials: RegisterRequest) => Promise<void>;
+    logout: () => void;
+    clearError: () => void;
 }

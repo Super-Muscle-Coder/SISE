@@ -50,3 +50,10 @@
 - Ghi lại kết quả kiểm toán, hành động khắc phục và chủ sở hữu; theo dõi tiến độ hoàn thành các mục kiểm toán.
 - Đánh dấu các đại lý quan trọng với audit_required và đảm bảo các hành động theo dõi được lên lịch và theo dõi.
 - Giữ cho tài liệu dễ phát hiện, có phiên bản và được xem xét tại mỗi cuộc kiểm toán AG-00.
+
+## Authentication Workflow
+- Cung cấp thông tin chi tiết về quy trình xác thực: các trường chính xác cho đăng ký/đăng nhập, quy tắc xác thực, định dạng phản hồi và xử lý lỗi.
+- Tham khảo các tệp openapi.yaml, data_schema.yaml, và mã thực tế trong các tệp auth_entities.py, auth_services.py, auth_routers.py để lấy thông tin chi tiết.
+
+
+

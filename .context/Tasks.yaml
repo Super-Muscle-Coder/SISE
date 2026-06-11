@@ -452,51 +452,63 @@ phase_4:
       title: "[Web][workflow:scaffold] Project scaffold bundle"
       assigned_to: AG-04
       priority: P0
-      status: backlog
+      status: done
       description: >
-        Workflow bundle "scaffold": React + Vite + Tailwind. File thuộc workflow
-        dùng prefix `scaffold_...` (TS/TSX). Cấu hình Axios base URL + JWT interceptor.
+        ✓ HOÀN THÀNH: React + Vite + Tailwind scaffold hoàn chỉnh.
+        Axios client với JWT interceptor, TypeScript config, Tailwind setup.
+        Xem chi tiết tại .knowledge/agent04/Log_04.md.
       depends_on: [T003-02]
 
     - id: T004-02
       title: "[Web][workflow:auth] Auth pages bundle"
       assigned_to: AG-04
       priority: P0
-      status: backlog
+      status: done
+      description: >
+        ✓ HOÀN THÀNH: Login/Register pages, JWT storage, auth context provider,
+        protected route wrapper. Auth flow hoàn chỉnh, tích hợp với backend API.
       depends_on: [T004-01]
 
     - id: T004-03
       title: "[Web][workflow:media] Dashboard & Album management bundle"
       assigned_to: AG-04
       priority: P1
-      status: backlog
+      status: done
+      description: >
+        ✓ HOÀN THÀNH: Dashboard với album grid, create/edit/delete album UI,
+        album detail view với image gallery, privacy settings UI.
       depends_on: [T004-02]
 
     - id: T004-04
       title: "[Web][workflow:upload] Bulk upload Drag & Drop bundle"
       assigned_to: AG-04
       priority: P1
-      status: backlog
+      status: done
+      description: >
+        ✓ HOÀN THÀNH: Drag & drop zone, multi-file selection, presigned URL upload,
+        progress tracking, confirm endpoint integration, batch processing UI.
       depends_on: [T004-02]
 
     - id: T004-05
       title: "[Web][workflow:search] Search UI bundle"
       assigned_to: AG-04
       priority: P0
-      status: backlog
+      status: done
       description: >
-        Upload ảnh query hoặc nhập text → hiển thị grid kết quả với similarity score.
-        Phải hiển thị rõ ràng score và privacy level của từng kết quả.
+        ✓ HOÀN THÀNH: Search page với image query upload hoặc text input,
+        result grid với similarity scores, privacy badges, metadata display,
+        hybrid search mode toggle. Tích hợp đầy đủ với backend /search endpoints.
       depends_on: [T004-02]
 
     - id: T004-06
       title: "[Web][workflow:evaluation] Evaluation dashboard bundle"
       assigned_to: AG-04
       priority: P1
-      status: backlog
+      status: done
       description: >
-        Biểu đồ MRR, Precision@K, HitRate, Recall. Trigger POST /eval/run và
-        hiển thị kết quả real-time.
+        ✓ HOÀN THÀNH: Evaluation page với MRR/Precision/Recall charts,
+        trigger evaluation run button, real-time metrics display,
+        historical results comparison. Tích hợp với backend /eval endpoints.
       depends_on: [T004-02]
 
     - id: T004-07

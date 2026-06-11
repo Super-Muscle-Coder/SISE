@@ -1,0 +1,139 @@
+/**
+ * @file reset.css
+ * @layer styles (Layer 1 - Base Styles)
+ * @description Browser reset and normalization
+ * Removes default browser styles for consistent baseline
+ * @owner AG-04
+ */
+
+/**
+ * 1. Remove default margins and padding
+ * 2. Apply universal box-sizing
+ * 3. Prevent unwanted font inflation on iOS
+ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/**
+ * HTML & Body Resets
+ */
+html,
+body {
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--color-bg-primary, #ffffff);
+    color: var(--color-text-primary, #000000);
+}
+
+/**
+ * Root Element
+ */
+#root {
+    width: 100%;
+    height: 100%;
+}
+
+/**
+ * Ensure images and media don't overflow
+ */
+img,
+picture,
+video,
+canvas,
+svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/**
+ * Remove default input/button styles
+ */
+button,
+input,
+textarea,
+select {
+    all: unset;
+}
+
+/**
+ * Forms should inherit font
+ */
+input,
+button,
+textarea,
+select {
+    font-family: inherit;
+    font-size: inherit;
+}
+
+/**
+ * Links don't need underline by default
+ */
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+/**
+ * Lists don't need bullets
+ */
+ul,
+ol {
+    list-style: none;
+}
+
+/**
+ * Blockquote & quotes
+ */
+blockquote,
+q {
+    quotes: none;
+}
+
+    blockquote::before,
+    blockquote::after,
+    q::before,
+    q::after {
+        content: '';
+        content: none;
+    }
+
+/**
+ * Tables
+ */
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+/**
+ * Fieldset & legend
+ */
+fieldset {
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
+legend {
+    padding: 0;
+}
+
+/**
+ * Ensure focus-visible works for accessibility
+ */
+:focus-visible {
+    outline: 2px solid var(--color-brand-primary, #e60023);
+    outline-offset: 2px;
+}

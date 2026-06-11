@@ -5,11 +5,18 @@
  *              Owns Axios configuration for auth endpoints.
  *              Normalizes backend errors to StandardError contract.
  *              Does NOT manage state or side effects.
+ * 
+ * Công dụng: Tầng giao tiếp với backend
+  - loginUser() - call API /login
+  - registerUser() - call API /register
+  - getCurrentUser() - lấy thông tin user hiện tại
+  Nếu backend API thay đổi, sửa ở đây
  * @owner AG-04
+ * @reference .context/openapi.yaml, DOS.md
  */
 
 import axios, { AxiosError } from 'axios';
-import { AUTH_CONFIG, AuthErrorCode } from '../configs/auth_configs';
+import { AUTH_CONFIG } from '../configs/auth_configs';
 import {
     LoginRequest,
     RegisterRequest,
@@ -20,20 +27,19 @@ import {
 
 /**
  * Create an Axios instance for auth API calls.
- * Base URL comes from scaffold config (via VITE_API_BASE_URL).
- * Timeout comes from scaffold config (via VITE_API_TIMEOUT_MS).
+ * Base URL comes from VITE_API_BASE_URL environment variable.
+ * Timeout comes from VITE_API_TIMEOUT_MS environment variable.
  * 
  * Auth endpoints do NOT require JWT token by default (public endpoints).
  * Exception: GET /auth/me requires Bearer token.
  */
 function createAuthClient() {
-    // Import scaffold config dynamically to avoid circular dependency
-    const scaffoldBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    const scaffoldTimeout = parseInt(import.meta.env.VITE_API_TIMEOUT_MS || '10000', 10);
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const timeout = parseInt(import.meta.env.VITE_API_TIMEOUT_MS || '10000', 10);
 
     return axios.create({
-        baseURL: scaffoldBaseUrl,
-        timeout: scaffoldTimeout,
+        baseURL: baseUrl,
+        timeout: timeout,
     });
 }
 
@@ -43,6 +49,13 @@ const authClient = createAuthClient();
  * FIX D.1: Type guard to validate AuthResponse payload structure.
  * Ensures backend response contains all required fields with correct types.
  * Prevents contract drift between frontend and backend.
+ * 
+ * Response format from backend:
+ * {
+ *   "access_token": "eyJ...",
+ *   "token_type": "bearer",
+ *   "expires_in": 86400
+ * }
  *
  * @param data - Unknown data from backend response
  * @returns Validated AuthResponse | throws StandardError
@@ -53,31 +66,33 @@ function validateAuthResponse(data: unknown): AuthResponse {
     if (!data || typeof data !== 'object') {
         throw {
             code: 'ERR_INVALID_RESPONSE',
-            message: 'Invalid response format from server.',
+            detail: 'Invalid response format from server.',
         } as StandardError;
     }
 
     const response = data as Record<string, unknown>;
 
-    // Validate required fields
+    // Validate access_token field
     if (typeof response.access_token !== 'string' || !response.access_token.trim()) {
         throw {
             code: 'ERR_INVALID_RESPONSE',
-            message: 'Missing or invalid access_token in response.',
+            detail: 'Missing or invalid access_token in response.',
         } as StandardError;
     }
 
+    // Validate token_type field
     if (typeof response.token_type !== 'string' || !response.token_type.trim()) {
         throw {
             code: 'ERR_INVALID_RESPONSE',
-            message: 'Missing or invalid token_type in response.',
+            detail: 'Missing or invalid token_type in response.',
         } as StandardError;
     }
 
+    // Validate expires_in field
     if (typeof response.expires_in !== 'number' || response.expires_in <= 0) {
         throw {
             code: 'ERR_INVALID_RESPONSE',
-            message: 'Missing or invalid expires_in in response.',
+            detail: 'Missing or invalid expires_in in response.',
         } as StandardError;
     }
 
@@ -90,6 +105,17 @@ function validateAuthResponse(data: unknown): AuthResponse {
 
 /**
  * FIX D.2: Normalize backend error response to StandardError contract.
+ * Backend (FastAPI + Pydantic) returns errors in format:
+ * {
+ *   "detail": "Error message string"
+ * }
+ * 
+ * Or for structured errors:
+ * {
+ *   "code": "ERR_CODE",
+ *   "detail": "Error message"
+ * }
+ * 
  * Differentiates between network errors, timeouts, and HTTP error responses.
  * Maps HTTP status codes to semantic error codes.
  * Implements fallback resilience for schema drift.
@@ -100,76 +126,111 @@ function validateAuthResponse(data: unknown): AuthResponse {
 function parseBackendError(error: unknown): StandardError {
     if (axios.isAxiosError(error)) {
         const statusCode = error.response?.status;
-        const backendError = error.response?.data as Partial<StandardError> | undefined;
+        const backendData = error.response?.data as Record<string, unknown> | undefined;
 
         // ===== Network & Timeout Errors =====
         if (error.code === 'ECONNABORTED') {
             return {
                 code: 'ERR_TIMEOUT',
-                message: 'Request timed out. Please check your connection.',
+                detail: 'Request timed out. Please check your connection.',
             };
         }
 
         if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
             return {
                 code: 'ERR_NETWORK',
-                message: 'Network error. Please check your internet connection.',
+                detail: 'Network error. Please check your internet connection.',
             };
         }
 
-        // ===== Backend Structured Error =====
-        if (backendError && typeof backendError === 'object' && 'code' in backendError) {
+        // ===== Backend Structured Error (with code field) =====
+        if (backendData && typeof backendData === 'object' && 'code' in backendData) {
             return {
-                code: backendError.code || 'UNKNOWN_ERROR',
-                message: backendError.message || 'An error occurred.',
-                details: backendError.details,
+                code: String(backendData.code) || 'UNKNOWN_ERROR',
+                detail: String(backendData.detail || backendData.message || 'An error occurred.'),
             };
         }
 
-        // ===== HTTP Status Code Mapping =====
+        // ===== Backend Detail-only Error (Pydantic validation) =====
+        if (backendData && typeof backendData.detail === 'string') {
+            // Map common backend messages to error codes
+            const detail = backendData.detail.toLowerCase();
+
+            if (detail.includes('already exists') || detail.includes('duplicate')) {
+                return {
+                    code: 'ERR_USER_ALREADY_EXISTS',
+                    detail: backendData.detail as string,
+                };
+            }
+
+            if (detail.includes('invalid') && detail.includes('password')) {
+                return {
+                    code: 'ERR_INVALID_CREDENTIALS',
+                    detail: backendData.detail as string,
+                };
+            }
+
+            if (detail.includes('validation')) {
+                return {
+                    code: 'ERR_VALIDATION_FAILED',
+                    detail: backendData.detail as string,
+                };
+            }
+
+            // Generic detail message
+            return {
+                code: 'ERR_SERVER_ERROR',
+                detail: backendData.detail as string,
+            };
+        }
+
+        // ===== HTTP Status Code Mapping (fallback) =====
         switch (statusCode) {
             case 400:
                 return {
                     code: 'ERR_VALIDATION_FAILED',
-                    message: 'Validation failed. Please check your input.',
+                    detail: 'Validation failed. Please check your input.',
                 };
             case 401:
                 return {
                     code: 'ERR_INVALID_CREDENTIALS',
-                    message: 'Invalid email or password. Please try again.',
+                    detail: 'Invalid username or password. Please try again.',
                 };
             case 409:
                 return {
                     code: 'ERR_USER_ALREADY_EXISTS',
-                    message: 'This email is already registered. Try logging in instead.',
+                    detail: 'This username or email is already registered.',
                 };
             case 500:
                 return {
                     code: 'ERR_SERVER_ERROR',
-                    message: 'Server error. Please try again later.',
+                    detail: 'Server error. Please try again later.',
                 };
             default:
                 return {
                     code: 'UNKNOWN_ERROR',
-                    message: 'An unexpected error occurred. Please try again.',
+                    detail: 'An unexpected error occurred. Please try again.',
                 };
         }
     }
 
-    // ===== Non-Axios Error (e.g., parsing error) =====
+    // ===== Non-Axios Error (e.g., parsing error, validation error) =====
     return {
         code: 'UNKNOWN_ERROR',
-        message: 'An unexpected error occurred.',
+        detail: (error as Error)?.message || 'An unexpected error occurred.',
     };
 }
 
 /**
- * Login user with email/username and password.
- * Calls POST /auth/login (from AUTH_CONFIG.paths.login).
+ * LOGIN: POST /auth/login
+ * 
+ * Request: { username, password }
+ * Response: { access_token, token_type, expires_in }
+ * 
  * Does NOT include JWT token (public endpoint).
  *
  * @param payload - { username, password }
- * @returns AuthResponse containing JWT token, token_type, expires_in
+ * @returns AuthResponse containing JWT token
  * @throws StandardError structured error object
  */
 export async function loginUser(payload: LoginRequest): Promise<AuthResponse> {
@@ -188,8 +249,11 @@ export async function loginUser(payload: LoginRequest): Promise<AuthResponse> {
 }
 
 /**
- * Register a new user.
- * Calls POST /auth/register (from AUTH_CONFIG.paths.register).
+ * REGISTER: POST /auth/register
+ * 
+ * Request: { username, email, password }
+ * Response: { access_token, token_type, expires_in } (auto-login)
+ * 
  * Does NOT include JWT token (public endpoint).
  * Response includes AuthResponse (instant activation, no email confirmation needed).
  *
@@ -213,9 +277,13 @@ export async function registerUser(payload: RegisterRequest): Promise<AuthRespon
 }
 
 /**
- * Retrieve the authenticated user's profile.
- * Calls GET /auth/me (from AUTH_CONFIG.paths.getCurrentUser).
+ * GET PROFILE: GET /auth/me
+ * 
+ * Request header: Authorization: Bearer <token>
+ * Response: { id, username, email, created_at }
+ * 
  * REQUIRES Bearer token in Authorization header.
+ * Fails with 401 if token invalid or expired.
  *
  * @param token - JWT access token
  * @returns User profile object
@@ -241,13 +309,15 @@ export async function getCurrentUser(token: string): Promise<User> {
 
 /**
  * FIX D.3: Map backend error code to user-friendly message.
- * Reads from AUTH_CONFIG.errorMessages (defined in auth_config.ts).
+ * Reads from AUTH_CONFIG.errorMessages (defined in auth_configs.ts).
  * Provides i18n-ready fallback for unknown codes.
  *
  * @param errorCode - Backend error code (e.g., 'ERR_INVALID_CREDENTIALS')
- * @returns User-friendly error message
+ * @returns User-friendly error message from config
  */
 export function mapErrorToMessage(errorCode: string): string {
-    // Cast errorCode to AuthErrorCode instead of 'any'
-    return AUTH_CONFIG.errorMessages[errorCode as AuthErrorCode] || AUTH_CONFIG.errorMessages.UNKNOWN_ERROR;
+    return (
+        AUTH_CONFIG.errorMessages[errorCode as keyof typeof AUTH_CONFIG.errorMessages] ||
+        AUTH_CONFIG.errorMessages.UNKNOWN_ERROR
+    );
 }

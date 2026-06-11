@@ -1,0 +1,210 @@
+/**
+ * @file animations.css
+ * @layer styles (Layer 1 - Base Styles)
+ * @description Keyframe animations and related animation definitions
+ * @owner AG-04
+ * @reference design-system/animations.ts
+ */
+
+/**
+ * FADE Animations
+ */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 300ms ease-out;
+}
+
+.animate-fade-out {
+    animation: fadeOut 300ms ease-in;
+}
+
+/**
+ * SLIDE Animations
+ */
+@keyframes slideInUp {
+    from {
+        transform: translateY(10px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInDown {
+    from {
+        transform: translateY(-10px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-10px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(10px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-in-up {
+    animation: slideInUp 300ms ease-out;
+}
+
+.animate-slide-in-down {
+    animation: slideInDown 300ms ease-out;
+}
+
+.animate-slide-in-left {
+    animation: slideInLeft 300ms ease-out;
+}
+
+.animate-slide-in-right {
+    animation: slideInRight 300ms ease-out;
+}
+
+/**
+ * SCALE Animations
+ */
+@keyframes scaleIn {
+    from {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes scaleOut {
+    from {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    to {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+}
+
+.animate-scale-in {
+    animation: scaleIn 300ms ease-out;
+}
+
+.animate-scale-out {
+    animation: scaleOut 300ms ease-in;
+}
+
+/**
+ * BOUNCE Animations
+ */
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.animate-bounce {
+    animation: bounce 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+}
+
+/**
+ * SPIN Animations
+ */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/**
+ * PULSE Animations
+ */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/**
+ * SHIMMER / SKELETON Loading Animation
+ */
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+.animate-shimmer {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+}

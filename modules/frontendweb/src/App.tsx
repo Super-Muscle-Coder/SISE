@@ -2,7 +2,13 @@
  * @file App.tsx
  * @layer routers (root)
  * @description Root application component with scaffold shell and router.
- *              FIX R1: Routes wrapped in AppRouter to handle sessionStarted/sessionEnded events.
+ * 
+ * Công dụng: Root component - định nghĩa 3 tầng wrapper:
+  1. ScaffoldErrorBoundary (bắt lỗi toàn app)
+  2. ScaffoldContextProvider (cung cấp dữ liệu chung)
+  3. ScaffoldAppShell (vỏ ngoài: header, footer, layout)
+  Nếu thêm theme, session context, v.v. thường thêm ở đây
+ * 
  * @owner AG-04
  */
 

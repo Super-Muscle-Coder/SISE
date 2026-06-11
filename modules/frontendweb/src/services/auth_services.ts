@@ -8,6 +8,12 @@
  *              FIX E.1: AbortController to prevent race conditions & button spamming.
  *              FIX E.2: useEffect cleanup to prevent memory leaks on unmount.
  *              FIX E.3: Config-driven storage keys, event names, validation rules.
+ * 
+ * Công dụng: Xử lý logic đăng nhập/đăng ký
+  - useLogin() hook: gọi API login, lưu token
+  - useRegister() hook: gọi API register
+  - Quản lý session (lưu/xóa token)
+  Nếu cần thay đổi logic auth, sửa ở đây
  * @owner AG-04
  */
 
@@ -24,7 +30,6 @@ import {
     RegisterRequest,
     AuthResponse,
     User,
-    AuthState,
     FormValidationResult,
 } from '../entities/auth_entities';
 
@@ -151,7 +156,7 @@ export function useLogin() {
                     return { success: false };
                 }
 
-                const backendError = err as { code?: string; message?: string };
+                const backendError = err as { code?: string; detail?: string };
                 const code = backendError?.code || 'UNKNOWN_ERROR';
                 const message = mapErrorToMessage(code);
 
@@ -236,7 +241,7 @@ export function useRegister() {
                     return { success: false };
                 }
 
-                const backendError = err as { code?: string; message?: string };
+                const backendError = err as { code?: string; detail?: string };
                 const code = backendError?.code || 'UNKNOWN_ERROR';
                 const message = mapErrorToMessage(code);
 
@@ -304,7 +309,7 @@ export function useGetCurrentUser() {
                 return { success: false };
             }
 
-            const backendError = err as { code?: string; message?: string };
+            const backendError = err as { code?: string; detail?: string };
             const message = mapErrorToMessage(backendError?.code || 'UNKNOWN_ERROR');
             setError(message);
             setIsLoading(false);
@@ -316,13 +321,17 @@ export function useGetCurrentUser() {
 }
 
 /**
- * Utility function to validate auth form input before submission.
+ * FIX E.3: Validate auth form input before submission.
  * Uses config-driven validation rules (AUTH_CONFIG.validation).
  * Returns field-level errors for granular UI feedback.
+ * 
+ * IMPORTANT: LOGIN vs REGISTER have different validation rules:
+ * - LOGIN: username + password only (no email validation)
+ * - REGISTER: username + email + password (with email format check)
  *
  * @param type - 'login' or 'register'
  * @param payload - Form data object
- * @returns { valid: boolean, errors: Record<string, string> }
+ * @returns { isValid: boolean, errors: Record<string, string> }
  */
 export function validateAuthForm(
     type: 'login' | 'register',
@@ -330,24 +339,8 @@ export function validateAuthForm(
 ): FormValidationResult {
     const errors: Record<string, string> = {};
 
-    // ===== Email Validation (both login and register) =====
-    if (payload.email) {
-        const { pattern, message } = AUTH_CONFIG.validation.email;
-        if (!pattern.test(payload.email)) {
-            errors.email = message;
-        }
-    }
-
-    // ===== Password Validation =====
-    if (payload.password) {
-        const { minLength, message } = AUTH_CONFIG.validation.password;
-        if (payload.password.length < minLength) {
-            errors.password = message;
-        }
-    }
-
-    // ===== Username Validation (register only) =====
-    if (type === 'register' && payload.username) {
+    // ===== USERNAME VALIDATION (both login and register) =====
+    if (payload.username) {
         const { minLength, maxLength, pattern, message } = AUTH_CONFIG.validation.username;
         if (
             payload.username.length < minLength ||
@@ -356,10 +349,35 @@ export function validateAuthForm(
         ) {
             errors.username = message;
         }
+    } else {
+        errors.username = 'Username is required';
+    }
+
+    // ===== PASSWORD VALIDATION (both login and register) =====
+    if (payload.password) {
+        const { minLength, message } = AUTH_CONFIG.validation.password;
+        if (payload.password.length < minLength) {
+            errors.password = message;
+        }
+    } else {
+        errors.password = 'Password is required';
+    }
+
+    // ===== REGISTER-ONLY VALIDATION =====
+    if (type === 'register') {
+        // Email validation
+        if (payload.email) {
+            const { pattern, message } = AUTH_CONFIG.validation.email;
+            if (!pattern.test(payload.email)) {
+                errors.email = message;
+            }
+        } else {
+            errors.email = 'Email is required';
+        }
     }
 
     return {
-        valid: Object.keys(errors).length === 0,
+        isValid: Object.keys(errors).length === 0,
         errors,
     };
 }

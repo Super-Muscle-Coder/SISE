@@ -1,0 +1,189 @@
+/**
+ * @file content-layout.css
+ * @layer page-layouts (Layer 2)
+ * @description Styling for content pages layout
+ * Headers, filters, grid/masonry content area
+ * @owner AG-04
+ * @reference design-system/tokens (CSS variables)
+ */
+
+/**
+ * Main layout container
+ */
+.content-layout {
+    width: 100%;
+    padding: var(--spacing-2xl, 2.5rem);
+    background-color: var(--color-bg-primary, #ffffff);
+}
+
+@media (max-width: 768px) {
+    .content-layout {
+        padding: var(--spacing-lg, 1.5rem);
+    }
+}
+
+/**
+ * Header section
+ * Title and subtitle
+ */
+.content-layout__header {
+    margin-bottom: var(--spacing-2xl, 2.5rem);
+}
+
+/**
+ * Title
+ */
+.content-layout__title {
+    font-size: var(--font-size-3xl, 1.875rem);
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--color-text-primary, #000000);
+    margin: 0 0 var(--spacing-sm, 0.5rem) 0;
+}
+
+/**
+ * Subtitle
+ */
+.content-layout__subtitle {
+    font-size: var(--font-size-base, 1rem);
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--color-text-secondary, #71717a);
+    margin: 0;
+}
+
+/**
+ * Filters section
+ * Search, sort, view controls
+ */
+.content-layout__filters {
+    display: flex;
+    gap: var(--spacing-base, 1rem);
+    margin-bottom: var(--spacing-2xl, 2.5rem);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+@media (max-width: 768px) {
+    .content-layout__filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/**
+ * Content area
+ * Different layouts: grid, masonry, list
+ */
+.content-layout__content {
+    width: 100%;
+}
+
+/**
+ * Grid layout
+ * Responsive columns: 1 (mobile) → 2 (tablet) → 3 (desktop) → 4 (wide)
+ */
+.content-layout__content--grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: var(--spacing-base, 1rem);
+}
+
+@media (max-width: 1024px) {
+    .content-layout__content--grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .content-layout__content--grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .content-layout__content--grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/**
+ * Masonry layout
+ * Pinterest-style columns
+ */
+.content-layout__content--masonry {
+    columns: 2;
+    column-gap: var(--spacing-base, 1rem);
+}
+
+    .content-layout__content--masonry > * {
+        break-inside: avoid;
+        margin-bottom: var(--spacing-base, 1rem);
+    }
+
+@media (max-width: 1024px) {
+    .content-layout__content--masonry {
+        columns: 3;
+    }
+}
+
+@media (max-width: 768px) {
+    .content-layout__content--masonry {
+        columns: 2;
+    }
+}
+
+@media (max-width: 640px) {
+    .content-layout__content--masonry {
+        columns: 1;
+    }
+}
+
+/**
+ * List layout
+ * Vertical stack of items
+ */
+.content-layout__content--list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-base, 1rem);
+}
+
+    .content-layout__content--list > * {
+        padding: var(--spacing-base, 1rem);
+        border: 1px solid var(--color-border-light, #e4e4e7);
+        border-radius: var(--radius-base, 6px);
+        background-color: var(--color-bg-secondary, #f9f9f9);
+        transition: all var(--duration-fast, 150ms) ease;
+    }
+
+        .content-layout__content--list > *:hover {
+            border-color: var(--color-border-medium, #d4d4d8);
+            box-shadow: var(--shadow-md);
+        }
+
+/**
+ * Empty state
+ */
+.content-layout__empty {
+    text-align: center;
+    padding: var(--spacing-5xl, 4rem) var(--spacing-2xl, 2.5rem);
+    color: var(--color-text-secondary, #71717a);
+}
+
+.content-layout__empty-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-lg, 1.5rem);
+    opacity: 0.5;
+}
+
+.content-layout__empty-title {
+    font-size: var(--font-size-lg, 1.125rem);
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm, 0.5rem);
+}
+
+.content-layout__empty-text {
+    font-size: var(--font-size-sm, 0.875rem);
+    margin: 0;
+}

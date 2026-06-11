@@ -1,0 +1,168 @@
+/**
+ * @file dashboard-layout.css
+ * @layer page-layouts (Layer 2)
+ * @description Styling for dashboard layout
+ * Two-column, responsive sidebar, main content area
+ * @owner AG-04
+ * @reference design-system/tokens (CSS variables)
+ */
+
+/**
+ * Main layout container
+ * Full height, flex column
+ */
+.dashboard-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    width: 100%;
+    background-color: var(--color-bg-primary, #ffffff);
+}
+
+/**
+ * Header
+ * Title and controls
+ */
+.dashboard-layout__header {
+    background-color: var(--color-bg-primary, #ffffff);
+    border-bottom: 1px solid var(--color-border-light, #e4e4e7);
+    padding: var(--spacing-lg, 1.5rem) var(--spacing-2xl, 2.5rem);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+}
+
+@media (max-width: 768px) {
+    .dashboard-layout__header {
+        padding: var(--spacing-base, 1rem) var(--spacing-lg, 1.5rem);
+    }
+}
+
+/**
+ * Header content
+ * Flex for title and toggle button
+ */
+.dashboard-layout__header-content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-base, 1rem);
+    max-width: 1360px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/**
+ * Title
+ */
+.dashboard-layout__title {
+    font-size: var(--font-size-2xl, 1.5rem);
+    font-weight: 700;
+    color: var(--color-text-primary, #000000);
+    margin: 0;
+    flex: 1;
+}
+
+/**
+ * Toggle button (for mobile)
+ */
+.dashboard-layout__toggle {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: var(--spacing-sm, 0.5rem);
+    color: var(--color-text-primary, #000000);
+}
+
+@media (max-width: 768px) {
+    .dashboard-layout__toggle {
+        display: block;
+    }
+}
+
+/**
+ * Main container
+ * Flex row: sidebar + main
+ */
+.dashboard-layout__container {
+    display: flex;
+    flex: 1;
+    width: 100%;
+    overflow: hidden;
+}
+
+/**
+ * Sidebar
+ * Fixed width on desktop, collapsible on mobile
+ */
+.dashboard-layout__sidebar {
+    width: 280px;
+    background-color: var(--color-bg-secondary, #f9f9f9);
+    border-right: 1px solid var(--color-border-light, #e4e4e7);
+    overflow-y: auto;
+    transition: all var(--duration-fast, 150ms) var(--easing-in-out);
+}
+
+.dashboard-layout__sidebar-content {
+    padding: var(--spacing-lg, 1.5rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md, 0.75rem);
+}
+
+@media (max-width: 768px) {
+    .dashboard-layout__sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        max-width: 280px;
+        height: 100vh;
+        z-index: var(--z-modal, 30);
+        transform: translateX(-100%);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .dashboard-layout__sidebar--open {
+        transform: translateX(0);
+        box-shadow: var(--shadow-lg);
+    }
+}
+
+/**
+ * Main content area
+ * Grows to fill available space
+ */
+.dashboard-layout__main {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-2xl, 2.5rem);
+    background-color: var(--color-bg-primary, #ffffff);
+}
+
+@media (max-width: 768px) {
+    .dashboard-layout__main {
+        padding: var(--spacing-lg, 1.5rem);
+    }
+}
+
+/**
+ * Sidebar link/item styling (can be extended)
+ */
+.dashboard-layout__sidebar-link {
+    padding: var(--spacing-md, 0.75rem) var(--spacing-base, 1rem);
+    border-radius: var(--radius-base, 6px);
+    color: var(--color-text-secondary, #71717a);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all var(--duration-fast, 150ms) ease;
+}
+
+    .dashboard-layout__sidebar-link:hover {
+        background-color: var(--color-bg-primary, #ffffff);
+        color: var(--color-text-primary, #000000);
+    }
+
+.dashboard-layout__sidebar-link--active {
+    background-color: var(--color-brand-primary, #e60023);
+    color: var(--color-text-inverted, #ffffff);
+}

@@ -3,6 +3,11 @@
  * @layer configs
  * @description Auth workflow configuration - env-to-config boundary.
  *              All values from environment variables (via env_helpers).
+ * 
+ * Công dụng: Cấu hình auth (event names, storage keys, URLs)
+  - AUTH_CONFIG.events.sessionStarted, sessionEnded
+  - Token storage keys, API URLs
+  Nếu cần thay API URL, session key, v.v., thay ở đây
  * @owner AG-04
  * @reference data_schema.yaml, openapi.yaml
  */
