@@ -8,10 +8,10 @@
  * Features:
  * - Sticky header with dynamic shadow on scroll
  * - Flexible main content area for routing sub-pages
- * - Persistent footer
+ * - Persistent footer with 4-column layout
  * - Navigation state management
  */
-
+import { Footer } from '@/components/footer/Footer'; 
 import React, { useState, useEffect } from 'react';
 import './landing-layout.css';
 
@@ -19,6 +19,7 @@ interface LandingLayoutProps {
     children: React.ReactNode;
     showHeader?: boolean;
     headerContent?: React.ReactNode;
+    onPageChange?: (page: 'introduce' | 'about' | 'explore' | 'terms') => void;
 }
 
 /**
@@ -27,7 +28,7 @@ interface LandingLayoutProps {
  * Architecture:
  * - Header (sticky, dynamic shadow)
  * - Main content area (frame/container for sub-pages)
- * - Footer (persistent)
+ * - Footer (persistent with AOS animations)
  * 
  * Sub-pages render in main content area via routing
  */
@@ -35,6 +36,7 @@ export function LandingLayout({
     children,
     showHeader = true,
     headerContent,
+    onPageChange,
 }: LandingLayoutProps): React.ReactElement {
     const [hasScrolled, setHasScrolled] = useState(false);
 
@@ -72,14 +74,8 @@ export function LandingLayout({
                 {children}
             </main>
 
-            {/* Footer - Always visible */}
-            <footer className="landing-layout__footer">
-                <div className="landing-layout__footer-content">
-                    <p className="landing-layout__footer-text">
-                        © 2026 SISE. Discover & Share Visual Stories.
-                    </p>
-                </div>
-            </footer>
+            {/* Footer - Persistent with 4-column layout and AOS animations */}
+            <Footer onPageChange={onPageChange} />
         </div>
     );
 }

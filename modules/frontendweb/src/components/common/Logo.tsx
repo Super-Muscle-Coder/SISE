@@ -3,13 +3,8 @@
  * @layer components (Layer 2)
  * @description Logo component - displays SISE branding
  * Supports both text-based and image-based logos
+ * Uses CSS variables from Layer 1 (globals.css)
  * @owner AG-04
- * 
- * Usage (Text-based - default):
- * <Logo size="md" showText={true} />
- * 
- * Usage (Image-based):
- * <Logo imageUrl="/images/logo.png" alt="SISE Logo" size="md" />
  */
 
 import React, { useState } from 'react';
@@ -32,16 +27,9 @@ interface LogoProps {
 
 /**
  * Logo: SISE brand logo
- * 
  * Modes:
  * 1. Text-based (default): Shows emoji + text "SISE"
  * 2. Image-based: Shows custom logo image
- * 
- * Features:
- * - Multiple sizes
- * - Responsive styling
- * - Optional text label
- * - Fallback to text if image fails to load
  */
 export function Logo({
     imageUrl,
@@ -54,18 +42,26 @@ export function Logo({
 }: LogoProps): React.ReactElement {
     const [imageError, setImageError] = useState(false);
 
-    /**
-     * Size presets for text-based logo
-     */
+    // Size presets
     const sizeMap = {
-        sm: { text: 'text-lg', icon: 'text-xl', containerGap: 'gap-1.5' },
-        md: { text: 'text-2xl', icon: 'text-3xl', containerGap: 'gap-2' },
-        lg: { text: 'text-3xl', icon: 'text-4xl', containerGap: 'gap-2.5' },
+        sm: { 
+            icon: 'text-xl', 
+            text: 'text-lg', 
+            containerGap: 'gap-1.5'
+        },
+        md: { 
+            icon: 'text-3xl', 
+            text: 'text-2xl', 
+            containerGap: 'gap-2'
+        },
+        lg: { 
+            icon: 'text-4xl', 
+            text: 'text-3xl', 
+            containerGap: 'gap-2.5'
+        },
     };
 
-    /**
-     * Image size presets
-     */
+    // Image size presets - RIÊNG BIỆT
     const imageSizeMap = {
         sm: { width: 32, height: 32 },
         md: { width: 48, height: 48 },
@@ -73,11 +69,9 @@ export function Logo({
     };
 
     const sizes = sizeMap[size];
-    const imageSizes = imageSizeMap[size];
+    const imageSizes = imageSizeMap[size];  // ✅ FIX: Lấy từ imageSizeMap
 
-    /**
-     * If imageUrl is provided AND image loads successfully, render image-based logo
-     */
+    // If imageUrl provided and loads successfully, render image-based logo
     if (imageUrl && !imageError) {
         return (
             <div className={`flex items-center gap-2 ${className}`}>
@@ -87,13 +81,17 @@ export function Logo({
                     width={width || imageSizes.width}
                     height={height || imageSizes.height}
                     className="object-contain"
+                    style={{ maxHeight: '60px' }}  // ✅ Thêm max-height để limit kích thước
                     onError={() => {
                         console.warn(`Logo image failed to load: ${imageUrl}`);
                         setImageError(true);
                     }}
                 />
                 {showText && (
-                    <span className={`${sizes.text} font-extrabold text-zinc-900`}>
+                    <span 
+                        className={`${sizes.text} font-extrabold`}
+                        style={{ color: 'var(--color-text-primary)' }}
+                    >
                         SISE
                     </span>
                 )}
@@ -101,20 +99,26 @@ export function Logo({
         );
     }
 
-    /**
-     * Fallback: Text-based logo with emoji
-     * (Either imageUrl not provided, or image failed to load)
-     */
+    // Fallback: Text-based logo with emoji
     return (
         <div className={`flex items-center ${sizes.containerGap} ${className}`}>
-            {/* Logo Icon */}
-            <div className={`${sizes.icon} font-bold text-red-600`}>
+            <div 
+                className={sizes.icon}
+                style={{ 
+                    color: 'var(--color-brand-primary)',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                }}
+            >
                 🖼️
             </div>
 
-            {/* Logo Text */}
             {showText && (
-                <span className={`${sizes.text} font-extrabold text-zinc-900`}>
+                <span 
+                    className={`${sizes.text} font-extrabold`}
+                    style={{ color: 'var(--color-text-primary)' }}
+                >
                     SISE
                 </span>
             )}

@@ -10,9 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include=".vscode\settings.json" />
-    <None Include="C:\Users\A\Downloads\logo.png">
-      <Link>public\images\logo.png</Link>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="public\images\" />

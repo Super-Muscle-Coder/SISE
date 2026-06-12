@@ -208,3 +208,19 @@
     background-size: 1000px 100%;
     animation: shimmer 2s infinite;
 }
+
+
+/**
+ * Slide In Up Animation (cho Footer AOS effect)
+ */
+@keyframes slideInUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}

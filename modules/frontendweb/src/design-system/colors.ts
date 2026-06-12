@@ -2,6 +2,7 @@
  * @file colors.ts
  * @layer design-system (Layer 0)
  * @description Color tokens following Pinterest aesthetic - minimal & high-contrast
+ * UPDATED: Primary brand color changed from red (#E60023) to blue (#0078D7)
  * @owner AG-04
  * @reference Figma design tokens
  */
@@ -37,10 +38,15 @@ export const COLORS = {
 
     /**
      * Brand Colors — Strategic color for emphasis and calls-to-action
+     * CHANGED: From red (#E60023) to blue (#0078D7)
      */
     brand: {
-        // Pinterest signature red
-        primary: '#E60023',
+        // Primary brand blue (was: #E60023 red)
+        primary: '#0078D7',
+        // Hover state - slightly darker blue
+        primaryHover: '#106ebe',
+        // Dark state - deeper blue for active states
+        primaryDark: '#005a9e',
         // Alternative brand color (deep black for premium feel)
         secondary: '#000000',
     },
@@ -79,5 +85,12 @@ export const COLORS = {
         black: 'rgba(0, 0, 0, 0.6)',
         // White overlay for lightening (e.g., hover states)
         white: 'rgba(255, 255, 255, 0.1)',
+    },
+
+    /**
+     * Utility Colors — Additional neutral grays & light colors
+     */
+    gray: {
+        light: '#f5f5f5',  // Very light gray for buttons
     },
 } as const;

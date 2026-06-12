@@ -10,7 +10,7 @@ Bạn cần biết: Muốn thêm page mới? Thêm Route mới ở đây
 */
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { LandingPage } from '../pages/LandingPage'; 
+import { LandingPage } from '../pages/LandingPage';
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
 import { AUTH_CONFIG } from '../configs/auth_configs';
