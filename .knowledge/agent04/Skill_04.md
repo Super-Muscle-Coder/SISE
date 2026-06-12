@@ -70,11 +70,28 @@
 
 ---
 
+## Skill Entry 4
+
+- skill_id: AG04_SKILL_004
+- timestamp: 2026-05-10T18:45:00Z
+- trigger_event: AOS-like scroll animation playing twice on page load and scroll
+- context: Task T004-08, Footer scroll-triggered animation implementation with Intersection Observer
+- symptom: Animation plays once automatically when page loads (element appears at final animation position), then plays again when user scrolls to footer. Creates "flash" or "phantom" effect where element briefly appears in wrong position before animation starts.
+- root_cause: Used CSS `animation` property in inline styles, which auto-plays on DOM render. When Intersection Observer triggered state change (`isVisible = true`), React re-rendered with new animation, causing element to "jump" from animation end position back to start, then animate again. Essentially animation ran twice: once auto-play, once on state change.
+- solution: Replaced `animation` property with CSS `transition` property. Transitions only execute on property value changes, not auto-play. Changed from `animation: slideInUp 600ms ease-out ${delay}ms forwards` to `transition: all 600ms ease-out ${delay}ms`. Also added explicit `React.CSSProperties` type annotation to `getAnimationStyle` function to prevent TypeScript visibility property errors: `const getAnimationStyle = (delay: number): React.CSSProperties => { ... }`.
+- prevention: For scroll-triggered "on-demand" animations, always use CSS `transition` (state-driven) instead of `animation` (auto-play). When element should remain hidden before trigger, use `visibility: hidden` + `opacity: 0` in initial state. Always type animate/style functions with `React.CSSProperties` to catch TypeScript property errors early. Document this pattern: transition for scroll-trigger, animation only for page-load sequences.
+- related_skills: [AG04_SKILL_001, AG04_SKILL_003]
+- tags: [animation, transition, scroll-trigger, aos-pattern, intersection-observer, react-css, typescript]
+- confidence_level: high
+- review_status: validated
+- reviewed_by: AG-04 confirmed with end-user via visual testing; no double-play artifact observed
+- archived: false
+
 ## Statistics
-- total_skills: 3
-- by_tag: { typescript: 2, frontend-config: 2, state-machine: 1, module-resolution: 1 }
-- by_confidence: { high: 3, medium: 0, low: 0 }
-- by_review_status: { validated: 3, experimental: 0, needs_review: 0 }
+- total_skills: 4
+- by_tag: { typescript: 3, animation: 1, scroll-trigger: 1, transition: 1, aos-pattern: 1, react-css: 1 }
+- by_confidence: { high: 4, medium: 0, low: 0 }
+- by_review_status: { validated: 4, experimental: 0, needs_review: 0 }
 
 ---
 
@@ -82,4 +99,4 @@
 - review_cadence_days: 30
 - next_review_date: 2026-06-09
 - edit_roles: [AG-04, AG-00]
-- notes_and_todo: Monitor for similar path resolution issues when introducing new utility layers. Consider creating a checklist for config layer refactors.
+- notes_and_todo: Animation transition pattern can be reused across site for all scroll-triggered effects (header fade, section reveals, etc.). Consider creating reusable hook: `useScrollAnimation(threshold)` that returns `{ style, ref }` for consistent AOS behavior. Monitor for similar double-play issues in other components using Intersection Observer + animation.nd_todo: Monitor for similar path resolution issues when introducing new utility layers. Consider creating a checklist for config layer refactors.

@@ -52,6 +52,10 @@ export const ANIMATIONS = {
             '0%': { transform: 'translateY(10px)', opacity: '0' },
             '100%': { transform: 'translateY(0)', opacity: '1' },
         },
+        slideInUpImproved: {
+            '0%': { transform: 'translateY(20px)', opacity: '0' },
+            '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
         slideInDown: {
             '0%': { transform: 'translateY(-10px)', opacity: '0' },
             '100%': { transform: 'translateY(0)', opacity: '1' },
@@ -91,3 +95,21 @@ export const ANIMATIONS = {
         transform: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
     },
 } as const;
+
+/**
+ * Animation configurations for improved AOS-like effects
+ */
+export const AnimationConfig = {
+    slideInUp: {
+        duration: '600ms',
+        easing: 'ease-out',
+        keyframe: 'slideInUpImproved', // ✅ Dùng keyframe mới
+    },
+    slideInUpDelayed: (delayMs: number) => ({
+        duration: '600ms',
+        easing: 'ease-out',
+        animation: `slideInUpImproved 600ms ease-out ${delayMs}ms forwards`,
+        visibility: 'hidden', // ✅ Default hidden
+    }),
+};
+

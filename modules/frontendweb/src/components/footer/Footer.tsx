@@ -19,7 +19,6 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Globe, Mail, Send, ExternalLink } from 'lucide-react';
 
 interface SocialIcon {
@@ -39,19 +38,19 @@ const SOCIAL_ICONS: SocialIcon[] = [
     {
         name: 'Website',
         icon: ExternalLink,
-        shadowColor: '#0A66C2', // Blue
+        shadowColor: '#FFD700', // Yellow/gold
         url: 'https://sise.com',
     },
     {
         name: 'Twitter/X',
         icon: Send,
-        shadowColor: '#ffffff', // White
+        shadowColor: '#E1306C', // Pinkish-red
         url: 'https://twitter.com',
     },
     {
         name: 'Email',
         icon: Mail,
-        shadowColor: '#0078D7', // Brand color
+        shadowColor: '#DB4437', // Brand color
         url: 'mailto:contact@sise.com',
     },
 ];
@@ -68,7 +67,7 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                     setIsVisible(true);
                 }
             },
-            { threshold: 0.1 }
+            { threshold: 0.5 }
         );
 
         if (footerRef.current) {
@@ -90,13 +89,16 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
     };
 
     // Animation classes based on visibility
-    const getAnimationStyle = (delay: number) => ({
-        animation: isVisible
-            ? `slideInUp 600ms ease-out ${delay}ms forwards`
-            : 'none',
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
-    });
+    const getAnimationStyle = (delay: number): React.CSSProperties => {
+        return {
+            visibility: isVisible ? 'visible' : 'hidden',
+            opacity: isVisible ? 1 : 0,
+            transform: isVisible ? 'translateY(0)' : 'translateY(250px)',
+            transition: isVisible 
+                ? `all 600ms ease-out ${delay}ms` 
+                : 'none',
+        };
+    };
 
     return (
         <footer
@@ -122,7 +124,7 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                 }}
             >
                 {/* COLUMN 1: Logo + Brand Tagline */}
-                <div style={getAnimationStyle(0)}>
+                <div style={getAnimationStyle(150)}>
                     <div style={{ marginBottom: 'var(--spacing-lg)' }}>
                         <img
                             src="/images/logo.png"
@@ -147,7 +149,7 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                 </div>
 
                 {/* COLUMN 2: About SISE */}
-                <div style={getAnimationStyle(100)}>
+                <div style={getAnimationStyle(250)}>
                     <h3
                         style={{
                             fontSize: 'var(--font-size-lg)',
@@ -171,7 +173,7 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                 </div>
 
                 {/* COLUMN 3: Quick Links */}
-                <div style={getAnimationStyle(200)}>
+                <div style={getAnimationStyle(350)}>
                     <h3
                         style={{
                             fontSize: 'var(--font-size-lg)',
@@ -194,8 +196,8 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                     >
                         {[
                             { label: 'Introduce', value: 'introduce' },
-                            { label: 'Explore', value: 'explore' },
                             { label: 'About', value: 'about' },
+                            { label: 'Explore', value: 'explore' },
                             { label: 'Terms', value: 'terms' },
                         ].map((link) => (
                             <li key={link.value}>
@@ -226,7 +228,7 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                 </div>
 
                 {/* COLUMN 4: Follow Us (Social Media) */}
-                <div style={getAnimationStyle(300)}>
+                <div style={getAnimationStyle(450)}>
                     <h3
                         style={{
                             fontSize: 'var(--font-size-lg)',
@@ -290,9 +292,11 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                     borderTop: '1px solid rgba(255, 255, 255, 0.1)',
                     paddingTop: 'var(--spacing-3xl)',
                     textAlign: 'center',
+                    visibility: isVisible ? 'visible' : 'hidden',
                     opacity: isVisible ? 1 : 0,
-                    animation: isVisible
-                        ? `slideInUp 600ms ease-out 400ms forwards`
+                    // ✅ Dùng transition thay animation
+                    transition: isVisible 
+                        ? `all 600ms ease-out 400ms` 
                         : 'none',
                 }}
             >

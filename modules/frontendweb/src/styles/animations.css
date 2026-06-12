@@ -215,12 +215,15 @@
  */
 @keyframes slideInUp {
     from {
-        transform: translateY(20px);
         opacity: 0;
+        transform: translateY(250px);
     }
 
     to {
-        transform: translateY(0);
         opacity: 1;
+        transform: translateY(0);
     }
 }
+
+/* ===== IMPROVED SLIDE IN UP ANIMATION ===== */
+/* Triệt tiêu hoàn toàn "bóng ma" bằng visibility explicit */
