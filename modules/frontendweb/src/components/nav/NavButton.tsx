@@ -38,9 +38,9 @@ export function NavButton({
 
     // Size configuration
     const sizeMap = {
-        sm: { padding: 'var(--spacing-sm) var(--spacing-base)', fontSize: 'var(--font-size-sm)' },
-        md: { padding: 'var(--spacing-md) var(--spacing-lg)', fontSize: 'var(--font-size-sm)' },
-        lg: { padding: 'var(--spacing-base) var(--spacing-xl)', fontSize: 'var(--font-size-base)' },
+        sm: { padding: 'var(--spacing-sm) var(--spacing-base)', fontSize: 'var(--font-size-lg)' },
+        md: { padding: 'var(--spacing-md) var(--spacing-lg)', fontSize: 'var(--font-size-xl)' },
+        lg: { padding: 'var(--spacing-base) var(--spacing-xl)', fontSize: 'var(--font-size-2xl)' },
     };
 
     const currentSize = sizeMap[size];
