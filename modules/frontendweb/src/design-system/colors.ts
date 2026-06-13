@@ -34,6 +34,8 @@ export const COLORS = {
         tertiary: '#a1a1aa',
         // Inverted text (on dark backgrounds)
         inverted: '#ffffff',
+        // White text (on dark backgrounds, e.g., buttons)
+        white: '#ffffff',
     },
 
     /**
@@ -49,6 +51,8 @@ export const COLORS = {
         primaryDark: '#005a9e',
         // Alternative brand color (deep black for premium feel)
         secondary: '#000000',
+        // White  (on dark backgrounds, e.g., buttons)
+        white: '#ffffff',
     },
 
     /**

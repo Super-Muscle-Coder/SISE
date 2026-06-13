@@ -84,7 +84,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                 <div style={getTextContainerStyle()}>
                     <h1
                         style={{
-                            fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
+                            fontSize: 'clamp(3rem, 4.5vw, 3.8rem)',
                             fontWeight: 'var(--font-weight-extrabold)',
                             color: 'var(--color-text-primary)',
                             marginBottom: 'var(--spacing-lg)',
@@ -95,7 +95,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                     </h1>
                     <p
                         style={{
-                            fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+                            fontSize: 'clamp(1.5rem, 2vw, 1.8rem)',
                             color: 'var(--color-text-secondary)',
                             marginBottom: 'var(--spacing-2xl)',
                             lineHeight: '1.6',
@@ -187,8 +187,6 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
             className="introduce-section introduce-section--feature1"
             style={{
                 background: 'linear-gradient(to bottom, #f2f2f2 0%, #ffffff 100%)',
-                paddingTop: 'var(--spacing-5xl)',
-                paddingBottom: 'var(--spacing-5xl)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -200,7 +198,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                 <div style={getTextContainerStyle()}>
                     <h2
                         style={{
-                            fontSize: 'clamp(2rem, 4vw, 2.5rem)',
+                            fontSize: 'clamp(3rem, 4.5vw, 3.8rem)',
                             fontWeight: 'var(--font-weight-bold)',
                             color: 'var(--color-text-primary)',
                             marginBottom: 'var(--spacing-lg)',
@@ -210,7 +208,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                     </h2>
                     <p
                         style={{
-                            fontSize: 'var(--font-size-base)',
+                            fontSize: 'var(--font-size-2xl)',
                             color: 'var(--color-text-secondary)',
                             lineHeight: '1.8',
                         }}
@@ -238,8 +236,6 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
             className="introduce-section introduce-section--feature2"
             style={{
                 background: 'linear-gradient(to bottom, #f2f2f2 0%, #ffffff 100%)',
-                paddingTop: 'var(--spacing-5xl)',
-                paddingBottom: 'var(--spacing-5xl)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -260,7 +256,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                 <div style={getTextContainerStyle()}>
                     <h2
                         style={{
-                            fontSize: 'clamp(2rem, 4vw, 2.5rem)',
+                            fontSize: 'clamp(3rem, 4.5vw, 3.8rem)',
                             fontWeight: 'var(--font-weight-bold)',
                             color: 'var(--color-text-primary)',
                             marginBottom: 'var(--spacing-lg)',
@@ -270,7 +266,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                     </h2>
                     <p
                         style={{
-                            fontSize: 'var(--font-size-base)',
+                            fontSize: 'var(--font-size-2xl)',
                             color: 'var(--color-text-secondary)',
                             lineHeight: '1.8',
                         }}
@@ -289,8 +285,6 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
             className="introduce-section introduce-section--feature3"
             style={{
                 background: 'linear-gradient(to bottom, #f2f2f2 0%, #ffffff 100%)',
-                paddingTop: 'var(--spacing-5xl)',
-                paddingBottom: 'var(--spacing-5xl)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -302,7 +296,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                 <div style={getTextContainerStyle()}>
                     <h2
                         style={{
-                            fontSize: 'clamp(2rem, 4vw, 2.5rem)',
+                            fontSize: 'clamp(3rem, 4.5vw, 3.8rem)',
                             fontWeight: 'var(--font-weight-bold)',
                             color: 'var(--color-text-primary)',
                             marginBottom: 'var(--spacing-lg)',
@@ -312,7 +306,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                     </h2>
                     <p
                         style={{
-                            fontSize: 'var(--font-size-base)',
+                            fontSize: 'var(--font-size-2xl)',
                             color: 'var(--color-text-secondary)',
                             lineHeight: '1.8',
                         }}
@@ -333,573 +327,807 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
         </section>
     );
 
-    // ===== SECTION 5: CTA SECTION =====
-    const CTASection = () => (
-        <section
-            id="cta"
-            className="introduce-section introduce-section--cta"
-            style={{
-                position: 'relative',
-                paddingTop: 'var(--spacing-5xl)',
-                paddingBottom: 'var(--spacing-5xl)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '100vh',
-                overflow: 'hidden',
-            }}
-        >
-            {/* Background Image with Overlay */}
-            <div
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    backgroundImage: 'url(/images/CTA.png)',
-                    backgroundSize: 'cover' as const,
-                    backgroundPosition: 'center' as const,
-                    zIndex: 1,
-                    opacity: 1,
-                }}
-            />
+    /**
+ * @file CTA Section in LandingPage.tsx
+ * @description Carousel-style Sign Up / Log In form slider
+ * 
+ * Layout positions:
+ * - 0%-25%: Text Sign Up (slides left when toggled)
+ * - 25%-75%: Form container (Sign Up or Log In)
+ * - 75%-100%: Text Log In (slides right when toggled)
+ * 
+ * @owner AG-04
+ */
 
-            {/* Content Container */}
-            <div
+    function CTASection(): React.ReactElement {
+        const [isLoginMode, setIsLoginMode] = React.useState(false);
+        const [signUpData, setSignUpData] = React.useState({
+            username: '',
+            email: '',
+            password: '',
+            confirmPassword: '',
+        });
+        const [logInData, setLogInData] = React.useState({
+            email: '',
+            password: '',
+        });
+
+        // ===== TOGGLE BETWEEN SIGNUP AND LOGIN =====
+        const toggleMode = () => {
+            setIsLoginMode(!isLoginMode);
+        };
+
+        // ===== SIGNUP FORM HANDLERS =====
+        const handleSignUpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            setSignUpData({
+                ...signUpData,
+                [e.target.name]: e.target.value,
+            });
+        };
+
+        const handleSignUpSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+            e.preventDefault();
+            console.log('Sign Up:', signUpData);
+            // TODO: Call backend signup API
+        };
+
+        // ===== LOGIN FORM HANDLERS =====
+        const handleLogInChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            setLogInData({
+                ...logInData,
+                [e.target.name]: e.target.value,
+            });
+        };
+
+        const handleLogInSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+            e.preventDefault();
+            console.log('Log In:', logInData);
+            // TODO: Call backend login API
+        };
+
+        // ===== POSITIONING LOGIC =====
+         // Text Sign Up: 25% when signup mode, -25% when login mode (off-left)
+         const textSignUpLeft = isLoginMode ? '-25%' : '0%';
+
+         // Form: 75% when signup, 25% when login (with bounce animation)
+         const formLeft = isLoginMode ? '10%' : '60%';
+
+         // Text Log In: 100% when signup (off-right), 60% when login mode
+         const textLogInLeft = isLoginMode ? '60%' : '100%';
+
+         // Determine animation based on mode switch
+         const getFormAnimation = () => {
+             if (isLoginMode) {
+                 return 'bounceToLogin 1200ms ease-out forwards';
+             } else {
+                 return 'bounceToSignUp 1200ms ease-out forwards';
+             }
+         };
+
+        return (
+            <section
+                id="cta"
+                className="cta-section"
                 style={{
                     position: 'relative',
-                    zIndex: 2,
-                    maxWidth: '100%',
                     width: '100%',
+                    height: '100vh',
+                    background: `url('/images/CTA.png') center/cover no-repeat`,
                     display: 'flex',
                     alignItems: 'center',
-                    paddingLeft: '3%',
-                    paddingRight: '3%',
-                    gap: '4%',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
                 }}
             >
-                {/* LEFT: Text Call-to-Action */}
-                <div style={{ flex: '0 0 45%' }}>
-                    <h2
-                        style={{
-                            fontSize: 'clamp(2.5rem, 5vw, 3rem)',
-                            fontWeight: 'var(--font-weight-extrabold)',
-                            color: 'var(--color-text-inverted)',
-                            marginBottom: 'var(--spacing-lg)',
-                            lineHeight: '1.1',
-                        }}
-                    >
-                        Ready to get started?
-                    </h2>
-                    <p
-                        style={{
-                            fontSize: 'clamp(1rem, 2vw, 1.25rem)',
-                            color: 'var(--color-text-inverted)',
-                            lineHeight: '1.6',
-                        }}
-                    >
-                        Join thousands of creators discovering and sharing visual stories. Start exploring today.
-                    </p>
-                </div>
-
-                {/* RIGHT: Sign Up Form */}
+                {/* Container with relative positioning for absolute children */}
                 <div
                     style={{
-                        flex: '0 0 45%',
-                        backgroundColor: 'var(--color-bg-primary)',
-                        borderRadius: 'var(--radius-lg)',
-                        padding: 'var(--spacing-3xl)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 'var(--spacing-lg)',
-                    }}
-                >
-                    {/* Form Header */}
-                    <h3
-                        style={{
-                            fontSize: 'clamp(1.75rem, 3vw, 2.25rem)',
-                            fontWeight: 'var(--font-weight-extrabold)',
-                            color: 'var(--color-text-primary)',
-                            textAlign: 'center',
-                            margin: 0,
-                        }}
-                    >
-                        Welcome to SISE
-                    </h3>
-                    <p
-                        style={{
-                            fontSize: 'clamp(0.875rem, 1.5vw, 1rem)',
-                            color: 'var(--color-text-secondary)',
-                            textAlign: 'center',
-                            margin: 0,
-                            marginBottom: 'var(--spacing-lg)',
-                        }}
-                    >
-                        Find new ideas to try today
-                    </p>
-
-                    {/* Form Fields */}
-                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-base)' }}>
-                        {/* Username */}
-                        <div style={{ width: '100%' }}>
-                            <label style={{
-                                display: 'block',
-                                fontSize: 'var(--font-size-sm)',
-                                fontWeight: 'var(--font-weight-semibold)',
-                                color: 'var(--color-text-primary)',
-                                marginBottom: 'var(--spacing-sm)',
-                            }}>
-                                Username
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="User's Name"
-                                style={{
-                                    width: '100%',
-                                    height: '44px',
-                                    padding: 'var(--spacing-md) var(--spacing-base)',
-                                    fontSize: 'var(--font-size-base)',
-                                    border: `1px solid var(--color-border-light)`,
-                                    borderRadius: 'var(--radius-base)',
-                                    fontFamily: 'var(--typography-family-base)',
-                                    transition: `all var(--duration-normal)`,
-                                    boxSizing: 'border-box',
-                                }}
-                                onFocus={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--color-brand-primary)';
-                                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 120, 215, 0.1)';
-                                }}
-                                onBlur={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--color-border-light)';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                }}
-                            />
-                        </div>
-
-                        {/* Email */}
-                        <div style={{ width: '100%' }}>
-                            <label style={{
-                                display: 'block',
-                                fontSize: 'var(--font-size-sm)',
-                                fontWeight: 'var(--font-weight-semibold)',
-                                color: 'var(--color-text-primary)',
-                                marginBottom: 'var(--spacing-sm)',
-                            }}>
-                                Email
-                            </label>
-                            <input
-                                type="email"
-                                placeholder="Email"
-                                style={{
-                                    width: '100%',
-                                    height: '44px',
-                                    padding: 'var(--spacing-md) var(--spacing-base)',
-                                    fontSize: 'var(--font-size-base)',
-                                    border: `1px solid var(--color-border-light)`,
-                                    borderRadius: 'var(--radius-base)',
-                                    fontFamily: 'var(--typography-family-base)',
-                                    transition: `all var(--duration-normal)`,
-                                    boxSizing: 'border-box',
-                                }}
-                                onFocus={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--color-brand-primary)';
-                                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 120, 215, 0.1)';
-                                }}
-                                onBlur={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--color-border-light)';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                }}
-                            />
-                        </div>
-
-                        {/* Password with Tips */}
-                        <div style={{ width: '100%' }}>
-                            <label style={{
-                                display: 'block',
-                                fontSize: 'var(--font-size-sm)',
-                                fontWeight: 'var(--font-weight-semibold)',
-                                color: 'var(--color-text-primary)',
-                                marginBottom: 'var(--spacing-sm)',
-                            }}>
-                                Password
-                            </label>
-                            <input
-                                type="password"
-                                placeholder="Password"
-                                style={{
-                                    width: '100%',
-                                    height: '44px',
-                                    padding: 'var(--spacing-md) var(--spacing-base)',
-                                    fontSize: 'var(--font-size-base)',
-                                    border: `1px solid var(--color-border-light)`,
-                                    borderRadius: 'var(--radius-base)',
-                                    fontFamily: 'var(--typography-family-base)',
-                                    transition: `all var(--duration-normal)`,
-                                    boxSizing: 'border-box',
-                                }}
-                                onFocus={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--color-brand-primary)';
-                                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 120, 215, 0.1)';
-                                }}
-                                onBlur={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--color-border-light)';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                }}
-                            />
-                            <button
-                                onClick={() => setShowPasswordTips(true)}
-                                style={{
-                                    marginTop: 'var(--spacing-sm)',
-                                    fontSize: 'var(--font-size-sm)',
-                                    color: 'var(--color-brand-primary)',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    padding: 0,
-                                    textDecoration: 'underline',
-                                }}
-                            >
-                                Password tips
-                            </button>
-                        </div>
-
-                        {/* Confirm Password */}
-                        <div style={{ width: '100%' }}>
-                            <label style={{
-                                display: 'block',
-                                fontSize: 'var(--font-size-sm)',
-                                fontWeight: 'var(--font-weight-semibold)',
-                                color: 'var(--color-text-primary)',
-                                marginBottom: 'var(--spacing-sm)',
-                            }}>
-                                Confirm Password
-                            </label>
-                            <input
-                                type="password"
-                                placeholder="Confirm Password"
-                                style={{
-                                    width: '100%',
-                                    height: '44px',
-                                    padding: 'var(--spacing-md) var(--spacing-base)',
-                                    fontSize: 'var(--font-size-base)',
-                                    border: `1px solid var(--color-border-light)`,
-                                    borderRadius: 'var(--radius-base)',
-                                    fontFamily: 'var(--typography-family-base)',
-                                    transition: `all var(--duration-normal)`,
-                                    boxSizing: 'border-box',
-                                }}
-                                onFocus={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--color-brand-primary)';
-                                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 120, 215, 0.1)';
-                                }}
-                                onBlur={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--color-border-light)';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                }}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Terms & Conditions */}
-                    <p
-                        style={{
-                            fontSize: 'var(--font-size-sm)',
-                            color: 'var(--color-text-secondary)',
-                            textAlign: 'center',
-                            margin: 'var(--spacing-base) 0',
-                            lineHeight: '1.6',
-                        }}
-                    >
-                        By continuing, you agree to SISE's{' '}
-                        <a
-                            href="#"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                onPageChange?.('terms');
-                            }}
-                            style={{
-                                color: 'var(--color-brand-primary)',
-                                textDecoration: 'underline',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            Terms of Service
-                        </a>{' '}
-                        and acknowledge you've read our{' '}
-                        <a
-                            href="#"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                onPageChange?.('terms');
-                            }}
-                            style={{
-                                color: 'var(--color-brand-primary)',
-                                textDecoration: 'underline',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            Privacy Policy
-                        </a>
-                        .
-                    </p>
-
-                    {/* Continue Button */}
-                    <button
-                        style={{
-                            width: '60%',
-                            padding: 'var(--spacing-base) var(--spacing-2xl)',
-                            backgroundColor: 'var(--color-brand-primary)',
-                            color: 'var(--color-text-inverted)',
-                            fontWeight: 'var(--font-weight-semibold)',
-                            fontSize: 'var(--font-size-base)',
-                            borderRadius: 'var(--radius-base)',
-                            border: 'none',
-                            cursor: 'pointer',
-                            transition: `all var(--duration-normal)`,
-                            boxShadow: '0 4px 12px rgba(0, 120, 215, 0.3)',
-                            textAlign: 'center',
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'var(--color-brand-primary-hover)';
-                            e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 120, 215, 0.4)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'var(--color-brand-primary)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 120, 215, 0.3)';
-                        }}
-                    >
-                        Continue
-                    </button>
-
-                    {/* Or Divider */}
-                    <div
-                        style={{
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 'var(--spacing-base)',
-                            margin: 'var(--spacing-base) 0',
-                        }}
-                    >
-                        <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border-light)' }} />
-                        <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Or</span>
-                        <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border-light)' }} />
-                    </div>
-
-                    {/* Login Link */}
-                    <p
-                        style={{
-                            fontSize: 'var(--font-size-base)',
-                            color: 'var(--color-text-secondary)',
-                            margin: 0,
-                        }}
-                    >
-                        Already a member?{' '}
-                        <a
-                            href="#"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                window.location.href = '/login';
-                            }}
-                            style={{
-                                color: 'var(--color-brand-primary)',
-                                textDecoration: 'underline',
-                                cursor: 'pointer',
-                                fontWeight: 'var(--font-weight-semibold)',
-                            }}
-                        >
-                            Log in
-                        </a>
-                    </p>
-
-                    {/* App Download */}
-                    <div
-                        style={{
-                            width: '100%',
-                            marginTop: 'var(--spacing-lg)',
-                            borderTop: `1px solid var(--color-border-light)`,
-                            paddingTop: 'var(--spacing-lg)',
-                            textAlign: 'center',
-                        }}
-                    >
-                        <p
-                            style={{
-                                fontSize: 'var(--font-size-sm)',
-                                color: 'var(--color-text-secondary)',
-                                marginBottom: 'var(--spacing-md)',
-                            }}
-                        >
-                            Get the SISE app
-                        </p>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-base)', justifyContent: 'center' }}>
-                            <a
-                                href="#"
-                                style={{
-                                    padding: 'var(--spacing-sm) var(--spacing-base)',
-                                    backgroundColor: 'var(--color-text-primary)',
-                                    color: 'var(--color-text-inverted)',
-                                    borderRadius: 'var(--radius-base)',
-                                    textDecoration: 'none',
-                                    fontSize: 'var(--font-size-sm)',
-                                    fontWeight: 'var(--font-weight-semibold)',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                iOS
-                            </a>
-                            <a
-                                href="#"
-                                style={{
-                                    padding: 'var(--spacing-sm) var(--spacing-base)',
-                                    backgroundColor: 'var(--color-text-primary)',
-                                    color: 'var(--color-text-inverted)',
-                                    borderRadius: 'var(--radius-base)',
-                                    textDecoration: 'none',
-                                    fontSize: 'var(--font-size-sm)',
-                                    fontWeight: 'var(--font-weight-semibold)',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                Android
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Password Tips Modal */}
-            {showPasswordTips && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
+                        position: 'relative',
                         width: '100%',
                         height: '100%',
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 1000,
+                        maxWidth: '1400px',
+                        margin: '0 auto',
+                        paddingLeft: 'var(--spacing-xl)',
+                        paddingRight: 'var(--spacing-xl)',
                     }}
-                    onClick={() => setShowPasswordTips(false)}
                 >
+                    {/* ===== TEXT SIGN UP (Left, 0%-25%) ===== */}
                     <div
                         style={{
-                            backgroundColor: 'var(--color-bg-primary)',
-                            borderRadius: 'var(--radius-lg)',
-                            padding: 'var(--spacing-2xl)',
-                            maxWidth: '500px',
-                            position: 'relative',
+                            position: 'absolute',
+                            left: textSignUpLeft,
+                            top: '45%',
+                            transform: 'translateY(-50%)',
+                            width: '50%', 
+                            opacity: isLoginMode ? 0 : 1,
+                            visibility: isLoginMode ? 'hidden' : 'visible',
+                            transition: isLoginMode
+                                ? 'all 1000ms ease-out'
+                                : 'all 1200ms ease-out',
+                            zIndex: isLoginMode ? 0 : 5,
                         }}
-                        onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Close Button */}
-                        <button
-                            onClick={() => setShowPasswordTips(false)}
+                        <h2
                             style={{
-                                position: 'absolute',
-                                top: 'var(--spacing-lg)',
-                                right: 'var(--spacing-lg)',
-                                background: 'none',
-                                border: 'none',
-                                fontSize: '1.25rem',
-                                cursor: 'pointer',
-                                color: 'var(--color-text-secondary)',
-                                padding: '4px',
-                                width: '24px',
-                                height: '24px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            ✕
-                        </button>
-
-                        <h3
-                            style={{
-                                fontSize: 'var(--font-size-xl)',
-                                fontWeight: 'var(--font-weight-bold)',
-                                color: 'var(--color-text-primary)',
+                                fontSize: 'clamp(3rem, 4.5vw, 3.8rem)',
+                                fontWeight: 'var(--font-weight-extrabold)',
+                                color: '#ffffff',
                                 marginBottom: 'var(--spacing-lg)',
+                                lineHeight: '1.3',
                             }}
                         >
-                            Password tips
-                        </h3>
-
+                            Create Your Account
+                        </h2>
                         <p
                             style={{
-                                fontSize: 'var(--font-size-base)',
-                                color: 'var(--color-text-secondary)',
-                                marginBottom: 'var(--spacing-lg)',
-                                lineHeight: '1.6',
+                                fontSize: 'clamp(1.8rem, 2.5vw, 2.3rem)',
+                                color: '#ffffff',   
+                                lineHeight: '1.3',
+                                marginBottom: 'var(--spacing-xl)',
                             }}
                         >
-                            A strong password helps keep your account safe. Use at least 8 letters, numbers and symbols.
+                            Join thousands of users uploading, finding, and sharing amazing images.
                         </p>
-
-                        <h4
-                            style={{
-                                fontSize: 'var(--font-size-base)',
-                                fontWeight: 'var(--font-weight-semibold)',
-                                color: 'var(--color-text-primary)',
-                                marginBottom: 'var(--spacing-md)',
-                            }}
-                        >
-                            What to avoid
-                        </h4>
-
                         <ul
                             style={{
-                                marginLeft: 'var(--spacing-lg)',
-                                marginBottom: 'var(--spacing-2xl)',
-                                paddingLeft: 0,
+                                listStyle: 'none',
+                                padding: 0,
+                                margin: 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 'var(--spacing-md)',
                             }}
                         >
-                            <li style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-sm)' }}>
-                                • Common passwords, words and names
-                            </li>
-                            <li style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-sm)' }}>
-                                • Recent dates or dates associated with you
-                            </li>
-                            <li style={{ color: 'var(--color-text-secondary)' }}>
-                                • Simple patterns and repeated text
-                            </li>
+                            {['Free account setup', 'Instant access to collections', 'Advanced search tools'].map(
+                                (item, idx) => (
+                                    <li
+                                        key={idx}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 'var(--spacing-md)',
+                                            fontSize: 'var(--font-size-2xl)',
+                                            color: '#ffffff',
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                width: '24px',
+                                                height: '24px',
+                                                borderRadius: '50%',
+                                                backgroundColor: 'var(--color-brand-primary)',
+                                                color: '#ffffff',
+                                                fontWeight: 'bold',
+                                                fontSize: 'var(--font-size-2xl)',
+                                            }}
+                                        >
+                                            ✓
+                                        </span>
+                                        {item}
+                                    </li>
+                                )
+                            )}
                         </ul>
+                    </div>
 
-                        <button
-                            onClick={() => setShowPasswordTips(false)}
+                    {/* ===== FORM CONTAINER (Center-Left/Center, 25%-75%) ===== */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            left: formLeft,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '35%',
+                            minHeight: '600px', // Fixed height for consistent sizing
+                            maxHeight: '730px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            backdropFilter: 'blur(100px)',
+                            borderRadius: 'var(--radius-2xl)',
+                            padding: 'var(--spacing-2xl)',
+                            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
+                            zIndex: isLoginMode ? 10 : 10, // Always on top
+                            animation: getFormAnimation(),
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                        }}
+                    >
+                        {/* ===== SIGN UP FORM ===== */}
+                        {!isLoginMode && (
+                            <form
+                                onSubmit={handleSignUpSubmit}
+                                style={{
+                                    animation: isLoginMode ? 'fadeOut 1000ms ease-in forwards' : 'fadeIn 1200ms ease-in',
+                                }}
+                            >
+                                <h3
+                                    style={{
+                                        fontSize: 'var(--font-size-2xl)',
+                                        fontWeight: 'var(--font-weight-bold)',
+                                        color: 'var(--color-text-primary)',
+                                        marginBottom: 'var(--spacing-lg)',
+                                    }}
+                                >
+                                    Sign Up
+                                </h3>
+
+                                {/* Username */}
+                                <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                                    <label
+                                        style={{
+                                            display: 'block',
+                                            fontSize: 'var(--font-size-sm)',
+                                            fontWeight: 'var(--font-weight-semibold)',
+                                            color: 'var(--color-text-primary)',
+                                            marginBottom: 'var(--spacing-md)',
+                                        }}
+                                    >
+                                        Username
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="username"
+                                        value={signUpData.username}
+                                        onChange={handleSignUpChange}
+                                        placeholder="Choose your username"
+                                        style={{
+                                            width: '100%',
+                                            padding: 'var(--spacing-md) var(--spacing-lg)',
+                                            border: '1px solid #e0e0e0',
+                                            borderRadius: 'var(--radius-md)',
+                                            fontSize: 'var(--font-size-base)',
+                                            transition: 'all var(--duration-normal)',
+                                            boxSizing: 'border-box',
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--color-brand-primary)';
+                                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 120, 215, 0.1)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.borderColor = '#e0e0e0';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Email */}
+                                <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                                    <label
+                                        style={{
+                                            display: 'block',
+                                            fontSize: 'var(--font-size-sm)',
+                                            fontWeight: 'var(--font-weight-semibold)',
+                                            color: 'var(--color-text-primary)',
+                                            marginBottom: 'var(--spacing-md)',
+                                        }}
+                                    >
+                                        Email Address
+                                    </label>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={signUpData.email}
+                                        onChange={handleSignUpChange}
+                                        placeholder="your@email.com"
+                                        style={{
+                                            width: '100%',
+                                            padding: 'var(--spacing-md) var(--spacing-lg)',
+                                            border: '1px solid #e0e0e0',
+                                            borderRadius: 'var(--radius-md)',
+                                            fontSize: 'var(--font-size-base)',
+                                            transition: 'all var(--duration-normal)',
+                                            boxSizing: 'border-box',
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--color-brand-primary)';
+                                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 120, 215, 0.1)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.borderColor = '#e0e0e0';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Password */}
+                                <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                                    <label
+                                        style={{
+                                            display: 'block',
+                                            fontSize: 'var(--font-size-sm)',
+                                            fontWeight: 'var(--font-weight-semibold)',
+                                            color: 'var(--color-text-primary)',
+                                            marginBottom: 'var(--spacing-md)',
+                                        }}
+                                    >
+                                        Password
+                                    </label>
+                                    <input
+                                        type="password"
+                                        name="password"
+                                        value={signUpData.password}
+                                        onChange={handleSignUpChange}
+                                        placeholder="Enter password"
+                                        style={{
+                                            width: '100%',
+                                            padding: 'var(--spacing-md) var(--spacing-lg)',
+                                            border: '1px solid #e0e0e0',
+                                            borderRadius: 'var(--radius-md)',
+                                            fontSize: 'var(--font-size-base)',
+                                            transition: 'all var(--duration-normal)',
+                                            boxSizing: 'border-box',
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--color-brand-primary)';
+                                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 120, 215, 0.1)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.borderColor = '#e0e0e0';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Confirm Password */}
+                                <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                                    <label
+                                        style={{
+                                            display: 'block',
+                                            fontSize: 'var(--font-size-sm)',
+                                            fontWeight: 'var(--font-weight-semibold)',
+                                            color: 'var(--color-text-primary)',
+                                            marginBottom: 'var(--spacing-md)',
+                                        }}
+                                    >
+                                        Confirm Password
+                                    </label>
+                                    <input
+                                        type="password"
+                                        name="confirmPassword"
+                                        value={signUpData.confirmPassword}
+                                        onChange={handleSignUpChange}
+                                        placeholder="Confirm password"
+                                        style={{
+                                            width: '100%',
+                                            padding: 'var(--spacing-md) var(--spacing-lg)',
+                                            border: '1px solid #e0e0e0',
+                                            borderRadius: 'var(--radius-md)',
+                                            fontSize: 'var(--font-size-base)',
+                                            transition: 'all var(--duration-normal)',
+                                            boxSizing: 'border-box',
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--color-brand-primary)';
+                                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 120, 215, 0.1)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.borderColor = '#e0e0e0';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Terms Checkbox */}
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        gap: 'var(--spacing-md)',
+                                        marginBottom: 'var(--spacing-xl)',
+                                        fontSize: 'var(--font-size-sm)',
+                                    }}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        id="terms-signup"
+                                        style={{
+                                            marginTop: '4px',
+                                            cursor: 'pointer',
+                                        }}
+                                    />
+                                    <label htmlFor="terms-signup" style={{ cursor: 'pointer', color: 'var(--color-text-secondary)' }}>
+                                        I agree to the{' '}
+                                        <a
+                                            href="#"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                onPageChange?.('terms');
+                                            }}
+                                            style={{
+                                                color: 'var(--color-brand-primary)',
+                                                textDecoration: 'underline',
+                                            }}
+                                        >
+                                            Terms of Service
+                                        </a>{' '}
+                                        and{' '}
+                                        <a
+                                            href="#"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                onPageChange?.('terms');
+                                            }}
+                                            style={{
+                                                color: 'var(--color-brand-primary)',
+                                                textDecoration: 'underline',
+                                            }}
+                                        >
+                                            Privacy Policy
+                                        </a>
+                                    </label>
+                                </div>
+
+                                {/* Sign Up Button */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 'var(--spacing-lg)' }}>
+                                    <button
+                                        type="submit"
+                                        style={{
+                                            width: '70%',
+                                            padding: 'var(--spacing-base) var(--spacing-lg)',
+                                            backgroundColor: 'var(--color-brand-primary)',
+                                            color: '#ffffff',
+                                            fontWeight: 'var(--font-weight-semibold)',
+                                            fontSize: 'var(--font-size-base)',
+                                            borderRadius: 'var(--radius-lg)',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            transition: 'all var(--duration-normal)',
+                                            boxShadow: '0 4px 12px rgba(0, 120, 215, 0.3)',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#005a9a';
+                                            e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 120, 215, 0.4)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.backgroundColor = 'var(--color-brand-primary)';
+                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 120, 215, 0.3)';
+                                        }}
+                                    >
+                                        Sign Up
+                                    </button>
+                                </div>
+
+                                {/* Toggle to Log In */}
+                                <div style={{ textAlign: 'center' }}>
+                                    <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                                        Already have an account?{' '}
+                                        <button
+                                            type="button"
+                                            onClick={toggleMode}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: 'var(--color-brand-primary)',
+                                                fontWeight: 'var(--font-weight-semibold)',
+                                                cursor: 'pointer',
+                                                textDecoration: 'underline',
+                                            }}
+                                        >
+                                            Log In
+                                        </button>
+                                    </p>
+                                </div>
+                            </form>
+                        )}
+
+                        {/* ===== LOG IN FORM ===== */}
+                        {isLoginMode && (
+                            <form
+                                onSubmit={handleLogInSubmit}
+                                style={{
+                                    animation: isLoginMode ? 'fadeIn 1200ms ease-in' : 'fadeOut 1000ms ease-in',
+                                }}
+                            >
+                                <h3
+                                    style={{
+                                        fontSize: 'var(--font-size-2xl)',
+                                        fontWeight: 'var(--font-weight-bold)',
+                                        color: 'var(--color-text-primary)',
+                                        marginBottom: 'var(--spacing-lg)',
+                                    }}
+                                >
+                                    Log In
+                                </h3>
+
+                                {/* Email */}
+                                <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                                    <label
+                                        style={{
+                                            display: 'block',
+                                            fontSize: 'var(--font-size-sm)',
+                                            fontWeight: 'var(--font-weight-semibold)',
+                                            color: 'var(--color-text-primary)',
+                                            marginBottom: 'var(--spacing-md)',
+                                        }}
+                                    >
+                                        Email Address
+                                    </label>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={logInData.email}
+                                        onChange={handleLogInChange}
+                                        placeholder="your@email.com"
+                                        style={{
+                                            width: '100%',
+                                            padding: 'var(--spacing-md) var(--spacing-lg)',
+                                            border: '1px solid #e0e0e0',
+                                            borderRadius: 'var(--radius-md)',
+                                            fontSize: 'var(--font-size-base)',
+                                            transition: 'all var(--duration-normal)',
+                                            boxSizing: 'border-box',
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--color-brand-primary)';
+                                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 120, 215, 0.1)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.borderColor = '#e0e0e0';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Password */}
+                                <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                                    <label
+                                        style={{
+                                            display: 'block',
+                                            fontSize: 'var(--font-size-sm)',
+                                            fontWeight: 'var(--font-weight-semibold)',
+                                            color: 'var(--color-text-primary)',
+                                            marginBottom: 'var(--spacing-md)',
+                                        }}
+                                    >
+                                        Password
+                                    </label>
+                                    <input
+                                        type="password"
+                                        name="password"
+                                        value={logInData.password}
+                                        onChange={handleLogInChange}
+                                        placeholder="Enter password"
+                                        style={{
+                                            width: '100%',
+                                            padding: 'var(--spacing-md) var(--spacing-lg)',
+                                            border: '1px solid #e0e0e0',
+                                            borderRadius: 'var(--radius-md)',
+                                            fontSize: 'var(--font-size-base)',
+                                            transition: 'all var(--duration-normal)',
+                                            boxSizing: 'border-box',
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--color-brand-primary)';
+                                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 120, 215, 0.1)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.borderColor = '#e0e0e0';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Remember Me */}
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        marginBottom: 'var(--spacing-xl)',
+                                        fontSize: 'var(--font-size-sm)',
+                                    }}
+                                >
+                                    <label
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 'var(--spacing-md)',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        <input type="checkbox" style={{ cursor: 'pointer' }} />
+                                        <span style={{ color: 'var(--color-text-secondary)' }}>Remember me</span>
+                                    </label>
+                                    <a
+                                        href="#"
+                                        style={{
+                                            color: 'var(--color-brand-primary)',
+                                            textDecoration: 'none',
+                                        }}
+                                    >
+                                        Forgot password?
+                                    </a>
+                                </div>
+
+                                {/* Log In Button */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 'var(--spacing-lg)' }}>
+                                    <button
+                                        type="submit"
+                                        style={{
+                                            width: '70%',
+                                            padding: 'var(--spacing-base) var(--spacing-lg)',
+                                            backgroundColor: 'var(--color-brand-primary)',
+                                            color: '#ffffff',
+                                            fontWeight: 'var(--font-weight-semibold)',
+                                            fontSize: 'var(--font-size-base)',
+                                            borderRadius: 'var(--radius-lg)',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            transition: 'all var(--duration-normal)',
+                                            boxShadow: '0 4px 12px rgba(0, 120, 215, 0.3)',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#005a9a';
+                                            e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 120, 215, 0.4)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.backgroundColor = 'var(--color-brand-primary)';
+                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 120, 215, 0.3)';
+                                        }}
+                                    >
+                                        Log In
+                                    </button>
+                                </div>
+
+                                {/* Toggle to Sign Up */}
+                                <div style={{ textAlign: 'center' }}>
+                                    <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                                        Don't have an account?{' '}
+                                        <button
+                                            type="button"
+                                            onClick={toggleMode}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: 'var(--color-brand-primary)',
+                                                fontWeight: 'var(--font-weight-semibold)',
+                                                cursor: 'pointer',
+                                                textDecoration: 'underline',
+                                            }}
+                                        >
+                                            Sign Up
+                                        </button>
+                                    </p>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+
+                    {/* ===== TEXT LOG IN (Right, 75%-100%) ===== */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            left: textLogInLeft,
+                            top: '45%',
+                            transform: 'translateY(-50%)',
+                            width: '50%', 
+                            opacity: isLoginMode ? 1 : 0,
+                            visibility: isLoginMode ? 'visible' : 'hidden',
+                            transition: isLoginMode
+                                ? 'all 1200ms ease-out'
+                                : 'all 1000ms ease-out',
+                            zIndex: isLoginMode ? 5 : 0,
+                        }}
+                    >
+                        <h2
                             style={{
-                                width: 'auto',
-                                padding: 'var(--spacing-md) var(--spacing-lg)',
-                                backgroundColor: 'var(--color-brand-primary)',
-                                color: 'var(--color-text-inverted)',
-                                fontWeight: 'var(--font-weight-semibold)',
-                                fontSize: 'var(--font-size-base)',
-                                borderRadius: 'var(--radius-base)',
-                                border: 'none',
-                                cursor: 'pointer',
-                                transition: `all var(--duration-normal)`,
-                                margin: '0 auto',
-                                display: 'block',
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--color-brand-primary-hover)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--color-brand-primary)';
+                                fontSize: 'clamp(3rem, 4.5vw, 3.8rem)',
+                                fontWeight: 'var(--font-weight-extrabold)',
+                                color: '#ffffff',
+                                marginBottom: 'var(--spacing-lg)',
+                                lineHeight: '1.3',
                             }}
                         >
-                            Okay
-                        </button>
+                            Welcome Back
+                        </h2>
+                        <p
+                            style={{
+                                fontSize: 'clamp(1.8rem, 2.5vw, 2.3rem)',
+                                color: '#ffffff',
+                                lineHeight: '1.3',
+                                marginBottom: 'var(--spacing-xl)',
+                            }}
+                        >
+                            Access your albums, search history, and saved collections.
+                        </p>
+                        <ul
+                            style={{
+                                listStyle: 'none',
+                                padding: 0,
+                                margin: 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 'var(--spacing-md)',
+                            }}
+                        >
+                            {['Quick access to your data', 'Personalized recommendations', 'Secure authentication'].map(
+                                (item, idx) => (
+                                    <li
+                                        key={idx}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 'var(--spacing-md)',
+                                            fontSize: 'var(--font-size-2xl)',
+                                            color: '#ffffff',
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                width: '24px',
+                                                height: '24px',
+                                                borderRadius: '50%',
+                                                backgroundColor: 'var(--color-brand-primary)',
+                                                color: '#ffffff',
+                                                fontWeight: 'bold',
+                                                fontSize: 'var(--font-size-base)',
+                                            }}
+                                        >
+                                            ✓
+                                        </span>
+                                        {item}
+                                    </li>
+                                )
+                            )}
+                        </ul>
                     </div>
                 </div>
-            )}
-        </section>
-    );
+
+                {/* ===== TRANSITION ANIMATIONS ===== */}
+                <style>
+                    {`
+                        @keyframes fadeIn {
+                            from {
+                                opacity: 0;
+                            }
+                            to {
+                                opacity: 1;
+                            }
+                        }
+
+                        @keyframes fadeOut {
+                            from {
+                                opacity: 1;
+                            }
+                            to {
+                                opacity: 0;
+                            }
+                        }
+
+                        @keyframes bounceToLogin {
+                            0% {
+                                left: 60%;
+                            }
+                            70% {
+                                left: 5%;
+                            }
+                            100% {
+                                left: 10%;
+                            }
+                        }
+
+                        @keyframes bounceToSignUp {
+                            0% {
+                                left: 10%;
+                            }
+                            70% {
+                                left: 65%;
+                            }
+                            100% {
+                                left: 60%;
+                            }
+                        }
+                    `}
+                </style>
+            </section>
+        );
+    }
 
     // ===== RENDER ALL =====
     return (
