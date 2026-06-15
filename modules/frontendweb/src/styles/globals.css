@@ -29,37 +29,30 @@
     --color-bg-secondary: #f9f9f9;
     --color-bg-tertiary: #f4f4f5;
     --color-bg-neutral: #fafafa;
-    
     /* Text Colors */
     --color-text-primary: #000000;
     --color-text-secondary: #71717a;
     --color-text-tertiary: #a1a1aa;
     --color-text-inverted: #ffffff;
-    
     /* Brand Colors - UPDATED: Now BLUE instead of RED */
     --color-brand-primary: #0078D7;
     --color-brand-primary-hover: #106ebe;
     --color-brand-primary-dark: #005a9e;
     --color-brand-secondary: #000000;
-    
     /* Semantic Colors */
     --color-semantic-success: #10b981;
     --color-semantic-warning: #f59e0b;
     --color-semantic-error: #ef4444;
     --color-semantic-info: #3b82f6;
-    
     /* Border Colors */
     --color-border-light: #e4e4e7;
     --color-border-medium: #d4d4d8;
     --color-border-dark: #71717a;
-    
     /* Overlay Colors */
     --color-overlay-black: rgba(0, 0, 0, 0.6);
     --color-overlay-white: rgba(255, 255, 255, 0.1);
-    
     /* Utility Colors */
     --color-gray-light: #f5f5f5;
-    
     /* ====================================================================
        TYPOGRAPHY TOKENS
        ==================================================================== */
@@ -72,8 +65,9 @@
     --font-size-lg: 1.125rem;
     --font-size-xl: 1.25rem;
     --font-size-2xl: 1.5rem;
-    --font-size-3xl: 1.875rem;
+    --font-size-3xl: 1.975rem;
     --font-size-4xl: 2.25rem;
+    --font-size-5xl: 3rem;
     /* Font Weights */
     --font-weight-thin: 100;
     --font-weight-extralight: 200;

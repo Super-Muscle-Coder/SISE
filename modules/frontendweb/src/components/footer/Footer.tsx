@@ -67,7 +67,7 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                     setIsVisible(true);
                 }
             },
-            { threshold: 0.5 }
+            { threshold: 0.45 }
         );
 
         if (footerRef.current) {
@@ -93,7 +93,7 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
         return {
             visibility: isVisible ? 'visible' : 'hidden',
             opacity: isVisible ? 1 : 0,
-            transform: isVisible ? 'translateY(0)' : 'translateY(250px)',
+            transform: isVisible ? 'translateY(0)' : 'translateY(180px)',
             transition: isVisible 
                 ? `all 600ms ease-out ${delay}ms` 
                 : 'none',

@@ -327,7 +327,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
         </section>
     );
 
-    /**
+ /**
  * @file CTA Section in LandingPage.tsx
  * @description Carousel-style Sign Up / Log In form slider
  * 
@@ -761,7 +761,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                                 </div>
 
                                 {/* Sign Up Button */}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 'var(--spacing-lg)' }}>
+                                <div style={{ display: 'flex', textAlign: 'center', justifyContent: 'center', marginBottom: 'var(--spacing-lg)' }}>
                                     <button
                                         type="submit"
                                         style={{
@@ -771,7 +771,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                                             color: '#ffffff',
                                             fontWeight: 'var(--font-weight-semibold)',
                                             fontSize: 'var(--font-size-base)',
-                                            borderRadius: 'var(--radius-lg)',
+                                            borderRadius: 'var(--radius-2xl)',
                                             border: 'none',
                                             cursor: 'pointer',
                                             transition: 'all var(--duration-normal)',
@@ -943,7 +943,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                                 </div>
 
                                 {/* Log In Button */}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 'var(--spacing-lg)' }}>
+                                <div style={{ display: 'flex', textAlign: 'center', justifyContent: 'center', marginBottom: 'var(--spacing-lg)' }}>
                                     <button
                                         type="submit"
                                         style={{
@@ -953,7 +953,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                                             color: '#ffffff',
                                             fontWeight: 'var(--font-weight-semibold)',
                                             fontSize: 'var(--font-size-base)',
-                                            borderRadius: 'var(--radius-lg)',
+                                            borderRadius: 'var(--radius-2xl)',
                                             border: 'none',
                                             cursor: 'pointer',
                                             transition: 'all var(--duration-normal)',
@@ -1332,18 +1332,574 @@ function AboutPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
 }
 
 /**
- * ExplorePage: Explore features subpage (rendered inside LandingPage)
+ * ExplorePage v7 — PREV redesign
+ *
+ * ROOT CAUSE của PREV bug:
+ * Cách cũ (prepend): item mới vào idx=0 (nth-child 1).
+ * CSS idle: nth-child(1) = width:100%, height:100% (fullscreen).
+ * → Item mới mount thẳng vào fullscreen, không có vị trí track để transition từ đó.
+ * → CSS transition chạy từ fullscreen về fullscreen = không nhìn thấy gì.
+ * → Item cũ vẫn ở nth-child(2), content vẫn display:block → ta thấy nội dung cũ.
+ *
+ * FIX (v7): Thay đổi cấu trúc mảng cho PREV:
+ * - NEXT: [cũ, mới, track3, track4, ...tail]  (giống cũ)
+ *         cũ=idx0=nth-child(1): fullscreen, đứng yên
+ *         mới=idx1=nth-child(2): phóng to từ track lên
+ *
+ * - PREV: [cũ, mới, tail..., trackLast]
+ *         cũ=idx0=nth-child(1): fullscreen, đứng yên (giống NEXT)
+ *         mới=idx1=nth-child(2): PHÓNG TO từ track (nth-child 3 → nth-child 2)
+ *
+ * Để làm được này với PREV, thứ tự rotate phải là:
+ *   [items[0], prevItem, items[1], items[2], ..., items[n-2]]
+ *   tức là: giữ items[0] (cũ) ở đầu, chèn prevItem (items[n-1]) vào idx=1,
+ *   và đẩy items[n-1] ra khỏi cuối.
+ *
+ * Như vậy cả NEXT và PREV đều có cùng cấu trúc:
+ *   idx=0: fullscreen cũ (đứng yên)
+ *   idx=1: fullscreen mới (đang animate vào)
+ *   idx=2..5: track cards
+ *   idx=6+: ẩn
+ *
+ * ContentBlock luôn ở idx=1 → nth-child(2) → luôn đúng.
+ * getItemZIndex vẫn giữ nguyên logic.
  */
-function ExplorePage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'about' | 'explore' | 'terms' | 'login' | 'register') => void }): React.ReactElement {
+
+interface ExploreItem {
+    id: number;
+    image: string;
+    title: string;
+    name: string;
+    description: string;
+}
+
+const EXPLORE_ITEMS: ExploreItem[] = [
+    {
+        id: 1,
+        image: '/images/demo-abstract.png',
+        title: 'ARTSTYLE',
+        name: 'Cyberpunk & Synthwave',
+        description: 'A style inspired by technology and futuristic cities, featuring vibrant neon colors and strong lighting.',
+    },
+    {
+        id: 2,
+        image: '/images/demo-darkaca.png',
+        title: 'ARTSTYLE',
+        name: 'Dark Academia & Gothic Art',
+        description: 'Dark, mysterious tones with a classic touch, evoking philosophical, intellectual, and melancholic emotions.',
+    },
+    {
+        id: 3,
+        image: '/images/demo-anime.jpg',
+        title: 'ARTSTYLE',
+        name: 'Anime & Manga',
+        description: 'Continues to hold strong appeal with diverse styles, ranging from cute and playful to sharp and realistic.',
+    },
+    {
+        id: 4,
+        image: '/images/demo-minimal.jpg',
+        title: 'ARTSTYLE',
+        name: 'Minimalism & Flat Design',
+        description: 'Simple, clean, avoiding unnecessary details, focusing on basic shapes and colors.',
+    },
+    {
+        id: 5,
+        image: '/images/demo-surreal.jpg',
+        title: 'ARTSTYLE',
+        name: 'Surrealism & Abstract Art',
+        description: 'Transforms unrealistic imagery, blending abstract and surreal elements to create a dreamlike effect.',
+    },
+    {
+        id: 6,
+        image: '/images/demo-cartoon.png',
+        title: 'ARTSTYLE',
+        name: 'Cartoon & Chibi Art',
+        description: 'Cartoon and chibi art feature bold outlines, big eyes, and exaggerated expressions, making characters fun and lively.',
+    },
+    {
+        id: 7,
+        image: '/images/demo-handdrawing.png',
+        title: 'ARTSTYLE',
+        name: 'Hand-drawn & Sketch-like',
+        description: 'Mimics the feel of traditional hand-drawn illustrations, with rough and natural lines commonly seen in modern artworks.',
+    },
+];
+
+const T_TEXT_EXIT_START = 8000;
+const T_TEXT_EXIT_ANIM  = 550;
+const T_CARD_SLIDE      = 1200;
+
+// ─── Rotate functions ────────────────────────────────────────
+//
+// NEXT: đưa idx=1 lên làm active, idx=0 (cũ) xuống cuối
+//   before: [A(active), B, C, D, E, F, G]
+//   after:  [A(cũ),     B(active), C, D, E, F, G → A ở cuối]
+//   = [...items.slice(1), items[0]]  (giống cũ)
+//
+// PREV: đưa item cuối track (idx=n-1) thành active mới ở idx=1,
+//        giữ idx=0 (A cũ) đứng yên
+//   before: [A(active), B, C, D, E, F, G]
+//   after:  [A(cũ),  G(active-mới), B, C, D, E, F]
+//   = [items[0], items[n-1], ...items.slice(1, n-1)]
+//
+// Kết quả: cả 2 direction đều có idx=0=cũ(đứng yên), idx=1=mới(animate vào)
+function rotateNext(items: ExploreItem[]): ExploreItem[] {
+    // [cũ(0→xuống cuối), B(1→active), C, D, ...]
+    return [...items.slice(1), items[0]];
+}
+
+function rotatePrev(items: ExploreItem[]): ExploreItem[] {
+    // [A(cũ, giữ nguyên idx=0), G(cuối→active idx=1), B, C, D, E, F]
+    const n = items.length;
+    return [items[0], items[n - 1], ...items.slice(1, n - 1)];
+}
+
+// ─── ContentBlock ─────────────────────────────────────────────
+interface ContentBlockProps {
+    item: ExploreItem;
+    isExiting: boolean;
+    onStartNow: () => void;
+}
+
+function ContentBlock({ item, isExiting, onStartNow }: ContentBlockProps): React.ReactElement {
+    const cls = `explore-content${isExiting ? ' explore-content--exit' : ''}`;
     return (
-        <div style={{ padding: 'var(--spacing-4xl) var(--spacing-xl)', maxWidth: '1200px', margin: '0 auto' }}>
-            <h1 style={{ fontSize: '2.5rem', marginBottom: 'var(--spacing-xl)', color: 'var(--color-brand-primary)' }}>
-                Explore Features
-            </h1>
-            <p style={{ fontSize: 'var(--font-size-lg)', color: 'var(--color-text-secondary)', lineHeight: '1.8' }}>
-                Coming soon: Explore page content
-            </p>
+        <div className={cls}>
+            <div className="explore-title" style={{ opacity: 0 }}>{item.title}</div>
+            <div className="explore-name"  style={{ opacity: 0 }}>{item.name}</div>
+            <div className="explore-des"   style={{ opacity: 0 }}>{item.description}</div>
+            <div className="explore-btn"   style={{ opacity: 0 }}>
+                <button>Wanna See More?</button>
+                <a
+                    className="explore-start-link"
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); onStartNow(); }}
+                >
+                    Start now
+                </a>
+            </div>
         </div>
+    );
+}
+
+// ─── Main component ───────────────────────────────────────────
+function ExplorePage({
+    onPageChange,
+}: {
+    onPageChange?: (page: 'introduce' | 'about' | 'explore' | 'terms' | 'login' | 'register') => void;
+}): React.ReactElement {
+
+    const [items, setItems]           = React.useState<ExploreItem[]>(EXPLORE_ITEMS);
+    const [phase, setPhase]           = React.useState<'idle' | 'text-exit' | 'sliding'>('idle');
+    const [dir, setDir]               = React.useState<'next' | 'prev'>('next');
+    const [timeKey, setTimeKey]       = React.useState(0);
+    const [contentKey, setContentKey] = React.useState(0);
+
+    const t1 = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const t2 = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const t3 = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearAll = React.useCallback(() => {
+        if (t1.current) clearTimeout(t1.current);
+        if (t2.current) clearTimeout(t2.current);
+        if (t3.current) clearTimeout(t3.current);
+    }, []);
+
+    const doSlide = React.useCallback((direction: 'next' | 'prev') => {
+        setItems((prev) => direction === 'next' ? rotateNext(prev) : rotatePrev(prev));
+        setContentKey((k) => k + 1);
+        setPhase('sliding');
+        setTimeKey((k) => k + 1);
+    }, []);
+
+    const scheduleAutoplay = React.useCallback(() => {
+        clearAll();
+        t1.current = setTimeout(() => {
+            setPhase('text-exit');
+            setDir('next');
+            t2.current = setTimeout(() => {
+                doSlide('next');
+                t3.current = setTimeout(() => {
+                    setPhase('idle');
+                    scheduleAutoplay();
+                }, T_CARD_SLIDE);
+            }, T_TEXT_EXIT_ANIM);
+        }, T_TEXT_EXIT_START);
+    }, [clearAll, doSlide]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const triggerSlide = React.useCallback((direction: 'next' | 'prev') => {
+        if (phase !== 'idle') return;
+        clearAll();
+        setDir(direction);
+        setPhase('text-exit');
+        t1.current = setTimeout(() => {
+            doSlide(direction);
+            t2.current = setTimeout(() => {
+                setPhase('idle');
+                scheduleAutoplay();
+            }, T_CARD_SLIDE);
+        }, T_TEXT_EXIT_ANIM);
+    }, [phase, clearAll, doSlide, scheduleAutoplay]);
+
+    React.useEffect(() => {
+        scheduleAutoplay();
+        return clearAll;
+    }, [scheduleAutoplay, clearAll]);
+
+    const handleNext = () => triggerSlide('next');
+    const handlePrev = () => triggerSlide('prev');
+
+    // idx=1 luôn là item active (nth-child 2) cho cả NEXT và PREV
+    const currentIndex = items[1].id;
+
+    // z-index inline — đồng bộ với React render, không có CSS-class timing lag
+    // Cả NEXT và PREV đều có cấu trúc giống nhau:
+    //   idx=0: fullscreen cũ (dưới)
+    //   idx=1: fullscreen mới (trên, đang animate vào)
+    //   idx=2+: track cards (trên fullscreen)
+    const getItemZIndex = (idx: number): number => {
+        if (phase === 'sliding') {
+            if (idx === 0) return 1;   // cũ: dưới
+            if (idx === 1) return 5;   // mới: trên cùng
+            return 10;                 // track cards
+        }
+        // idle / text-exit
+        if (idx === 0) return 1;
+        if (idx === 1) return 2;
+        return 10;
+    };
+
+    const carouselClass = [
+        'explore-carousel',
+        phase === 'sliding' && dir === 'next' ? 'explore-next' : '',
+        phase === 'sliding' && dir === 'prev' ? 'explore-prev' : '',
+    ].filter(Boolean).join(' ');
+
+    return (
+        <>
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+
+                /* ═══ ROOT ═══════════════════════════════════════════ */
+                .explore-carousel {
+                    width: 100vw;
+                    height: 100vh;
+                    overflow: hidden;
+                    position: relative;
+                    font-family: 'Poppins', sans-serif;
+                    background: #111;
+                }
+
+                /* ═══ ITEMS — default: card nhỏ trên track ══════════ */
+                .explore-carousel .explore-list .explore-item {
+                    width: 180px;
+                    height: 250px;
+                    position: absolute;
+                    top: 80%;
+                    transform: translateY(-70%);
+                    left: 70%;
+                    border-radius: 20px;
+                    box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+                    background-position: 50% 50%;
+                    background-size: cover;
+                    transition:
+                        left          1.2s cubic-bezier(0.25, 0.1, 0.25, 1),
+                        top           1.2s cubic-bezier(0.25, 0.1, 0.25, 1),
+                        width         1.2s cubic-bezier(0.25, 0.1, 0.25, 1),
+                        height        1.2s cubic-bezier(0.25, 0.1, 0.25, 1),
+                        border-radius 1.2s cubic-bezier(0.25, 0.1, 0.25, 1),
+                        transform     1.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+                }
+
+                /* ─── nth-child(1) & (2): fullscreen ─── */
+                .explore-carousel .explore-list .explore-item:nth-child(1),
+                .explore-carousel .explore-list .explore-item:nth-child(2) {
+                    top: 0; left: 0;
+                    transform: translate(0, 0);
+                    border-radius: 0;
+                    width: 100%; height: 100%;
+                }
+
+                /* ─── Track ─── */
+                .explore-carousel .explore-list .explore-item:nth-child(3) { left: 67%; }
+                .explore-carousel .explore-list .explore-item:nth-child(4) { left: calc(67% + 200px); }
+                .explore-carousel .explore-list .explore-item:nth-child(5) { left: calc(67% + 400px); }
+                .explore-carousel .explore-list .explore-item:nth-child(6) { left: calc(67% + 600px); }
+
+                /* ─── Ẩn ─── */
+                .explore-carousel .explore-list .explore-item:nth-child(n+7) {
+                    left: calc(67% + 800px);
+                    opacity: 0;
+                }
+
+                /* ═══ NEXT transition ════════════════════════════════
+                   idx=0 (cũ): đứng yên, transition:none
+                   idx=1 (mới): phóng to ease-in
+                ════════════════════════════════════════════════════ */
+                .explore-carousel.explore-next .explore-list .explore-item:nth-child(1) {
+                    top: 0; left: 0;
+                    width: 100%; height: 100%;
+                    border-radius: 0;
+                    transform: translate(0, 0);
+                    transition: none;
+                }
+                .explore-carousel.explore-next .explore-list .explore-item:nth-child(2) {
+                    top: 0; left: 0;
+                    width: 100%; height: 100%;
+                    border-radius: 0;
+                    transform: translate(0, 0);
+                    transition:
+                        left          1.2s cubic-bezier(0.4, 0, 1, 1),
+                        top           1.2s cubic-bezier(0.4, 0, 1, 1),
+                        width         1.2s cubic-bezier(0.4, 0, 1, 1),
+                        height        1.2s cubic-bezier(0.4, 0, 1, 1),
+                        border-radius 1.2s cubic-bezier(0.4, 0, 1, 1),
+                        transform     1.2s cubic-bezier(0.4, 0, 1, 1);
+                }
+
+                /* ═══ PREV transition ════════════════════════════════
+                   Cấu trúc GIỐNG NEXT:
+                   idx=0 (cũ): đứng yên, transition:none
+                   idx=1 (mới = item cuối track, vừa chèn vào idx=1): phóng to ease-in
+                   → item mới xuất phát từ track (nth-child 3 cũ) về fullscreen (nth-child 2)
+                ════════════════════════════════════════════════════ */
+                .explore-carousel.explore-prev .explore-list .explore-item:nth-child(1) {
+                    top: 0; left: 0;
+                    width: 100%; height: 100%;
+                    border-radius: 0;
+                    transform: translate(0, 0);
+                    transition: none;
+                }
+                .explore-carousel.explore-prev .explore-list .explore-item:nth-child(2) {
+                    top: 0; left: 0;
+                    width: 100%; height: 100%;
+                    border-radius: 0;
+                    transform: translate(0, 0);
+                    transition:
+                        left          1.2s cubic-bezier(0.4, 0, 1, 1),
+                        top           1.2s cubic-bezier(0.4, 0, 1, 1),
+                        width         1.2s cubic-bezier(0.4, 0, 1, 1),
+                        height        1.2s cubic-bezier(0.4, 0, 1, 1),
+                        border-radius 1.2s cubic-bezier(0.4, 0, 1, 1),
+                        transform     1.2s cubic-bezier(0.4, 0, 1, 1);
+                }
+
+                /* ═══ CONTENT ════════════════════════════════════════ */
+                .explore-list .explore-item .explore-content {
+                    display: none;
+                    position: absolute;
+                    top: 50%;
+                    left: 100px;
+                    width: 400px;
+                    color: #fff;
+                    z-index: 20;
+                    margin-top: -200px;
+                }
+                /* nth-child(2) = idx=1 = luôn là item active, cả NEXT lẫn PREV */
+                .explore-list .explore-item:nth-child(2) .explore-content {
+                    display: block;
+                }
+
+                /* ─── TEXT ENTER ─── */
+                .explore-content .explore-title {
+                    font-size: 100px;
+                    text-transform: uppercase;
+                    color: #1472FF;
+                    font-weight: bold;
+                    line-height: 1;
+                    animation: ecTitleEnter 1s ease-out 0.3s 1 forwards;
+                }
+                .explore-content .explore-name {
+                    font-size: 50px;
+                    text-transform: uppercase;
+                    font-weight: bold;
+                    line-height: 1;
+                    text-shadow: 3px 4px 4px rgba(255,255,255,0.8);
+                    animation: ecTitleEnter 1s ease-out 0.55s 1 forwards;
+                }
+                .explore-content .explore-des {
+                    margin-top: 10px;
+                    margin-bottom: 20px;
+                    font-size: 18px;
+                    margin-left: 5px;
+                    animation: ecSubEnter 1s ease-out 0.8s 1 forwards;
+                }
+                .explore-content .explore-btn {
+                    width: 420px;
+                    margin-left: 5px;
+                    animation: ecSubEnter 1s ease-out 1s 1 forwards;
+                }
+                @keyframes ecTitleEnter {
+                    from { opacity: 0; margin-top: 70px; filter: blur(20px); }
+                    to   { opacity: 1; margin-top: 0;    filter: blur(0); }
+                }
+                @keyframes ecSubEnter {
+                    from { opacity: 0; transform: translateY(40px); filter: blur(10px); }
+                    to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+                }
+
+                /* ─── TEXT EXIT ─── */
+                .explore-content--exit .explore-title {
+                    animation: ecExit 0.35s ease-in 0s    1 forwards !important;
+                }
+                .explore-content--exit .explore-name {
+                    animation: ecExit 0.35s ease-in 0.08s 1 forwards !important;
+                }
+                .explore-content--exit .explore-des {
+                    animation: ecExit 0.35s ease-in 0.16s 1 forwards !important;
+                }
+                .explore-content--exit .explore-btn {
+                    animation: ecExit 0.35s ease-in 0.16s 1 forwards !important;
+                }
+                @keyframes ecExit {
+                    from { opacity: 1; transform: translateX(0);     filter: blur(0); }
+                    to   { opacity: 0; transform: translateX(-90px); filter: blur(10px); }
+                }
+
+                /* ─── Buttons ─── */
+                .explore-content .explore-btn button {
+                    padding: 10px 20px;
+                    font-size: 20px;
+                    border: 2px solid #fff;
+                    border-radius: 15px;
+                    background: transparent;
+                    color: #fff;
+                    cursor: pointer;
+                    margin-right: 15px;
+                    font-family: 'Poppins', sans-serif;
+                    transition: 0.3s;
+                }
+                .explore-content .explore-btn button:hover {
+                    background: #fff;
+                    color: #1472FF;
+                }
+                .explore-content .explore-btn .explore-start-link {
+                    display: inline-block;
+                    padding: 10px 20px;
+                    font-size: 20px;
+                    font-weight: 400;
+                    color: #fff;
+                    background: transparent;
+                    border: 2px solid #fff;
+                    border-radius: 15px;
+                    text-decoration: none;
+                    transition: 0.3s;
+                }
+                .explore-content .explore-btn .explore-start-link:hover {
+                    background-color: #1472FF;
+                    border-color: #1472FF;
+                    transform: scale(1.05);
+                }
+
+                /* ═══ ARROWS ═════════════════════════════════════════ */
+                .explore-arrows {
+                    position: absolute;
+                    top: 80%;
+                    right: 60%;
+                    z-index: 200;
+                    width: 300px;
+                    max-width: 30%;
+                    display: flex;
+                    gap: 10px;
+                    align-items: center;
+                }
+                .explore-arrow-btn {
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 50%;
+                    background-color: #1472FF;
+                    color: #fff;
+                    border: none;
+                    outline: none;
+                    font-size: 16px;
+                    font-family: monospace;
+                    font-weight: bold;
+                    cursor: pointer;
+                    transition: background 0.5s, color 0.5s, opacity 0.3s;
+                }
+                .explore-arrow-btn:hover:not(:disabled) { background: #fff; color: #000; }
+                .explore-arrow-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+                /* ═══ INDEX ══════════════════════════════════════════ */
+                .explore-index {
+                    position: absolute;
+                    top: calc(80% + 60px);
+                    right: 60%;
+                    z-index: 200;
+                    font-family: 'Poppins', sans-serif;
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: #fff;
+                    text-shadow: 1px 2px 4px rgba(0,0,0,0.6);
+                    letter-spacing: 1px;
+                }
+
+                /* ═══ TIME BAR ═══════════════════════════════════════ */
+                .explore-time-running {
+                    position: absolute;
+                    width: 0%;
+                    height: 4px;
+                    background-color: #14ff72cb;
+                    left: 0; top: 0;
+                    z-index: 300;
+                    animation: exploreRunningTime 10s linear 1 forwards;
+                }
+                @keyframes exploreRunningTime {
+                    from { width: 0%; }
+                    to   { width: 100%; }
+                }
+
+                /* ═══ RESPONSIVE ═════════════════════════════════════ */
+                @media screen and (max-width: 999px) {
+                    .explore-list .explore-item .explore-content { left: 50px; }
+                    .explore-content .explore-title,
+                    .explore-content .explore-name { font-size: 70px; }
+                    .explore-content .explore-des  { font-size: 16px; }
+                }
+                @media screen and (max-width: 690px) {
+                    .explore-list .explore-item .explore-content { top: 40%; }
+                    .explore-content .explore-title,
+                    .explore-content .explore-name { font-size: 45px; }
+                    .explore-content .explore-btn button { padding: 10px 15px; font-size: 14px; }
+                }
+            `}</style>
+
+            <div className={carouselClass}>
+                <div className="explore-list">
+                    {items.map((item, idx) => (
+                        <div
+                            key={item.id}
+                            className="explore-item"
+                            style={{
+                                backgroundImage: `url(${item.image})`,
+                                zIndex: getItemZIndex(idx),
+                            }}
+                        >
+                            {/* ContentBlock chỉ tại idx=1 (nth-child 2) — luôn đúng cho cả NEXT và PREV */}
+                            {idx === 1 && (
+                                <ContentBlock
+                                    key={contentKey}
+                                    item={item}
+                                    isExiting={phase === 'text-exit'}
+                                    onStartNow={() => onPageChange?.('login')}
+                                />
+                            )}
+                        </div>
+                    ))}
+                </div>
+
+                <div className="explore-arrows">
+                    <button className="explore-arrow-btn" onClick={handlePrev} disabled={phase !== 'idle'}>{'<'}</button>
+                    <button className="explore-arrow-btn" onClick={handleNext} disabled={phase !== 'idle'}>{'>'}</button>
+                </div>
+
+                <div className="explore-index">
+                    {currentIndex} / {EXPLORE_ITEMS.length}
+                </div>
+
+                <div key={timeKey} className="explore-time-running" />
+            </div>
+        </>
     );
 }
 
@@ -1729,7 +2285,7 @@ export function LandingPage(): React.ReactElement {
                                 backgroundColor: 'var(--color-brand-primary)',
                                 color: 'var(--color-text-inverted)',
                                 fontWeight: 'var(--font-weight-semibold)',
-                                borderRadius: 'var(--radius-base)',
+                                borderRadius: 'var(--radius-xl)',
                                 border: 'none',
                                 cursor: 'pointer',
                                 transition: `all var(--duration-normal) var(--easing-in-out)`,
@@ -1753,7 +2309,7 @@ export function LandingPage(): React.ReactElement {
                                 backgroundColor: 'var(--color-gray-light)',
                                 color: 'var(--color-text-primary)',
                                 fontWeight: 'var(--font-weight-semibold)',
-                                borderRadius: 'var(--radius-base)',
+                                borderRadius: 'var(--radius-xl)',
                                 border: `1px solid var(--color-border-light)`,
                                 cursor: 'pointer',
                                 transition: `all var(--duration-normal) var(--easing-in-out)`,

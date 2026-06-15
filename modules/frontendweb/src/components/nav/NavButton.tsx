@@ -48,7 +48,7 @@ export function NavButton({
     // Base styles - NO BORDER initially
     const baseStyle: React.CSSProperties = {
         fontWeight: parseInt(getComputedStyle(document.documentElement).getPropertyValue('--font-weight-semibold') || '600'),
-        borderRadius: 'var(--radius-base)',
+        borderRadius: 'var(--radius-2xl)',
         cursor: 'pointer',
         whiteSpace: 'nowrap',
         padding: currentSize.padding,
