@@ -1332,18 +1332,20 @@ function AboutPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
 }
 
 /**
- * ExplorePage v8 — Tách biệt data order và display order
+ * ExplorePage v12
  *
- * GIẢI PHÁP:
- * - EXPLORE_ITEMS: mảng gốc, KHÔNG BAO GIỜ thay đổi thứ tự
- * - activeIdx: index trong EXPLORE_ITEMS của card đang active
- * - buildDisplayOrder(activeIdx): tính display order mỗi lần render
+ * NEXT sequence (giữ nguyên):
+ *   1. Text exit (500ms)
+ *   2. Class explore-next → next card phóng to + track trượt trái (1200ms)
+ *   3. Rotate presentIdx + text enter
  *
- * Display order:
- *   idx=0 = nth-child(1) = backdrop cũ (đứng yên)
- *   idx=1 = nth-child(2) = active (text hiển thị, fullscreen)
- *   idx=2..5 = track cards
- *   idx=6+   = ẩn
+ * PREV sequence (2 bước tách biệt):
+ *   1. Text exit (500ms)
+ *   2. Class explore-prev-step1 → track trượt PHẢI 200px, tạo khoảng trống (400ms)
+ *   3. Class explore-prev-step2 → present card thu nhỏ vào slot đầu track (1000ms)
+ *   4. Rotate presentIdx → behind lộ ra thành present mới + text enter
+ *
+ * Timing tổng PREV: 500 + 400 + 1000 = 1900ms
  */
 
 interface ExploreItem {
@@ -1407,20 +1409,27 @@ const EXPLORE_ITEMS: ExploreItem[] = [
 ];
 
 const N = EXPLORE_ITEMS.length;
-const T_TEXT_EXIT_START = 8000;
-const T_TEXT_EXIT_ANIM  = 550;
-const T_CARD_SLIDE      = 1200;
 
-function buildDisplayOrder(activeIdx: number): ExploreItem[] {
+// Timing constants (ms)
+const T_TEXT_EXIT        = 500;   // text biến mất
+const T_NEXT_SLIDE       = 1200;  // next card phóng to
+const T_PREV_TRACK_SLIDE = 400;   // track trượt phải tạo khoảng trống
+const T_PREV_CARD_SHRINK = 1000;  // present card thu nhỏ vào slot
+const T_AUTOPLAY         = 8000;  // autoplay text exit trigger
+
+// Tổng thời gian slide
+const T_NEXT_TOTAL = T_NEXT_SLIDE;
+const T_PREV_TOTAL = T_PREV_TRACK_SLIDE + T_PREV_CARD_SHRINK;
+
+function buildDisplayOrder(presentIdx: number): ExploreItem[] {
     const result: ExploreItem[] = [];
-    result.push(EXPLORE_ITEMS[(activeIdx - 1 + N) % N]); // idx=0: prev backdrop
-    result.push(EXPLORE_ITEMS[activeIdx]);                // idx=1: active
-    for (let i = 1; i < N - 1; i++) {
-        result.push(EXPLORE_ITEMS[(activeIdx + i) % N]); // idx=2+: track & hidden
+    for (let offset = -2; offset <= N - 3; offset++) {
+        result.push(EXPLORE_ITEMS[(presentIdx + offset + N * 10) % N]);
     }
     return result;
 }
 
+// ─── ContentBlock ─────────────────────────────────────────────
 interface ContentBlockProps {
     item: ExploreItem;
     isExiting: boolean;
@@ -1448,94 +1457,114 @@ function ContentBlock({ item, isExiting, onStartNow }: ContentBlockProps): React
     );
 }
 
+// ─── Main ─────────────────────────────────────────────────────
 function ExplorePage({
     onPageChange,
 }: {
     onPageChange?: (page: 'introduce' | 'about' | 'explore' | 'terms' | 'login' | 'register') => void;
 }): React.ReactElement {
 
-    const [activeIdx, setActiveIdx]   = React.useState(1);
-    const [phase, setPhase]           = React.useState<'idle' | 'text-exit' | 'sliding'>('idle');
-    const [dir, setDir]               = React.useState<'next' | 'prev'>('next');
+    const [presentIdx, setPresentIdx] = React.useState(2);
+
+    // phase mở rộng để hỗ trợ 2-step PREV
+    const [phase, setPhase] = React.useState<
+        'idle' | 'text-exit' | 'next-sliding' | 'prev-step1' | 'prev-step2'
+    >('idle');
+
     const [timeKey, setTimeKey]       = React.useState(0);
     const [contentKey, setContentKey] = React.useState(0);
 
     const t1 = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const t2 = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const t3 = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const t4 = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const clearAll = React.useCallback(() => {
-        if (t1.current) clearTimeout(t1.current);
-        if (t2.current) clearTimeout(t2.current);
-        if (t3.current) clearTimeout(t3.current);
-    }, []);
-
-    const doSlide = React.useCallback((direction: 'next' | 'prev') => {
-        setActiveIdx((prev) =>
-            direction === 'next'
-                ? (prev + 1) % N
-                : (prev - 1 + N) % N
-        );
-        setContentKey((k) => k + 1);
-        setPhase('sliding');
-        setTimeKey((k) => k + 1);
+        [t1, t2, t3, t4].forEach(r => { if (r.current) clearTimeout(r.current); });
     }, []);
 
     const scheduleAutoplay = React.useCallback(() => {
         clearAll();
+        // Autoplay chỉ chạy NEXT
         t1.current = setTimeout(() => {
             setPhase('text-exit');
-            setDir('next');
             t2.current = setTimeout(() => {
-                doSlide('next');
+                // Rotate ngay khi bắt đầu next-sliding
+                setPresentIdx(p => (p + 1) % N);
+                setContentKey(k => k + 1);
+                setPhase('next-sliding');
+                setTimeKey(k => k + 1);
                 t3.current = setTimeout(() => {
                     setPhase('idle');
                     scheduleAutoplay();
-                }, T_CARD_SLIDE);
-            }, T_TEXT_EXIT_ANIM);
-        }, T_TEXT_EXIT_START);
-    }, [clearAll, doSlide]); // eslint-disable-line react-hooks/exhaustive-deps
+                }, T_NEXT_TOTAL);
+            }, T_TEXT_EXIT);
+        }, T_AUTOPLAY);
+    }, [clearAll]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const triggerSlide = React.useCallback((direction: 'next' | 'prev') => {
+    const triggerNext = React.useCallback(() => {
         if (phase !== 'idle') return;
         clearAll();
-        setDir(direction);
         setPhase('text-exit');
         t1.current = setTimeout(() => {
-            doSlide(direction);
+            setPresentIdx(p => (p + 1) % N);
+            setContentKey(k => k + 1);
+            setPhase('next-sliding');
+            setTimeKey(k => k + 1);
             t2.current = setTimeout(() => {
                 setPhase('idle');
                 scheduleAutoplay();
-            }, T_CARD_SLIDE);
-        }, T_TEXT_EXIT_ANIM);
-    }, [phase, clearAll, doSlide, scheduleAutoplay]);
+            }, T_NEXT_TOTAL);
+        }, T_TEXT_EXIT);
+    }, [phase, clearAll, scheduleAutoplay]);
+
+    const triggerPrev = React.useCallback(() => {
+        if (phase !== 'idle') return;
+        clearAll();
+
+        // Step 1: text exit
+        setPhase('text-exit');
+
+        t1.current = setTimeout(() => {
+            // Step 2: track trượt phải (tạo khoảng trống)
+            setPhase('prev-step1');
+
+            t2.current = setTimeout(() => {
+                // Step 3: present card thu nhỏ vào slot
+                setPhase('prev-step2');
+
+                t3.current = setTimeout(() => {
+                    // Step 4: rotate + text enter
+                    setPresentIdx(p => (p - 1 + N) % N);
+                    setContentKey(k => k + 1);
+                    setTimeKey(k => k + 1);
+                    setPhase('idle');
+                    scheduleAutoplay();
+                }, T_PREV_CARD_SHRINK);
+
+            }, T_PREV_TRACK_SLIDE);
+        }, T_TEXT_EXIT);
+    }, [phase, clearAll, scheduleAutoplay]);
 
     React.useEffect(() => {
         scheduleAutoplay();
         return clearAll;
     }, [scheduleAutoplay, clearAll]);
 
-    const handleNext = () => triggerSlide('next');
-    const handlePrev = () => triggerSlide('prev');
-
-    const displayItems     = buildDisplayOrder(activeIdx);
-    const currentDisplayId = displayItems[1].id;
+    const displayItems     = buildDisplayOrder(presentIdx);
+    const currentDisplayId = displayItems[2].id;
 
     const getItemZIndex = (idx: number): number => {
-        if (phase === 'sliding') {
-            if (idx === 0) return 1;
-            if (idx === 1) return 5;
-            return 10;
-        }
-        if (idx === 0) return 1;
-        if (idx === 1) return 2;
-        return 10;
+        if (idx === 1) return 1;  // behind: dưới
+        if (idx === 2) return 2;  // present: trên behind
+        return 10;                // track, previous: trên fullscreen
     };
 
     const carouselClass = [
         'explore-carousel',
-        phase === 'sliding' && dir === 'next' ? 'explore-next' : '',
-        phase === 'sliding' && dir === 'prev' ? 'explore-prev' : '',
+        phase === 'next-sliding'  ? 'explore-next'        : '',
+        phase === 'prev-step1'    ? 'explore-prev-step1'  : '',
+        phase === 'prev-step2'    ? 'explore-prev-step2'  : '',
     ].filter(Boolean).join(' ');
 
     return (
@@ -1543,6 +1572,7 @@ function ExplorePage({
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
 
+                /* ═══ ROOT ═══════════════════════════════════════════════ */
                 .explore-carousel {
                     width: 100vw;
                     height: 100vh;
@@ -1552,6 +1582,7 @@ function ExplorePage({
                     background: #111;
                 }
 
+                /* ═══ ITEMS — default: card nhỏ trên track ══════════════ */
                 .explore-carousel .explore-list .explore-item {
                     width: 180px;
                     height: 250px;
@@ -1572,33 +1603,54 @@ function ExplorePage({
                         transform     1.2s cubic-bezier(0.25, 0.1, 0.25, 1);
                 }
 
-                .explore-carousel .explore-list .explore-item:nth-child(1),
+                /* ── nth-child(2) = behind: fullscreen dưới ── */
                 .explore-carousel .explore-list .explore-item:nth-child(2) {
+                    top: 0; left: 0;
+                    transform: translate(0, 0);
+                    border-radius: 0;
+                    width: 100%; height: 100%;
+                    transition: none;
+                }
+
+                /* ── nth-child(3) = present: fullscreen trên ── */
+                .explore-carousel .explore-list .explore-item:nth-child(3) {
                     top: 0; left: 0;
                     transform: translate(0, 0);
                     border-radius: 0;
                     width: 100%; height: 100%;
                 }
 
-                .explore-carousel .explore-list .explore-item:nth-child(3) { left: 67%; }
-                .explore-carousel .explore-list .explore-item:nth-child(4) { left: calc(67% + 200px); }
-                .explore-carousel .explore-list .explore-item:nth-child(5) { left: calc(67% + 400px); }
-                .explore-carousel .explore-list .explore-item:nth-child(6) { left: calc(67% + 600px); }
+                /* ── nth-child(1) = previous: ẩn bên trái ── */
+                .explore-carousel .explore-list .explore-item:nth-child(1) {
+                    left: calc(67% - 200px);
+                    opacity: 0;
+                }
 
-                .explore-carousel .explore-list .explore-item:nth-child(n+7) {
+                /* ── Track cards ── */
+                .explore-carousel .explore-list .explore-item:nth-child(4) { left: 67%; }
+                .explore-carousel .explore-list .explore-item:nth-child(5) { left: calc(67% + 200px); }
+                .explore-carousel .explore-list .explore-item:nth-child(6) { left: calc(67% + 400px); }
+                .explore-carousel .explore-list .explore-item:nth-child(7) { left: calc(67% + 600px); }
+
+                /* ── Hidden ── */
+                .explore-carousel .explore-list .explore-item:nth-child(n+8) {
                     left: calc(67% + 800px);
                     opacity: 0;
                 }
 
-                /* NEXT */
-                .explore-carousel.explore-next .explore-list .explore-item:nth-child(1) {
-                    top: 0; left: 0; width: 100%; height: 100%;
-                    border-radius: 0; transform: translate(0, 0);
-                    transition: none;
-                }
+                /* ═══════════════════════════════════════════════════════
+                   NEXT: next card (nth-child 4) phóng to lên fullscreen
+                         nth-child 2 (behind cũ) đứng yên
+                         nth-child 3 (present mới) transition từ track
+                ═══════════════════════════════════════════════════════ */
                 .explore-carousel.explore-next .explore-list .explore-item:nth-child(2) {
                     top: 0; left: 0; width: 100%; height: 100%;
                     border-radius: 0; transform: translate(0, 0);
+                    transition: none;
+                }
+                .explore-carousel.explore-next .explore-list .explore-item:nth-child(3) {
+                    top: 0; left: 0; width: 100%; height: 100%;
+                    border-radius: 0; transform: translate(0, 0);
                     transition:
                         left          1.2s cubic-bezier(0.4, 0, 1, 1),
                         top           1.2s cubic-bezier(0.4, 0, 1, 1),
@@ -1608,25 +1660,88 @@ function ExplorePage({
                         transform     1.2s cubic-bezier(0.4, 0, 1, 1);
                 }
 
-                /* PREV */
-                .explore-carousel.explore-prev .explore-list .explore-item:nth-child(1) {
+                /* ═══════════════════════════════════════════════════════
+                   PREV STEP 1 (400ms):
+                   Track cards trượt PHẢI 200px → tạo khoảng trống ở đầu track
+                   Present (nth-child 3) và behind (nth-child 2) đứng yên
+                ═══════════════════════════════════════════════════════ */
+                .explore-carousel.explore-prev-step1 .explore-list .explore-item:nth-child(2) {
                     top: 0; left: 0; width: 100%; height: 100%;
                     border-radius: 0; transform: translate(0, 0);
                     transition: none;
                 }
-                .explore-carousel.explore-prev .explore-list .explore-item:nth-child(2) {
+                .explore-carousel.explore-prev-step1 .explore-list .explore-item:nth-child(3) {
+                    /* Present đứng yên trong step 1 */
                     top: 0; left: 0; width: 100%; height: 100%;
                     border-radius: 0; transform: translate(0, 0);
-                    transition:
-                        left          1.2s cubic-bezier(0.4, 0, 1, 1),
-                        top           1.2s cubic-bezier(0.4, 0, 1, 1),
-                        width         1.2s cubic-bezier(0.4, 0, 1, 1),
-                        height        1.2s cubic-bezier(0.4, 0, 1, 1),
-                        border-radius 1.2s cubic-bezier(0.4, 0, 1, 1),
-                        transform     1.2s cubic-bezier(0.4, 0, 1, 1);
+                    transition: none;
+                }
+                /* Track trượt phải */
+                .explore-carousel.explore-prev-step1 .explore-list .explore-item:nth-child(4) {
+                    left: calc(67% + 200px);
+                    transition: left 0.4s cubic-bezier(0.4, 0, 0.6, 1);
+                }
+                .explore-carousel.explore-prev-step1 .explore-list .explore-item:nth-child(5) {
+                    left: calc(67% + 400px);
+                    transition: left 0.4s cubic-bezier(0.4, 0, 0.6, 1);
+                }
+                .explore-carousel.explore-prev-step1 .explore-list .explore-item:nth-child(6) {
+                    left: calc(67% + 600px);
+                    transition: left 0.4s cubic-bezier(0.4, 0, 0.6, 1);
+                }
+                .explore-carousel.explore-prev-step1 .explore-list .explore-item:nth-child(7) {
+                    left: calc(67% + 800px);
+                    opacity: 0;
+                    transition: left 0.4s cubic-bezier(0.4, 0, 0.6, 1);
                 }
 
-                /* Content */
+                /* ═══════════════════════════════════════════════════════
+                   PREV STEP 2 (1000ms):
+                   Present (nth-child 3) thu nhỏ vào khoảng trống (left: 67%)
+                   Track cards GIỮ NGUYÊN vị trí đã trượt từ step 1
+                   Behind (nth-child 2) lộ ra tự nhiên phía dưới
+                ═══════════════════════════════════════════════════════ */
+                .explore-carousel.explore-prev-step2 .explore-list .explore-item:nth-child(2) {
+                    top: 0; left: 0; width: 100%; height: 100%;
+                    border-radius: 0; transform: translate(0, 0);
+                    transition: none;
+                }
+                /* Present thu nhỏ vào slot đầu track */
+                .explore-carousel.explore-prev-step2 .explore-list .explore-item:nth-child(3) {
+                    width: 180px;
+                    height: 250px;
+                    top: 80%;
+                    left: 67%;
+                    transform: translateY(-70%);
+                    border-radius: 20px;
+                    transition:
+                        left          1s cubic-bezier(0, 0, 0.6, 1),
+                        top           1s cubic-bezier(0, 0, 0.6, 1),
+                        width         1s cubic-bezier(0, 0, 0.6, 1),
+                        height        1s cubic-bezier(0, 0, 0.6, 1),
+                        border-radius 1s cubic-bezier(0, 0, 0.6, 1),
+                        transform     1s cubic-bezier(0, 0, 0.6, 1);
+                }
+                /* Track giữ vị trí đã trượt từ step1 (transition: none để không trở về) */
+                .explore-carousel.explore-prev-step2 .explore-list .explore-item:nth-child(4) {
+                    left: calc(67% + 200px);
+                    transition: none;
+                }
+                .explore-carousel.explore-prev-step2 .explore-list .explore-item:nth-child(5) {
+                    left: calc(67% + 400px);
+                    transition: none;
+                }
+                .explore-carousel.explore-prev-step2 .explore-list .explore-item:nth-child(6) {
+                    left: calc(67% + 600px);
+                    transition: none;
+                }
+                .explore-carousel.explore-prev-step2 .explore-list .explore-item:nth-child(7) {
+                    left: calc(67% + 800px);
+                    opacity: 0;
+                    transition: none;
+                }
+
+                /* ═══ CONTENT: chỉ hiện tại nth-child(3) = present ═══ */
                 .explore-list .explore-item .explore-content {
                     display: none;
                     position: absolute;
@@ -1637,11 +1752,11 @@ function ExplorePage({
                     z-index: 20;
                     margin-top: -200px;
                 }
-                .explore-list .explore-item:nth-child(2) .explore-content {
+                .explore-list .explore-item:nth-child(3) .explore-content {
                     display: block;
                 }
 
-                /* Text enter */
+                /* ─── Text enter ─── */
                 .explore-content .explore-title {
                     font-size: 100px;
                     text-transform: uppercase;
@@ -1679,7 +1794,7 @@ function ExplorePage({
                     to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
                 }
 
-                /* Text exit */
+                /* ─── Text exit ─── */
                 .explore-content--exit .explore-title {
                     animation: ecExit 0.35s ease-in 0s    1 forwards !important;
                 }
@@ -1697,7 +1812,7 @@ function ExplorePage({
                     to   { opacity: 0; transform: translateX(-90px); filter: blur(10px); }
                 }
 
-                /* Buttons */
+                /* ─── Buttons ─── */
                 .explore-content .explore-btn button {
                     padding: 10px 20px;
                     font-size: 20px;
@@ -1727,7 +1842,7 @@ function ExplorePage({
                     background-color: #1472FF; border-color: #1472FF; transform: scale(1.05);
                 }
 
-                /* Arrows */
+                /* ═══ ARROWS ═════════════════════════════════════════════ */
                 .explore-arrows {
                     position: absolute;
                     top: 80%; right: 60%;
@@ -1747,7 +1862,7 @@ function ExplorePage({
                 .explore-arrow-btn:hover:not(:disabled) { background: #fff; color: #000; }
                 .explore-arrow-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-                /* Index */
+                /* ═══ INDEX ══════════════════════════════════════════════ */
                 .explore-index {
                     position: absolute;
                     top: calc(80% + 60px); right: 60%;
@@ -1759,7 +1874,7 @@ function ExplorePage({
                     letter-spacing: 1px;
                 }
 
-                /* Time bar */
+                /* ═══ TIME BAR ═══════════════════════════════════════════ */
                 .explore-time-running {
                     position: absolute;
                     width: 0%; height: 4px;
@@ -1771,7 +1886,7 @@ function ExplorePage({
                     from { width: 0%; } to { width: 100%; }
                 }
 
-                /* Responsive */
+                /* ═══ RESPONSIVE ══════════════════════════════════════════ */
                 @media screen and (max-width: 999px) {
                     .explore-list .explore-item .explore-content { left: 50px; }
                     .explore-content .explore-title,
@@ -1797,7 +1912,7 @@ function ExplorePage({
                                 zIndex: getItemZIndex(idx),
                             }}
                         >
-                            {idx === 1 && (
+                            {idx === 2 && (
                                 <ContentBlock
                                     key={contentKey}
                                     item={item}
@@ -1810,8 +1925,16 @@ function ExplorePage({
                 </div>
 
                 <div className="explore-arrows">
-                    <button className="explore-arrow-btn" onClick={handlePrev} disabled={phase !== 'idle'}>{'<'}</button>
-                    <button className="explore-arrow-btn" onClick={handleNext} disabled={phase !== 'idle'}>{'>'}</button>
+                    <button
+                        className="explore-arrow-btn"
+                        onClick={triggerPrev}
+                        disabled={phase !== 'idle'}
+                    >{'<'}</button>
+                    <button
+                        className="explore-arrow-btn"
+                        onClick={triggerNext}
+                        disabled={phase !== 'idle'}
+                    >{'>'}</button>
                 </div>
 
                 <div className="explore-index">
