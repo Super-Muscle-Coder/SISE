@@ -519,17 +519,17 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
                             position: 'absolute',
                             left: formLeft,
                             top: '50%',
+                            height: isLoginMode ? '520px' : '730px',
+                            overflow: 'hidden',
+                            transition: 'height 600ms cubic-bezier(0.4, 0, 0.2, 1), left 1200ms ease-out',
                             transform: 'translateY(-50%)',
                             width: '35%',
-                            minHeight: '600px', // Fixed height for consistent sizing
-                            maxHeight: '730px',
                             backgroundColor: 'rgba(255, 255, 255, 0.95)',
                             backdropFilter: 'blur(100px)',
                             borderRadius: 'var(--radius-2xl)',
                             padding: 'var(--spacing-2xl)',
                             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
                             zIndex: isLoginMode ? 10 : 10, // Always on top
-                            animation: getFormAnimation(),
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'space-between',
@@ -1473,6 +1473,10 @@ function ExplorePage({
 
     const [timeKey, setTimeKey]       = React.useState(0);
     const [contentKey, setContentKey] = React.useState(0);
+    // showContent: false = unmount ContentBlock hoàn toàn (sau khi exit animation xong)
+    const [showContent, setShowContent] = React.useState(true);
+    // isExitingContent: true = đang chạy exit animation (ContentBlock vẫn còn trong DOM)
+    const [isExitingContent, setIsExitingContent] = React.useState(false);
 
     const t1 = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const t2 = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1485,17 +1489,21 @@ function ExplorePage({
 
     const scheduleAutoplay = React.useCallback(() => {
         clearAll();
-        // Autoplay chỉ chạy NEXT
         t1.current = setTimeout(() => {
+            // Kích hoạt exit animation (ContentBlock vẫn trong DOM)
+            setIsExitingContent(true);
             setPhase('text-exit');
             t2.current = setTimeout(() => {
-                // Rotate ngay khi bắt đầu next-sliding
+                // Exit animation xong → unmount ContentBlock, bắt đầu card slide
+                setShowContent(false);
+                setIsExitingContent(false);
                 setPresentIdx(p => (p + 1) % N);
                 setContentKey(k => k + 1);
                 setPhase('next-sliding');
                 setTimeKey(k => k + 1);
                 t3.current = setTimeout(() => {
                     setPhase('idle');
+                    setShowContent(true);
                     scheduleAutoplay();
                 }, T_NEXT_TOTAL);
             }, T_TEXT_EXIT);
@@ -1505,14 +1513,20 @@ function ExplorePage({
     const triggerNext = React.useCallback(() => {
         if (phase !== 'idle') return;
         clearAll();
+        // Kích hoạt exit animation
+        setIsExitingContent(true);
         setPhase('text-exit');
         t1.current = setTimeout(() => {
+            // Exit xong → unmount, bắt đầu card slide
+            setShowContent(false);
+            setIsExitingContent(false);
             setPresentIdx(p => (p + 1) % N);
             setContentKey(k => k + 1);
             setPhase('next-sliding');
             setTimeKey(k => k + 1);
             t2.current = setTimeout(() => {
                 setPhase('idle');
+                setShowContent(true);
                 scheduleAutoplay();
             }, T_NEXT_TOTAL);
         }, T_TEXT_EXIT);
@@ -1522,11 +1536,15 @@ function ExplorePage({
         if (phase !== 'idle') return;
         clearAll();
 
-        // Step 1: text exit
+        // Step 1: kích hoạt exit animation của text
+        setIsExitingContent(true);
         setPhase('text-exit');
 
         t1.current = setTimeout(() => {
-            // Step 2: track trượt phải (tạo khoảng trống)
+            // Exit animation xong → unmount ContentBlock
+            setShowContent(false);
+            setIsExitingContent(false);
+            // Step 2: track trượt phải
             setPhase('prev-step1');
 
             t2.current = setTimeout(() => {
@@ -1534,11 +1552,12 @@ function ExplorePage({
                 setPhase('prev-step2');
 
                 t3.current = setTimeout(() => {
-                    // Step 4: rotate + text enter
+                    // Step 4: card xong → rotate → mount ContentBlock mới → text enter
                     setPresentIdx(p => (p - 1 + N) % N);
                     setContentKey(k => k + 1);
                     setTimeKey(k => k + 1);
                     setPhase('idle');
+                    setShowContent(true);
                     scheduleAutoplay();
                 }, T_PREV_CARD_SHRINK);
 
@@ -1741,9 +1760,9 @@ function ExplorePage({
                     transition: none;
                 }
 
-                /* ═══ CONTENT: chỉ hiện tại nth-child(3) = present ═══ */
+                /* ═══ CONTENT: position, controlled by showContent state ══ */
                 .explore-list .explore-item .explore-content {
-                    display: none;
+                    display: block;
                     position: absolute;
                     top: 50%;
                     left: 100px;
@@ -1752,18 +1771,15 @@ function ExplorePage({
                     z-index: 20;
                     margin-top: -200px;
                 }
-                .explore-list .explore-item:nth-child(3) .explore-content {
-                    display: block;
-                }
 
-                /* ─── Text enter ─── */
+                /* ─── Text enter: tất cả 4 element cùng 1 keyframe ─── */
                 .explore-content .explore-title {
                     font-size: 100px;
                     text-transform: uppercase;
                     color: #1472FF;
                     font-weight: bold;
                     line-height: 1;
-                    animation: ecTitleEnter 1s ease-out 0.3s 1 forwards;
+                    animation: ecEnter 1s ease-out 0.3s 1 forwards;
                 }
                 .explore-content .explore-name {
                     font-size: 50px;
@@ -1771,27 +1787,23 @@ function ExplorePage({
                     font-weight: bold;
                     line-height: 1;
                     text-shadow: 3px 4px 4px rgba(255,255,255,0.8);
-                    animation: ecTitleEnter 1s ease-out 0.55s 1 forwards;
+                    animation: ecEnter 1s ease-out 0.55s 1 forwards;
                 }
                 .explore-content .explore-des {
                     margin-top: 10px;
                     margin-bottom: 20px;
                     font-size: 18px;
                     margin-left: 5px;
-                    animation: ecSubEnter 1s ease-out 0.8s 1 forwards;
+                    animation: ecEnter 1s ease-out 0.8s 1 forwards;
                 }
                 .explore-content .explore-btn {
                     width: 420px;
                     margin-left: 5px;
-                    animation: ecSubEnter 1s ease-out 1s 1 forwards;
+                    animation: ecEnter 1s ease-out 1s 1 forwards;
                 }
-                @keyframes ecTitleEnter {
-                    from { opacity: 0; margin-top: 70px; filter: blur(20px); }
+                @keyframes ecEnter {
+                    from { opacity: 0; margin-top: 60px; filter: blur(20px); }
                     to   { opacity: 1; margin-top: 0;    filter: blur(0); }
-                }
-                @keyframes ecSubEnter {
-                    from { opacity: 0; transform: translateY(40px); filter: blur(10px); }
-                    to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
                 }
 
                 /* ─── Text exit ─── */
@@ -1912,11 +1924,11 @@ function ExplorePage({
                                 zIndex: getItemZIndex(idx),
                             }}
                         >
-                            {idx === 2 && (
+                            {idx === 2 && showContent && (
                                 <ContentBlock
                                     key={contentKey}
                                     item={item}
-                                    isExiting={phase === 'text-exit'}
+                                    isExiting={isExitingContent}
                                     onStartNow={() => onPageChange?.('login')}
                                 />
                             )}
@@ -1946,7 +1958,6 @@ function ExplorePage({
         </>
     );
 }
-
 /**
  * TermsPage: Terms & Privacy subpage (rendered inside LandingPage)
  */
