@@ -65,267 +65,596 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
         objectPosition: 'center',
     });
 
-    // ===== SECTION 1: HERO (NO ANIMATION) =====
-    const HeroSection = () => (
-        <section
-            id="hero"
-            className="introduce-section introduce-section--hero"
-            style={{
-                background: 'var(--color-bg-primary)',
-                paddingBottom: 'var(--spacing-5xl)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '100vh',
-            }}
-        >
-            <div style={getContainerStyle()}>
-                {/* TEXT - 45% */}
-                <div style={getTextContainerStyle()}>
-                    <h1
-                        style={{
-                            fontSize: 'clamp(3rem, 4.5vw, 3.8rem)',
-                            fontWeight: 'var(--font-weight-extrabold)',
-                            color: 'var(--color-text-primary)',
-                            marginBottom: 'var(--spacing-lg)',
-                            lineHeight: '1.1',
-                        }}
-                    >
-                        Discover & Share Visual Stories
-                    </h1>
-                    <p
-                        style={{
-                            fontSize: 'clamp(1.5rem, 2vw, 1.8rem)',
-                            color: 'var(--color-text-secondary)',
-                            marginBottom: 'var(--spacing-2xl)',
-                            lineHeight: '1.6',
-                        }}
-                    >
-                        SISE is your platform for exploring curated image collections,
-                        searching by content, and sharing your visual discoveries with the world.
-                    </p>
+    // ===== SECTION 1: HERO =====
+    const HeroSection = () => {
+        // Scroll-triggered animation dùng IntersectionObserver
+        // Hero load ngay khi trang mở → dùng CSS animation 1 lần, không cần observer
+        return (
+            <>
+                <style>{`
+                    /* ── Hero load animations ── */
+                    @keyframes heroFadeSlideUp {
+                        from { opacity: 0; transform: translateY(32px); }
+                        to   { opacity: 1; transform: translateY(0); }
+                    }
+                    @keyframes heroFadeIn {
+                        from { opacity: 0; }
+                        to   { opacity: 1; }
+                    }
+                    @keyframes heroImageReveal {
+                        from { opacity: 0; transform: scale(0.96) translateY(16px); }
+                        to   { opacity: 1; transform: scale(1) translateY(0); }
+                    }
 
-                    {/* CTA BUTTONS */}
+                    .hero-tagline {
+                        opacity: 0;
+                        animation: heroFadeIn 600ms var(--easing-out) 100ms forwards;
+                    }
+                    .hero-h1 {
+                        opacity: 0;
+                        animation: heroFadeSlideUp 700ms var(--easing-out) 250ms forwards;
+                    }
+                    .hero-paragraph {
+                        opacity: 0;
+                        animation: heroFadeSlideUp 700ms var(--easing-out) 400ms forwards;
+                    }
+                    .hero-buttons {
+                        opacity: 0;
+                        animation: heroFadeSlideUp 600ms var(--easing-out) 550ms forwards;
+                    }
+                    .hero-image-wrap {
+                        opacity: 0;
+                        animation: heroImageReveal 800ms var(--easing-out) 300ms forwards;
+                    }
+
+                    /* ── Floating shadow dưới ảnh ── */
+                    .hero-image-wrap {
+                        position: relative;
+                    }
+                    .hero-image-wrap::after {
+                        content: '';
+                        position: absolute;
+                        bottom: -18px;
+                        left: 8%;
+                        right: 8%;
+                        height: 40px;
+                        background: rgba(0, 120, 215, 0.12);
+                        filter: blur(18px);
+                        border-radius: 50%;
+                        z-index: 0;
+                    }
+                    .hero-image-wrap img {
+                        position: relative;
+                        z-index: 1;
+                        border-radius: var(--radius-lg);
+                        box-shadow:
+                            0 2px 4px rgba(0,0,0,0.04),
+                            0 8px 24px rgba(0,0,0,0.08),
+                            0 24px 48px rgba(0, 120, 215, 0.08);
+                    }
+
+                    /* ── Tagline pill ── */
+                    .hero-tagline-pill {
+                        display: inline-block;
+                        padding: 6px 16px;
+                        border-radius: var(--radius-full);
+                        background: rgba(0, 120, 215, 0.08);
+                        border: 1px solid rgba(0, 120, 215, 0.2);
+                        color: var(--color-brand-primary);
+                        font-size: var(--font-size-sm);
+                        font-weight: var(--font-weight-semibold);
+                        letter-spacing: 0.04em;
+                        text-transform: uppercase;
+                        margin-bottom: var(--spacing-lg);
+                        user-select: none;
+                    }
+
+                    /* ── H1 accent: chữ "Visual" highlight ── */
+                    .hero-accent {
+                        color: var(--color-brand-primary);
+                    }
+
+                    /* ── Divider ngang nhỏ dưới paragraph ── */
+                    .hero-divider {
+                        width: 48px;
+                        height: 3px;
+                        background: var(--color-brand-primary);
+                        border-radius: var(--radius-full);
+                        margin-bottom: var(--spacing-2xl);
+                        opacity: 0.6;
+                    }
+
+                    /* ── Button hover states ── */
+                    .hero-btn-primary {
+                        padding: var(--spacing-base) var(--spacing-2xl);
+                        background-color: var(--color-brand-primary);
+                        color: var(--color-text-inverted);
+                        font-weight: var(--font-weight-semibold);
+                        font-size: var(--font-size-base);
+                        border-radius: var(--radius-full);
+                        border: none;
+                        cursor: pointer;
+                        transition: background-color var(--duration-normal) var(--easing-in-out),
+                                    box-shadow var(--duration-normal) var(--easing-in-out),
+                                    transform var(--duration-fast) var(--easing-out);
+                        box-shadow: 0 4px 12px rgba(0, 120, 215, 0.3);
+                    }
+                    .hero-btn-primary:hover {
+                        //background-color: var(--color-brand-primary);
+                        box-shadow: 0 8px 20px rgba(0, 120, 215, 0.4);
+                        transform: translateY(-1px);
+                    }
+                    .hero-btn-primary:active {
+                        transform: translateY(0);
+                    }
+
+                    .hero-btn-secondary {
+                        padding: var(--spacing-base) var(--spacing-2xl);
+                        background-color: transparent;
+                        color: var(--color-brand-primary);
+                        font-weight: var(--font-weight-semibold);
+                        font-size: var(--font-size-base);
+                        border-radius: var(--radius-full);
+                        border: 2px solid var(--color-brand-primary);
+                        cursor: pointer;
+                        transition: background-color var(--duration-normal) var(--easing-in-out),
+                                    transform var(--duration-fast) var(--easing-out);
+                    }
+                    .hero-btn-secondary:hover {
+                        background-color: var(--color-brand-primary);
+                        color : var(--color-text-inverted);
+                        transform: translateY(-1px);
+                    }
+                    .hero-btn-secondary:active {
+                        transform: translateY(0);
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .hero-tagline, .hero-h1, .hero-paragraph,
+                        .hero-buttons, .hero-image-wrap {
+                            animation: none;
+                            opacity: 1;
+                        }
+                    }
+                `}</style>
+
+                <section
+                    id="hero"
+                    className="introduce-section introduce-section--hero"
+                    style={{
+                        background: 'var(--color-bg-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: '100vh',
+                        paddingTop: 'var(--spacing-5xl)',
+                        paddingBottom: 'var(--spacing-5xl)',
+                    }}
+                >
                     <div
                         style={{
+                            maxWidth: '100%',
+                            width: '100%',
                             display: 'flex',
-                            gap: 'var(--spacing-lg)',
-                            flexWrap: 'wrap',
+                            alignItems: 'center',
+                            paddingLeft: '5%',
+                            paddingRight: '5%',
+                            gap: '6%',
                         }}
                     >
-                        <button
-                            onClick={() => window.location.href = '/register'}
-                            style={{
-                                padding: 'var(--spacing-base) var(--spacing-2xl)',
-                                backgroundColor: 'var(--color-brand-primary)',
-                                color: 'var(--color-text-inverted)',
-                                fontWeight: 'var(--font-weight-semibold)',
-                                fontSize: 'var(--font-size-base)',
-                                borderRadius: 'var(--radius-full)',
-                                border: 'none',
-                                cursor: 'pointer',
-                                transition: `all var(--duration-normal) var(--easing-in-out)`,
-                                boxShadow: '0 4px 12px rgba(0, 120, 215, 0.3)',
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--color-brand-primary-hover)';
-                                e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 120, 215, 0.4)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--color-brand-primary)';
-                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 120, 215, 0.3)';
-                            }}
-                        >
-                            Get Started
-                        </button>
+                        {/* ── TEXT 45% ── */}
+                        <div style={{ flex: '0 0 45%' }}>
 
-                        <button
-                            onClick={() =>
-                                document
-                                    .getElementById('feature1')
-                                    ?.scrollIntoView({ behavior: 'smooth' })
-                            }
-                            style={{
-                                padding: 'var(--spacing-base) var(--spacing-2xl)',
-                                backgroundColor: 'transparent',
-                                color: 'var(--color-brand-primary)',
-                                fontWeight: 'var(--font-weight-semibold)',
-                                fontSize: 'var(--font-size-base)',
-                                borderRadius: 'var(--radius-full)',
-                                border: '2px solid var(--color-brand-primary)',
-                                cursor: 'pointer',
-                                transition: `all var(--duration-normal) var(--easing-in-out)`,
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'rgba(0, 120, 215, 0.05)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
+                            {/* Tagline pill */}
+                            <div className="hero-tagline">
+                                <span className="hero-tagline-pill">
+                                    AI-Powered Visual Discovery
+                                </span>
+                            </div>
+
+                            {/* H1 */}
+                            <h1
+                                className="hero-h1"
+                                style={{
+                                    fontSize: 'clamp(2.8rem, 4.5vw, 3.8rem)',
+                                    fontWeight: 'var(--font-weight-extrabold)',
+                                    color: 'var(--color-text-primary)',
+                                    lineHeight: '1.1',
+                                    marginBottom: 'var(--spacing-xl)',
+                                    letterSpacing: '-0.02em',
+                                }}
+                            >
+                                Discover &amp; Share<br />
+                                <span className="hero-accent">Visual</span> Stories
+                            </h1>
+
+                            {/* Paragraph */}
+                            <p
+                                className="hero-paragraph"
+                                style={{
+                                    fontSize: 'clamp(1.4rem, 2vw, 1.7rem)',
+                                    color: 'var(--color-text-secondary)',
+                                    lineHeight: '1.7',
+                                    marginBottom: 'var(--spacing-lg)',
+                                }}
+                            >
+                                SISE is your platform for exploring curated image collections,
+                                searching by content, and sharing your visual discoveries with the world.
+                            </p>
+
+                            {/* Divider */}
+                            <div className="hero-paragraph hero-divider" />
+
+                            {/* Buttons */}
+                            <div
+                                className="hero-buttons"
+                                style={{
+                                    display: 'flex',
+                                    gap: 'var(--spacing-lg)',
+                                    flexWrap: 'wrap',
+                                }}
+                            >
+                                <button
+                                    className="hero-btn-primary"
+                                    onClick={() => window.location.href = '/register'}
+                                >
+                                    Get Started
+                                </button>
+
+                                <button
+                                    className="hero-btn-secondary"
+                                    onClick={() =>
+                                        document
+                                            .getElementById('feature1')
+                                            ?.scrollIntoView({ behavior: 'smooth' })
+                                    }
+                                >
+                                    Learn More
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* ── IMAGE 45% ── */}
+                        <div
+                            className="hero-image-wrap"
+                            style={{ flex: '0 0 45%' }}
                         >
-                            Learn More
-                        </button>
+                            <img
+                                src="/images/hero-section.png"
+                                alt="SISE — Smart Image Search Engine"
+                                style={{
+                                    width: '100%',
+                                    height: '500px',
+                                    objectFit: 'cover',
+                                    objectPosition: 'center',
+                                    display: 'block',
+                                }}
+                            />
+                        </div>
                     </div>
-                </div>
+                </section>
+            </>
+        );
+    };
 
-                {/* IMAGE - 45% */}
-                <div style={getImageContainerStyle()}>
-                    <img
-                        src="/images/hero-section.png"
-                        alt="Hero Section"
-                        style={{ ...getImageStyle(), height: '500px' }}
-                    />
+    // ===== SCROLL REVEAL HOOK =====
+    // Dùng IntersectionObserver để trigger animation khi section vào viewport
+    const useScrollReveal = (threshold = 0.15) => {
+        const ref = React.useRef<HTMLDivElement>(null);
+        const [visible, setVisible] = React.useState(false);
+
+        React.useEffect(() => {
+            const el = ref.current;
+            if (!el) return;
+            const observer = new IntersectionObserver(
+                ([entry]) => {
+                    if (entry.isIntersecting) {
+                        setVisible(true);
+                        observer.disconnect(); // Chỉ trigger 1 lần
+                    }
+                },
+                { threshold }
+            );
+            observer.observe(el);
+            return () => observer.disconnect();
+        }, [threshold]);
+
+        return { ref, visible };
+    };
+
+    // ===== FEATURE SECTION COMPONENT =====
+    interface FeatureSectionProps {
+        id: string;
+        badge: string;
+        title: string;
+        description: string;
+        bullets: string[];
+        imageSrc: string;
+        imageAlt: string;
+        imageLeft?: boolean; // true = ảnh bên trái, text bên phải
+        bg: string;
+        ctaLabel: string;
+        ctaTarget: string;       // id của section để scroll đến
+        onCtaClick?: () => void; // nếu có thì override scroll
+    }
+
+    const FeatureSection = ({
+        id, badge, title, description, bullets,
+        imageSrc, imageAlt, imageLeft = false, bg,
+        ctaLabel, ctaTarget, onCtaClick,
+    }: FeatureSectionProps) => {
+        const { ref, visible } = useScrollReveal(0.15);
+
+        const textAnim: React.CSSProperties = {
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'translateX(0)' : `translateX(${imageLeft ? '40px' : '-40px'})`,
+            transition: 'opacity 700ms var(--easing-out), transform 700ms var(--easing-out)',
+            transitionDelay: '100ms',
+        };
+
+        const imageAnim: React.CSSProperties = {
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'translateX(0)' : `translateX(${imageLeft ? '-40px' : '40px'})`,
+            transition: 'opacity 700ms var(--easing-out), transform 700ms var(--easing-out)',
+            transitionDelay: '0ms',
+        };
+
+        const textBlock = (
+            <div style={{ flex: '0 0 45%', ...textAnim }}>
+                {/* Badge */}
+                <span style={{
+                    display: 'inline-block',
+                    padding: '4px 14px',
+                    borderRadius: 'var(--radius-full)',
+                    background: 'rgba(0, 120, 215, 0.07)',
+                    border: '1px solid rgba(0, 120, 215, 0.18)',
+                    color: 'var(--color-brand-primary)',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: 'var(--font-weight-semibold)',
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase' as const,
+                    marginBottom: 'var(--spacing-lg)',
+                }}>
+                    {badge}
+                </span>
+
+                {/* Title */}
+                <h2 style={{
+                    fontSize: 'clamp(2.4rem, 3.5vw, 3.2rem)',
+                    fontWeight: 'var(--font-weight-extrabold)',
+                    color: 'var(--color-text-primary)',
+                    lineHeight: '1.15',
+                    letterSpacing: '-0.02em',
+                    marginBottom: 'var(--spacing-lg)',
+                }}>
+                    {title}
+                </h2>
+
+                {/* Description */}
+                <p style={{
+                    fontSize: 'clamp(1.3rem, 1.8vw, 1.6rem)',
+                    color: 'var(--color-text-secondary)',
+                    lineHeight: '1.7',
+                    marginBottom: 'var(--spacing-xl)',
+                }}>
+                    {description}
+                </p>
+
+                {/* Bullets */}
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                    {bullets.map((item, i) => (
+                        <li
+                            key={i}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: 'var(--spacing-md)',
+                                fontSize: 'clamp(1.2rem, 1.6vw, 1.45rem)',
+                                color: 'var(--color-text-secondary)',
+                                lineHeight: '1.6',
+                                opacity: visible ? 1 : 0,
+                                transform: visible ? 'translateY(0)' : 'translateY(12px)',
+                                transition: `opacity 500ms var(--easing-out), transform 500ms var(--easing-out)`,
+                                transitionDelay: `${300 + i * 100}ms`,
+                            }}
+                        >
+                            {/* Bullet dot */}
+                            <span style={{
+                                flexShrink: 0,
+                                marginTop: '6px',
+                                width: '7px',
+                                height: '7px',
+                                borderRadius: '50%',
+                                background: 'var(--color-brand-primary)',
+                                opacity: 0.7,
+                            }} />
+                            {item}
+                        </li>
+                    ))}
+                </ul>
+
+                {/* Micro-CTA link — Button Style */}
+                <div style={{
+                    opacity: visible ? 1 : 0,
+                    transform: visible ? 'translateY(0)' : 'translateY(10px)',
+                    transition: 'opacity 500ms var(--easing-out), transform 500ms var(--easing-out)',
+                    transitionDelay: `${300 + bullets.length * 100 + 80}ms`,
+                    marginTop: 'var(--spacing-xl)',
+                }}>
+                    <button
+                        onClick={() => {
+                            if (onCtaClick) {
+                                onCtaClick();
+                            } else {
+                                document.getElementById(ctaTarget)?.scrollIntoView({ behavior: 'smooth' });
+                            }
+                        }}
+                        style={{
+                            padding: 'var(--spacing-base) var(--spacing-2xl)',
+                            backgroundColor: '#ffffff',
+                            color: 'var(--color-brand-primary)',
+                            fontWeight: 'var(--font-weight-semibold)',
+                            fontSize: 'var(--font-size-base)',
+                            borderRadius: 'var(--radius-full)',
+                            border: `2px solid var(--color-brand-primary)`,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            position: 'relative',
+                            transition: 'background-color var(--duration-normal) var(--easing-out), color var(--duration-normal) var(--easing-out), transform var(--duration-normal) var(--easing-out)',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-brand-primary)';
+                            e.currentTarget.style.color = 'var(--color-text-inverted)';
+                            e.currentTarget.style.transform = 'translateY(-4px)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#ffffff';
+                            e.currentTarget.style.color = 'var(--color-brand-primary)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                    >
+                        {ctaLabel}
+                        {/* Arrow — pure CSS, no icon lib */}
+                        <span style={{
+                            display: 'inline-block',
+                            fontSize: '1.1em',
+                            lineHeight: 1,
+                            transition: 'transform var(--duration-normal) var(--easing-out)',
+                        }}>
+                            →
+                        </span>
+                    </button>
                 </div>
             </div>
-        </section>
-    );
+        );
 
-    // ===== SECTION 2: FEATURE 1 (TEXT LEFT, IMAGE RIGHT) =====
+        const imageBlock = (
+            <div style={{ flex: '0 0 45%', ...imageAnim }}>
+                <div style={{
+                    borderRadius: 'var(--radius-xl)',
+                    overflow: 'hidden',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)',
+                    position: 'relative',
+                }}>
+                    <img
+                        src={imageSrc}
+                        alt={imageAlt}
+                        style={{
+                            width: '100%',
+                            height: '400px',
+                            objectFit: 'cover',
+                            objectPosition: 'center',
+                            display: 'block',
+                        }}
+                    />
+                    {/* Subtle brand overlay tint ở cạnh trên ảnh */}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0, left: 0, right: 0,
+                        height: '3px',
+                        background: 'var(--color-brand-primary)',
+                        opacity: 0.6,
+                    }} />
+                </div>
+            </div>
+        );
+
+        return (
+            <section
+                id={id}
+                ref={ref}
+                style={{
+                    background: bg,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '100vh',
+                    paddingTop: 'var(--spacing-4xl)',
+                    paddingBottom: 'var(--spacing-4xl)',
+                }}
+            >
+                <div style={{
+                    maxWidth: '100%',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    paddingLeft: '5%',
+                    paddingRight: '5%',
+                    gap: '6%',
+                }}>
+                    {imageLeft ? imageBlock : textBlock}
+                    {imageLeft ? textBlock : imageBlock}
+                </div>
+            </section>
+        );
+    };
+
+    // ===== 3 FEATURE SECTIONS =====
+
     const Feature1Section = () => (
-        <section
+        <FeatureSection
             id="feature1"
-            className="introduce-section introduce-section--feature1"
-            style={{
-                background: 'linear-gradient(to bottom, #f2f2f2 0%, #ffffff 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '100vh',
-            }}
-        >
-            <div style={getContainerStyle()}>
-                {/* TEXT - 45% */}
-                <div style={getTextContainerStyle()}>
-                    <h2
-                        style={{
-                            fontSize: 'clamp(3rem, 4.5vw, 3.8rem)',
-                            fontWeight: 'var(--font-weight-bold)',
-                            color: 'var(--color-text-primary)',
-                            marginBottom: 'var(--spacing-lg)',
-                        }}
-                    >
-                        Search Images
-                    </h2>
-                    <p
-                        style={{
-                            fontSize: 'var(--font-size-2xl)',
-                            color: 'var(--color-text-secondary)',
-                            lineHeight: '1.8',
-                        }}
-                    >
-                        Find images using intelligent text queries or image-based search. Powered by advanced AI technology to deliver precise results every time.
-                    </p>
-                </div>
-
-                {/* IMAGE - 45% */}
-                <div style={getImageContainerStyle()}>
-                    <img
-                        src="/images/feature-1.png"
-                        alt="Search Images"
-                        style={{ ...getImageStyle(), height: '400px' }}
-                    />
-                </div>
-            </div>
-        </section>
+            badge="Search"
+            title="Find any image, instantly"
+            description="Type what you're looking for or drop in an image — SISE surfaces the most relevant results using AI that understands both words and visuals."
+            bullets={[
+                'Text-based search that understands natural language',
+                'Image-based search to find visually similar content',
+                'Filters by color, style, and subject matter',
+            ]}
+            imageSrc="/images/feature-1.png"
+            imageAlt="Search Images"
+            imageLeft={false}
+            bg="var(--color-bg-primary)"
+            ctaLabel="See Collections"
+            ctaTarget="feature2"
+        />
     );
 
-    // ===== SECTION 3: FEATURE 2 (IMAGE LEFT, TEXT RIGHT) =====
     const Feature2Section = () => (
-        <section
+        <FeatureSection
             id="feature2"
-            className="introduce-section introduce-section--feature2"
-            style={{
-                background: 'linear-gradient(to bottom, #f2f2f2 0%, #ffffff 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '100vh',
-            }}
-        >
-            <div style={getContainerStyle()}>
-                {/* IMAGE - 45% */}
-                <div style={getImageContainerStyle()}>
-                    <img
-                        src="/images/feature-2.png"
-                        alt="Curated Collections"
-                        style={{ ...getImageStyle(), height: '400px' }}
-                    />
-                </div>
-
-                {/* TEXT - 45% */}
-                <div style={getTextContainerStyle()}>
-                    <h2
-                        style={{
-                            fontSize: 'clamp(3rem, 4.5vw, 3.8rem)',
-                            fontWeight: 'var(--font-weight-bold)',
-                            color: 'var(--color-text-primary)',
-                            marginBottom: 'var(--spacing-lg)',
-                        }}
-                    >
-                        Curated Collections
-                    </h2>
-                    <p
-                        style={{
-                            fontSize: 'var(--font-size-2xl)',
-                            color: 'var(--color-text-secondary)',
-                            lineHeight: '1.8',
-                        }}
-                    >
-                        Explore carefully organized albums curated by our passionate community. Discover new visual content and get inspired by creative collections.
-                    </p>
-                </div>
-            </div>
-        </section>
+            badge="Collections"
+            title="Curated by people who care"
+            description="Every collection on SISE is built by someone with a point of view. Browse community albums, save what inspires you, and organize it your way."
+            bullets={[
+                'Community-curated albums across every visual style',
+                'Save images to personal boards with one click',
+                'Editorial collections updated regularly',
+            ]}
+            imageSrc="/images/feature-2.png"
+            imageAlt="Curated Collections"
+            imageLeft={true}
+            bg="var(--color-bg-secondary)"
+            ctaLabel="Explore sharing tools"
+            ctaTarget="feature3"
+        />
     );
 
-    // ===== SECTION 4: FEATURE 3 (TEXT LEFT, IMAGE RIGHT) =====
-    const Feature3Section = () => (
-        <section
+    const Feature3Section = ({ onPageChange }: { onPageChange?: (page: 'introduce' | 'about' | 'explore' | 'terms' | 'login' | 'register') => void }) => (
+        <FeatureSection
             id="feature3"
-            className="introduce-section introduce-section--feature3"
-            style={{
-                background: 'linear-gradient(to bottom, #f2f2f2 0%, #ffffff 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '100vh',
-            }}
-        >
-            <div style={getContainerStyle()}>
-                {/* TEXT - 45% */}
-                <div style={getTextContainerStyle()}>
-                    <h2
-                        style={{
-                            fontSize: 'clamp(3rem, 4.5vw, 3.8rem)',
-                            fontWeight: 'var(--font-weight-bold)',
-                            color: 'var(--color-text-primary)',
-                            marginBottom: 'var(--spacing-lg)',
-                        }}
-                    >
-                        Share & Collaborate
-                    </h2>
-                    <p
-                        style={{
-                            fontSize: 'var(--font-size-2xl)',
-                            color: 'var(--color-text-secondary)',
-                            lineHeight: '1.8',
-                        }}
-                    >
-                        Create your own albums and share visual discoveries with others. Collaborate with the community and build meaningful connections around shared interests.
-                    </p>
-                </div>
-
-                {/* IMAGE - 45% */}
-                <div style={getImageContainerStyle()}>
-                    <img
-                        src="/images/feature-3.png"
-                        alt="Share & Collaborate"
-                        style={{ ...getImageStyle(), height: '400px' }}
-                    />
-                </div>
-            </div>
-        </section>
+            badge="Collaborate"
+            title="Share what you see"
+            description="Build collections with others, publish your own albums, and engage with a community that takes images seriously."
+            bullets={[
+                'Publish collections publicly or keep them private',
+                'Invite collaborators to contribute and edit together',
+                'Comment, discuss, and engage with the community',
+            ]}
+            imageSrc="/images/feature-3.png"
+            imageAlt="Share & Collaborate"
+            imageLeft={false}
+            bg="var(--color-bg-primary)"
+            ctaLabel="Get started free"
+            ctaTarget="cta"
+            onCtaClick={() => onPageChange?.('login')}
+        />
     );
+
 
  /**
  * @file CTA Section in LandingPage.tsx
@@ -2029,19 +2358,19 @@ function TermsPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
             {/* USER CONTENT AND OWNERSHIP */}
             <section style={sectionStyle}>
                 <h2 style={sectionTitleStyle}>User Content and Ownership</h2>
-                <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                     Ownership
                 </h3>
                 <p style={bodyTextStyle}>
                     Users retain ownership of images they upload.
                 </p>
-                <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                     License to SISE
                 </h3>
                 <p style={bodyTextStyle}>
                     By uploading, you grant SISE a non-exclusive, worldwide license to host, display, and distribute the content on the platform for the purpose of operating and promoting the service. This license is revocable by deleting the content, subject to cached copies and legal obligations.
                 </p>
-                <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                     Prohibited Content
                 </h3>
                 <p style={bodyTextStyle}>
@@ -2052,13 +2381,13 @@ function TermsPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
             {/* RIGHTS AND RESPONSIBILITIES */}
             <section style={sectionStyle}>
                 <h2 style={sectionTitleStyle}>Rights and Responsibilities</h2>
-                <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                     User Responsibilities
                 </h3>
                 <p style={bodyTextStyle}>
                     You are responsible for the content you upload and for complying with applicable laws.
                 </p>
-                <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                     Platform Rights
                 </h3>
                 <p style={bodyTextStyle}>
@@ -2077,13 +2406,13 @@ function TermsPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
             {/* PRIVACY AND DATA USE */}
             <section style={sectionStyle}>
                 <h2 style={sectionTitleStyle}>Privacy and Data Use</h2>
-                <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                     Data Handling
                 </h3>
                 <p style={bodyTextStyle}>
                     We collect and process personal data as described in our Privacy Policy. We use data to operate the service, improve features, and communicate with users.
                 </p>
-                <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                     Third Parties
                 </h3>
                 <p style={bodyTextStyle}>
@@ -2094,13 +2423,13 @@ function TermsPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
             {/* DISCLAIMERS AND LIABILITY */}
             <section style={sectionStyle}>
                 <h2 style={sectionTitleStyle}>Disclaimers and Limitation of Liability</h2>
-                <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                     No Warranty
                 </h3>
                 <p style={bodyTextStyle}>
                     The service is provided "as is." SISE disclaims implied warranties to the fullest extent permitted by law.
                 </p>
-                <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                     Limitation of Liability
                 </h3>
                 <p style={bodyTextStyle}>
@@ -2111,13 +2440,13 @@ function TermsPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
             {/* TERMINATION AND SUSPENSION */}
             <section style={sectionStyle}>
                 <h2 style={sectionTitleStyle}>Termination and Suspension</h2>
-                <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                     Termination
                 </h3>
                 <p style={bodyTextStyle}>
                     Either party may terminate the relationship by closing the account or discontinuing the service.
                 </p>
-                <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                     Survival
                 </h3>
                 <p style={bodyTextStyle}>
@@ -2156,7 +2485,7 @@ function TermsPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
             <section style={sectionStyle}>
                 <h2 style={sectionTitleStyle}>FAQ</h2>
                 <div style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                    <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                    <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                         Who owns my photos?
                     </h3>
                     <p style={bodyTextStyle}>
@@ -2164,7 +2493,7 @@ function TermsPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
                     </p>
                 </div>
                 <div style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                    <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                    <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                         How do I report abuse?
                     </h3>
                     <p style={bodyTextStyle}>
@@ -2172,7 +2501,7 @@ function TermsPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
                     </p>
                 </div>
                 <div>
-                    <h3 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
+                    <h3 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
                         How do I remove my content?
                     </h3>
                     <p style={bodyTextStyle}>
@@ -2218,7 +2547,7 @@ function TermsPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
             </section>
         </div>
     );
-}
+} 
 
 /**
  * LandingPage: Main landing page
