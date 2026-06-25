@@ -634,7 +634,7 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
         />
     );
 
-    const Feature3Section = ({ onPageChange }: { onPageChange?: (page: 'introduce' | 'about' | 'explore' | 'terms' | 'login' | 'register') => void }) => (
+    const Feature3Section = () => (
         <FeatureSection
             id="feature3"
             badge="Collaborate"
@@ -651,7 +651,12 @@ function IntroducePage({ onPageChange }: { onPageChange?: (page: 'terms' | 'logi
             bg="var(--color-bg-primary)"
             ctaLabel="Get started free"
             ctaTarget="cta"
-            onCtaClick={() => onPageChange?.('login')}
+            onCtaClick={() => {
+                const ctaElement = document.getElementById('cta');
+                if (ctaElement) {
+                    ctaElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }}
         />
     );
 
@@ -2032,31 +2037,31 @@ function AboutPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
                         Ready to explore SISE? Sign up to create your first album and start discovering amazing image collections.
                     </p>
                     <button
-                        onClick={() => onPageChange?.('login')}
-                        style={{
-                            padding: 'var(--spacing-base) var(--spacing-2xl)',
-                            backgroundColor: 'var(--color-brand-primary)',
-                            color: 'var(--color-text-inverted)',
-                            fontWeight: 'var(--font-weight-semibold)',
-                            fontSize: 'var(--font-size-base)',
-                            borderRadius: 'var(--radius-full)',
-                            border: 'none',
-                            cursor: 'pointer',
-                            transition: 'all var(--duration-normal) var(--easing-in-out)',
-                            boxShadow: '0 4px 12px rgba(0, 120, 215, 0.3)',
-                            marginRight: 'var(--spacing-lg)',
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'var(--color-brand-primary-hover)';
-                            e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 120, 215, 0.4)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'var(--color-brand-primary)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 120, 215, 0.3)';
-                        }}
-                    >
-                        Sign Up
-                    </button>
+                         onClick={() => onPageChange?.('introduce')}
+                         style={{
+                             padding: 'var(--spacing-base) var(--spacing-2xl)',
+                             backgroundColor: 'var(--color-brand-primary)',
+                             color: 'var(--color-text-inverted)',
+                             fontWeight: 'var(--font-weight-semibold)',
+                             fontSize: 'var(--font-size-base)',
+                             borderRadius: 'var(--radius-full)',
+                             border: 'none',
+                             cursor: 'pointer',
+                             transition: 'all var(--duration-normal) var(--easing-in-out)',
+                             boxShadow: '0 4px 12px rgba(0, 120, 215, 0.3)',
+                             marginRight: 'var(--spacing-lg)',
+                         }}
+                         onMouseEnter={(e) => {
+                             e.currentTarget.style.backgroundColor = 'var(--color-brand-primary-hover)';
+                             e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 120, 215, 0.4)';
+                         }}
+                         onMouseLeave={(e) => {
+                             e.currentTarget.style.backgroundColor = 'var(--color-brand-primary)';
+                             e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 120, 215, 0.3)';
+                         }}
+                     >
+                         Sign Up
+                     </button>
                     <button
                         onClick={() => onPageChange?.('introduce')}
                         style={{
@@ -2189,10 +2194,10 @@ function buildDisplayOrder(presentIdx: number): ExploreItem[] {
 interface ContentBlockProps {
     item: ExploreItem;
     isExiting: boolean;
-    onStartNow: () => void;
+    onPageChange?: (page: 'introduce' | 'about' | 'explore' | 'terms' | 'login' | 'register') => void;
 }
 
-function ContentBlock({ item, isExiting, onStartNow }: ContentBlockProps): React.ReactElement {
+function ContentBlock({ item, isExiting, onPageChange }: ContentBlockProps): React.ReactElement {
     const cls = `explore-content${isExiting ? ' explore-content--exit' : ''}`;
     return (
         <div className={cls}>
@@ -2202,11 +2207,21 @@ function ContentBlock({ item, isExiting, onStartNow }: ContentBlockProps): React
             <div className="explore-btn"   style={{ opacity: 0 }}>
                 <button>Wanna See More?</button>
                 <a
-                    className="explore-start-link"
-                    href="#"
-                    onClick={(e) => { e.preventDefault(); onStartNow(); }}
+                     className="explore-start-link"
+                     href="#"
+                     onClick={(e) => {
+                         e.preventDefault();
+                         // Navigate to introduce first, then scroll to CTA after page renders
+                         onPageChange?.('introduce');
+                         setTimeout(() => {
+                             const ctaElement = document.getElementById('cta');
+                             if (ctaElement) {
+                                 ctaElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                             }
+                         }, 150);
+                     }}
                 >
-                    Start now
+                     Start now
                 </a>
             </div>
         </div>
@@ -2685,7 +2700,7 @@ function ExplorePage({
                                     key={contentKey}
                                     item={item}
                                     isExiting={isExitingContent}
-                                    onStartNow={() => onPageChange?.('login')}
+                                    onPageChange={onPageChange}
                                 />
                             )}
                         </div>
@@ -3117,8 +3132,8 @@ function TermsPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
                     <h2 style={sectionTitleStyle}>Contact and Notices</h2>
                     <p style={bodyTextStyle}>
                         For legal notices and support:{' '}
-                        <a href="mailto:support@sise.example" style={{ color: 'var(--color-brand-primary)', textDecoration: 'underline' }}>
-                            support@sise.example
+                        <a href="mailto:chuyenlic4.2020@gmail.com" style={{ color: 'var(--color-brand-primary)', textDecoration: 'underline' }}>
+                            chuyenlic4.2020@gmail.com
                         </a>
                     </p>
                     <button onClick={() => copyAnchorLink('contact')} style={copyLinkBtnStyle}>
@@ -3161,8 +3176,8 @@ function TermsPage({ onPageChange }: { onPageChange?: (page: 'introduce' | 'abou
                 <section style={{ marginTop: 'var(--spacing-5xl)', paddingTop: 'var(--spacing-4xl)', borderTop: '1px solid var(--color-border-light)' }}>
                     <p style={bodyTextStyle}>
                         Have questions about our terms? Contact us at{' '}
-                        <a href="mailto:support@sise.example" style={{ color: 'var(--color-brand-primary)', textDecoration: 'underline' }}>
-                            support@sise.example
+                        <a href="mailto:chuyenlic4.2020@gmail.com" style={{ color: 'var(--color-brand-primary)', textDecoration: 'underline' }}>
+                            chuyenlic4.2020@gmail.com
                         </a>
                     </p>
                     <button
@@ -3310,52 +3325,68 @@ export function LandingPage(): React.ReactElement {
                     {/* RIGHT CONTAINER: Sign In + Sign Up */}
                     <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'center' }}>
                         {/* Sign In Button - using CSS variables */}
-                        <button
-                            onClick={() => window.location.href = '/login'}
-                            style={{
-                                padding: `var(--spacing-md) var(--spacing-lg)`,
-                                backgroundColor: 'var(--color-brand-primary)',
-                                color: 'var(--color-text-inverted)',
-                                fontWeight: 'var(--font-weight-semibold)',
-                                borderRadius: 'var(--radius-xl)',
-                                border: 'none',
-                                cursor: 'pointer',
-                                transition: `all var(--duration-normal) var(--easing-in-out)`,
-                                fontSize: 'var(--font-size-xl)',
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--color-brand-primary-hover)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--color-brand-primary)';
-                            }}
-                        >
-                            Sign In
-                        </button>
+                         <button
+                             onClick={() => {
+                                 setActivePage('introduce');
+                                 setTimeout(() => {
+                                     const ctaElement = document.getElementById('cta');
+                                     if (ctaElement) {
+                                         ctaElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                     }
+                                 }, 150);
+                             }}
+                             style={{
+                                 padding: `var(--spacing-md) var(--spacing-lg)`,
+                                 backgroundColor: 'var(--color-brand-primary)',
+                                 color: 'var(--color-text-inverted)',
+                                 fontWeight: 'var(--font-weight-semibold)',
+                                 borderRadius: 'var(--radius-xl)',
+                                 border: 'none',
+                                 cursor: 'pointer',
+                                 transition: `all var(--duration-normal) var(--easing-in-out)`,
+                                 fontSize: 'var(--font-size-xl)',
+                             }}
+                             onMouseEnter={(e) => {
+                                 e.currentTarget.style.backgroundColor = 'var(--color-brand-primary-hover)';
+                             }}
+                             onMouseLeave={(e) => {
+                                 e.currentTarget.style.backgroundColor = 'var(--color-brand-primary)';
+                             }}
+                         >
+                             Sign In
+                         </button>
 
                         {/* Sign Up Button - using CSS variables */}
-                        <button
-                            onClick={() => window.location.href = '/register'}
-                            style={{
-                                padding: `var(--spacing-md) var(--spacing-lg)`,
-                                backgroundColor: 'var(--color-gray-light)',
-                                color: 'var(--color-text-primary)',
-                                fontWeight: 'var(--font-weight-semibold)',
-                                borderRadius: 'var(--radius-xl)',
-                                border: `1px solid var(--color-border-light)`,
-                                cursor: 'pointer',
-                                transition: `all var(--duration-normal) var(--easing-in-out)`,
-                                fontSize: 'var(--font-size-xl)',
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--color-border-light)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--color-gray-light)';
-                            }}
-                        >
-                            Sign Up
-                        </button>
+                         <button
+                             onClick={() => {
+                                 setActivePage('introduce');
+                                 setTimeout(() => {
+                                     const ctaElement = document.getElementById('cta');
+                                     if (ctaElement) {
+                                         ctaElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                     }
+                                 }, 150);
+                             }}
+                             style={{
+                                 padding: `var(--spacing-md) var(--spacing-lg)`,
+                                 backgroundColor: 'var(--color-gray-light)',
+                                 color: 'var(--color-text-primary)',
+                                 fontWeight: 'var(--font-weight-semibold)',
+                                 borderRadius: 'var(--radius-xl)',
+                                 border: `1px solid var(--color-border-light)`,
+                                 cursor: 'pointer',
+                                 transition: `all var(--duration-normal) var(--easing-in-out)`,
+                                 fontSize: 'var(--font-size-xl)',
+                             }}
+                             onMouseEnter={(e) => {
+                                 e.currentTarget.style.backgroundColor = 'var(--color-border-light)';
+                             }}
+                             onMouseLeave={(e) => {
+                                 e.currentTarget.style.backgroundColor = 'var(--color-gray-light)';
+                             }}
+                         >
+                             Sign Up
+                         </button>
                     </div>
                 </div>
             }

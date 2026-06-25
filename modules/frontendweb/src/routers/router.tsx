@@ -2,7 +2,7 @@
 // Đây là tệp dùng để quản lí, sắp xếp các Page trong web của chúng ta, giúp cho việc điều hướng giữa các trang trở nên dễ dàng hơn.
 /*
 Công dụng: Quản lý tất cả routes (URL paths)
-  - Định nghĩa đường dẫn: /login, /register, /dashboard, ...
+  - Định nghĩa đường dẫn: /dashboard, ...
   - Quyết định page nào hiển thị cho URL nào
   - Bảo vệ routes (ProtectedRoute)
   - Xử lý điều hướng khi login/logout
@@ -11,8 +11,6 @@ Bạn cần biết: Muốn thêm page mới? Thêm Route mới ở đây
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { LandingPage } from '../pages/LandingPage';
-import { LoginPage } from '../pages/LoginPage';
-import { RegisterPage } from '../pages/RegisterPage';
 import { AUTH_CONFIG } from '../configs/auth_configs';
 import { getStoredToken } from '../services/auth_services';
 
@@ -22,18 +20,7 @@ import { getStoredToken } from '../services/auth_services';
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const token = getStoredToken();
     if (!token) {
-        return <Navigate to="/login" replace />;
-    }
-    return <>{children}</>;
-};
-
-/**
- * Public Route wrapper to redirect authenticated users away from login/register.
- */
-const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const token = getStoredToken();
-    if (token) {
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to="/" replace />;
     }
     return <>{children}</>;
 };
@@ -70,24 +57,6 @@ const RouterConfig: React.FC = () => {
                         }
                         return <LandingPage />;
                     })()
-                }
-            />
-
-            {/* Public auth routes */}
-            <Route
-                path="/login"
-                element={
-                    <PublicRoute>
-                        <LoginPage />
-                    </PublicRoute>
-                }
-            />
-            <Route
-                path="/register"
-                element={
-                    <PublicRoute>
-                        <RegisterPage />
-                    </PublicRoute>
                 }
             />
 
