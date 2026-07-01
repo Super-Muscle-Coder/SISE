@@ -545,49 +545,568 @@ phase_4:
 # ---------------------------------------------------------------------------
 # PHASE 5 — Integration & Evaluation (AG-00 điều phối)
 # ---------------------------------------------------------------------------
+# =============================================================================
+# TASKS — SISE  (Phase 5 mở rộng + Phase 6 mới)
+# =============================================================================
+# Vai trò : Bổ sung cho Tasks.yaml gốc (v1.0.0).
+#           Thay thế toàn bộ nội dung phase_5 hiện tại và thêm phase_6 mới.
+#           Paste vào cuối Tasks.yaml, xóa phase_5 cũ.
+# Writer  : Project Owner + AG-00
+# Reader  : Tất cả agents
+# Version : 1.1.0
+# Context : Phase 0–4 hoàn tất. Frontend dừng ở auth (login/register).
+#           Tất cả Docker image đã có trên local + registry.
+#           Mục tiêu: demo + nộp đồ án, môi trường localhost/Docker.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# PHASE 5 — Contract Verification & Module Hardening
+# Mục tiêu: Đảm bảo từng module tuân thủ đúng data_schema.yaml + openapi.yaml
+#           TRƯỚC KHI tích hợp. Lỗi phát hiện ở đây rẻ hơn lỗi phát hiện khi ghép.
+# Prerequisite: Tất cả module đã build thành Docker image thành công.
+# ---------------------------------------------------------------------------
 phase_5:
-  name: "Integration, Benchmarking & CI/CD"
+  name: "Contract Verification & Module Hardening"
   owner: AG-00
   status: backlog
   notes_from_ag00: >
-    Tập trung hoàn tất chuỗi workflow cốt lõi end-to-end trước, sau đó mới mở
-    rộng benchmarking và CI/CD nâng cao.
+    Đây là giai đoạn "kiểm tra hộ chiếu" trước khi cho phép từng module
+    qua biên giới tích hợp. Không skip. Lỗi contract ở đây → bug khó debug
+    sau khi ghép stack. Thứ tự: AG-01 → AG-02 → AG-03 → AG-04.
 
   tasks:
 
+    # ── AG-01: AIModule ────────────────────────────────────────────────────
     - id: T005-01
-      title: "[workflow:integration] Docker Compose full stack integration bundle"
+      title: "[AG-01] Contract verification: AIModule"
+      assigned_to: AG-01
+      priority: P0
+      status: backlog
+      description: >
+        Kiểm tra AIModule tuân thủ đúng openapi.yaml và data_schema.yaml.
+        Đây là lớp kiểm tra TRƯỚC khi build lại image — nếu phát hiện lỗi
+        thì sửa code trước, build sau.
+      depends_on: []
+      acceptance_criteria:
+        # Input contract
+        - POST /embed/image chỉ nhận image/jpeg và image/png (per global_configs.allowed_content_types)
+        - POST /embed/image từ chối file > 20MB với HTTP 413 (per global_configs.max_file_size_mb)
+        - POST /embed/text nhận UTF-8 string, không nhận null hoặc empty string
+        # Output contract
+        - Response vector là float32[] có đúng 512 phần tử (per global_configs.vector_dim)
+        - Response shape không thay đổi giữa image và text embed (cùng dim)
+        - Error response đúng StandardError schema trong openapi.yaml
+        # Health
+        - GET /health/liveness trả HTTP 200
+        - GET /health/readiness trả HTTP 200 khi model loaded, HTTP 503 khi chưa
+      notes_to_ag00: ""
+
+    # ── AG-02: StorageModule ───────────────────────────────────────────────
+    - id: T005-02
+      title: "[AG-02] Contract verification: StorageModule"
+      assigned_to: AG-02
+      priority: P0
+      status: backlog
+      description: >
+        Xác nhận StorageModule (schema, collection, bucket) khớp hoàn toàn
+        với data_schema.yaml. Đặc biệt kiểm tra các ràng buộc hay bị bỏ sót.
+      depends_on: []
+      acceptance_criteria:
+        # PostgreSQL
+        - Bảng images.privacy_level có CHECK (IN (0,1,2)) — không cho giá trị ngoài range
+        - Bảng images.index_status có CHECK (IN ('pending','ready','failed'))
+        - Bảng friends có CHECK (user_id <> friend_id) — không tự kết bạn với mình
+        - Tất cả 6 index bắt buộc tồn tại (idx_images_user_id, idx_images_privacy_level,
+          idx_images_created_at, idx_images_tags_gin, idx_images_index_status, idx_friends_user_id)
+        - Extension uuid-ossp và pgcrypto đã được cài
+        # Milvus
+        - Collection sise_v1 tồn tại với vector dim = 512 (cứng, không phải 768)
+        - Index type = HNSW, M = 16, efConstruction = 200 (per data_schema.yaml)
+        - metric_type = COSINE
+        # MinIO
+        - Bucket raw-images và thumbnails tồn tại
+        - Storage policy = private (không public access trực tiếp)
+        - Lifecycle rule thumbnails expire 365 ngày tồn tại
+        - Presigned URL có thể được tạo thành công với expiry = 3600s
+      notes_to_ag00: ""
+
+    # ── AG-03: BackendModule ───────────────────────────────────────────────
+    - id: T005-03
+      title: "[AG-03] Contract verification: BackendModule"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Kiểm tra BackendModule implement đúng openapi.yaml và
+        transaction_semantics trong data_schema.yaml.
+        Focus vào 3 điểm dễ sai nhất: upload pipeline 5 bước,
+        privacy filter level 1 (Friends), và idempotency.
+      depends_on: []
+      acceptance_criteria:
+        # Auth endpoints
+        - POST /auth/register trả 409 khi email hoặc username đã tồn tại
+        - POST /auth/login trả 401 khi sai password, không trả 400
+        - JWT payload chứa đúng {user_id, username, exp}
+        # Upload pipeline — kiểm tra đúng 5 bước transaction_semantics
+        - S1: POST /media/upload/init trả {upload_url, object_key} — không trả thêm field lạ
+        - S3: Sau confirm, images.index_status = 'pending' trong PostgreSQL
+        - S3 compensating action: nếu PostgreSQL INSERT lỗi, MinIO object phải bị xóa
+        - S4: Celery task được enqueue sau confirm thành công
+        - S5: Sau Celery task thành công, index_status = 'ready'
+        # Privacy filter
+        - Search với privacy_level = 1 (Friends): JOIN bảng friends đúng cách
+        - Ảnh privacy_level = 0 không xuất hiện trong kết quả của user khác
+        - Ảnh privacy_level = 1 chỉ xuất hiện với bạn bè của chủ ảnh
+        # Idempotency
+        - Request với Idempotency-Key trùng trả cùng job_id, không enqueue lại
+        - TTL của idempotency key = 24 giờ (per data_schema.yaml)
+        # Health
+        - GET /health/readiness trả header X-Expected-Vector-Dim: 512
+        - GET /health/readiness trả HTTP 503 khi bất kỳ dependency nào down
+      notes_to_ag00: ""
+
+    # ── AG-04: FrontendWeb ─────────────────────────────────────────────────
+    - id: T005-04
+      title: "[AG-04] Contract verification: FrontendWeb"
+      assigned_to: AG-04
+      priority: P0
+      status: backlog
+      description: >
+        Kiểm tra Frontend không để lọt các input sai định dạng trước khi
+        gửi lên Backend. Frontend là tuyến phòng thủ đầu tiên.
+      depends_on: []
+      acceptance_criteria:
+        # File upload validation — phải validate TRƯỚC khi gửi lên backend
+        - Upload component từ chối file không phải image/jpeg hoặc image/png
+        - Upload component từ chối file > 20MB với thông báo rõ ràng cho user
+        - Không gọi /media/upload/init nếu file chưa pass local validation
+        # Auth flow
+        - JWT được lưu đúng nơi (không localStorage nếu lo bảo mật, dùng httpOnly cookie hoặc memory)
+        - Axios interceptor tự động attach Bearer token vào mọi request
+        - Khi JWT hết hạn, redirect về login — không crash silently
+        # API calls
+        - Không có hardcoded URL — dùng env var VITE_API_BASE_URL
+        - Không gọi thẳng AI Service hay MinIO — chỉ gọi Backend
+      notes_to_ag00: ""
+
+    # ── Docker image rebuild ───────────────────────────────────────────────
+    - id: T005-05
+      title: "[AG-00] Rebuild & re-tag Docker images sau contract fix"
       assigned_to: AG-00
       priority: P0
       status: backlog
       description: >
-        Merge tất cả service configs vào docker-compose.yml chính.
-        Cấu hình Nginx reverse proxy, internal network, volumes.
-      depends_on: [T003-07, T002-06, T001-04]
+        Sau khi T005-01 → T005-04 xác nhận các lỗi contract và agents đã sửa,
+        rebuild tất cả image bị ảnh hưởng, tag với version mới, push lên registry.
+        Ghi lại image digest vào session log.
+      depends_on: [T005-01, T005-02, T005-03, T005-04]
+      acceptance_criteria:
+        - Tất cả image được tag dạng {service}:{version} — không dùng tag 'latest' cho production
+        - Image digest được ghi vào .context/Sessions/ log của session này
+        - docker compose pull lấy đúng version mới từ registry
+      notes_to_ag00: ""
 
-    - id: T005-02
-      title: "[workflow:e2e] E2E smoke test bundle"
+# ---------------------------------------------------------------------------
+# PHASE 6 — Integration, Alpha Testing & Beta Testing
+# Mục tiêu: Ghép toàn bộ stack, chạy Alpha test (đúng không?),
+#           sau đó Beta test (nhanh không? ổn định không?).
+# Prerequisite: Tất cả task Phase 5 phải ở status 'done'.
+# ---------------------------------------------------------------------------
+phase_6:
+  name: "Integration, Alpha & Beta Testing"
+  owner: AG-00
+  status: backlog
+  notes_from_ag00: >
+    Phase 6 có 3 sub-giai đoạn tuần tự: Integration (ghép stack) →
+    Alpha (đúng không) → Beta (nhanh không). Không nhảy cóc.
+    Môi trường: localhost Docker Compose only. Không có server riêng.
+
+  tasks:
+
+    # ════════════════════════════════════════════════════════════════════════
+    # SUB-PHASE 6A: INTEGRATION — Ghép toàn bộ stack
+    # ════════════════════════════════════════════════════════════════════════
+
+    - id: T006-01
+      title: "[workflow:compose] Docker Compose full stack bundle"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Tạo docker-compose.yml root ở thư mục SISE/ tích hợp tất cả services.
+        Thứ tự khởi động bắt buộc:
+          Tầng 1 (Storage): postgres, etcd, minio, milvus, redis
+          Tầng 2 (Services): ai-service và backend (song song, sau khi Storage healthy)
+          Tầng 3 (Workers): celery-worker (sau khi backend healthy)
+          Tầng 4 (Client): frontend-web (sau khi backend healthy)
+        Tất cả service phải dùng condition: service_healthy — không dùng service_started.
+      depends_on: [T005-05]
+      acceptance_criteria:
+        - docker compose up -d khởi động toàn bộ 9 containers không lỗi
+        - Tất cả containers đạt status 'healthy' trong vòng 120 giây
+        - Internal DNS hoạt động: backend ping được ai-service, postgres, milvus, minio, redis
+        - Không có port conflict — danh sách port được document rõ trong file
+        - File .env.example chứa đủ tất cả required_env_vars trong data_schema.yaml
+        - File .env thật được thêm vào .gitignore
+      notes_to_ag00: >
+        Port mapping tham khảo: 80 (frontend), 8000 (backend), 8001 (ai-service),
+        5432 (postgres), 9000/9001 (minio), 19530 (milvus), 6379 (redis).
+
+    - id: T006-02
+      title: "[workflow:migration] Auto-migration & bucket init khi stack khởi động"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Đảm bảo khi chạy docker compose up, hệ thống tự:
+        1. Chạy Alembic migration (tạo 4 bảng PostgreSQL + indexes)
+        2. Khởi tạo Milvus collection sise_v1 (idempotent)
+        3. Tạo MinIO buckets raw-images, thumbnails (idempotent)
+        Có thể dùng init container hoặc entrypoint script trong backend/storage.
+      depends_on: [T006-01]
+      acceptance_criteria:
+        - Chạy stack trên máy mới (chưa có data) → migration tự chạy, không cần lệnh tay
+        - Chạy stack lần 2 → migration idempotent, không lỗi "table already exists"
+        - Log migration thành công visible qua docker compose logs backend
+      notes_to_ag00: ""
+
+    - id: T006-03
+      title: "[workflow:smoke] E2E smoke test bundle"
       assigned_to: AG-03
       priority: P0
       status: backlog
       description: >
-        Chạy scripts/tests/e2e_smoke.sh: upload → embed → index → search → verify.
-        Toàn bộ pipeline phải pass trong môi trường Docker Compose.
-      depends_on: [T005-01]
+        Viết và chạy scripts/tests/e2e_smoke.sh với kịch bản đầy đủ:
+          1. Register tài khoản mới
+          2. Login, lấy JWT
+          3. Tạo album
+          4. Upload 1 ảnh JPEG (presigned URL flow)
+          5. Polling index_status cho đến khi = 'ready' (timeout 30s)
+          6. Search bằng text query liên quan đến ảnh đó
+          7. Xác nhận ảnh vừa upload xuất hiện trong top-5 kết quả
+        Tất cả bước phải pass. Script trả exit code 0 khi pass, 1 khi fail.
+      depends_on: [T006-02]
+      acceptance_criteria:
+        - e2e_smoke.sh chạy xong trong < 60 giây (môi trường local không GPU)
+        - Toàn bộ 7 bước pass không có lỗi HTTP
+        - Script có thể chạy lại nhiều lần (idempotent — cleanup sau mỗi lần chạy)
+        - Output rõ ràng: mỗi bước in PASS/FAIL và thời gian thực thi
+      notes_to_ag00: >
+        Script này sẽ được tích hợp vào start.sh ở Phase 7 để chạy tự động sau khi
+        stack lên. Viết portable (bash), không phụ thuộc Python.
 
-    - id: T005-03
-      title: "[workflow:benchmark] Benchmarking bundle"
+    # ════════════════════════════════════════════════════════════════════════
+    # SUB-PHASE 6B: ALPHA TESTING — Đúng không?
+    # Kiểm tra tính đúng đắn của từng nghiệp vụ. Pass/Fail rõ ràng.
+    # ════════════════════════════════════════════════════════════════════════
+
+    - id: T006-04
+      title: "[alpha] Auth flow test"
       assigned_to: AG-03
       priority: P0
       status: backlog
       description: >
-        Chạy scripts/bench/mrr_benchmark.py trên test set chuẩn.
-        Ghi lại embedding_latency_ms và mrr_score. So sánh HNSW vs IVF.
-      depends_on: [T005-02]
+        Test toàn diện luồng xác thực. Kiểm tra cả happy path lẫn error cases.
+      depends_on: [T006-03]
+      acceptance_criteria:
+        # Happy path
+        - Register thành công → user tồn tại trong PostgreSQL với password_hash (không plain text)
+        - Login thành công → JWT trả về có đủ {user_id, username, exp}
+        - JWT exp đúng giá trị cấu hình (không phải expire ngay lập tức)
+        # Error cases
+        - Register email đã tồn tại → HTTP 409
+        - Register username đã tồn tại → HTTP 409
+        - Login sai password → HTTP 401 (không phải 400 hay 500)
+        - Gọi protected endpoint không có token → HTTP 401
+        - Gọi protected endpoint với token giả → HTTP 401
+        - Token hết hạn → HTTP 401 với message rõ ràng
+      notes_to_ag00: ""
 
-    - id: T005-04
-      title: "[workflow:cicd] GitHub Actions CI/CD hoàn chỉnh bundle"
+    - id: T006-05
+      title: "[alpha] Upload pipeline test (5-bước transaction_semantics)"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Kiểm tra đúng từng bước trong data_schema.yaml → transaction_semantics.upload_pipeline.
+        Đây là nghiệp vụ phức tạp nhất — nhiều compensating action.
+      depends_on: [T006-03]
+      acceptance_criteria:
+        # Happy path
+        - S1: /media/upload/init trả upload_url (presigned) và object_key
+        - S2: PUT trực tiếp lên presigned URL thành công (HTTP 200 từ MinIO)
+        - S3: /media/upload/confirm → images.index_status = 'pending' trong PostgreSQL
+        - S4: Celery task xuất hiện trong queue sau confirm
+        - S5: Sau khi Celery chạy xong, index_status = 'ready', vector tồn tại trong Milvus
+        # Error cases & compensating actions
+        - Upload file không phải JPEG/PNG → HTTP 415 trước khi tạo presigned URL
+        - Upload file > 20MB → HTTP 413
+        - S3 lỗi (giả lập PostgreSQL unreachable) → MinIO object bị xóa (compensating action)
+        - Celery task fail 3 lần → index_status = 'failed' (không stuck ở 'pending')
+        # Data integrity
+        - Ảnh trong MinIO khớp với record trong PostgreSQL (cùng object_key)
+        - Vector trong Milvus có image_id khớp với UUID trong PostgreSQL
+        - privacy_level lưu đúng giá trị user chọn (0/1/2)
+      notes_to_ag00: ""
+
+    - id: T006-06
+      title: "[alpha] Privacy-aware search test"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Kiểm tra privacy filter hoạt động đúng với cả 3 mức. Cần tạo 3 tài khoản test.
+        Đây là tính năng dễ có security bug nhất.
+      depends_on: [T006-05]
+      acceptance_criteria:
+        # Setup: user_A, user_B (bạn của A), user_C (không quen A)
+        - user_A upload 3 ảnh: img_private (level=0), img_friends (level=1), img_public (level=2)
+        # Test search từ góc độ từng user
+        - user_A search: thấy cả 3 ảnh của mình
+        - user_B search (bạn A): thấy img_friends và img_public, KHÔNG thấy img_private
+        - user_C search (không quen A): chỉ thấy img_public, KHÔNG thấy img_private hoặc img_friends
+        - Unauthenticated search: chỉ thấy img_public
+        # Edge cases
+        - Sau khi A xóa B khỏi danh sách bạn, B không còn thấy img_friends
+        - Thay đổi privacy ảnh từ public → private: ảnh biến mất khỏi kết quả của user khác
+      notes_to_ag00: >
+        Xem data_schema.yaml → notes.privacy_level_1_query để implement đúng JOIN logic.
+        Không cache danh sách friend quá 5 phút.
+
+    - id: T006-07
+      title: "[alpha] Album & media management test"
+      assigned_to: AG-03
+      priority: P1
+      status: backlog
+      description: >
+        Test CRUD album và media. Tập trung vào soft delete và cascade behavior.
+      depends_on: [T006-05]
+      acceptance_criteria:
+        - Tạo album → GET /albums trả album mới trong list
+        - Upload ảnh vào album → ảnh có album_id đúng trong PostgreSQL
+        - Xóa ảnh (soft delete) → deleted_at được set, ảnh không xuất hiện trong kết quả search
+        - Xóa ảnh (soft delete) → ảnh vẫn còn trong MinIO và Milvus (chỉ hidden, chưa xóa thật)
+        - Xóa album → cascade: tất cả ảnh trong album bị soft delete
+        - GET ảnh đã xóa qua direct ID → HTTP 404
+      notes_to_ag00: ""
+
+    - id: T006-08
+      title: "[alpha] PostgreSQL data integrity check"
+      assigned_to: AG-02
+      priority: P1
+      status: backlog
+      description: >
+        Sau khi chạy xong T006-04 đến T006-07, query PostgreSQL trực tiếp
+        để xác minh dữ liệu được ghi đúng format và không có orphaned records.
+      depends_on: [T006-04, T006-05, T006-06, T006-07]
+      acceptance_criteria:
+        - Không có images record có user_id không tồn tại trong bảng users
+        - Không có images record có album_id không tồn tại trong bảng albums
+        - Tất cả images.index_status = 'ready' phải có vector tương ứng trong Milvus
+        - Không có images record với index_status = 'pending' quá 5 phút (stuck task)
+        - password_hash trong bảng users là bcrypt hash, không phải plain text
+        - Tất cả timestamp đều có timezone (TIMESTAMP WITH TIME ZONE)
+      notes_to_ag00: ""
+
+    # ════════════════════════════════════════════════════════════════════════
+    # SUB-PHASE 6C: BETA TESTING — Nhanh không? Ổn định không?
+    # Đo số liệu. Không cần đạt chuẩn production, chỉ cần "đủ dùng" và có số liệu báo cáo.
+    # ════════════════════════════════════════════════════════════════════════
+
+    - id: T006-09
+      title: "[beta] AI embedding latency benchmark"
+      assigned_to: AG-01
+      priority: P0
+      status: backlog
+      description: >
+        Đo embedding_latency_ms cho cả image và text embed.
+        Chạy 100 lần mỗi loại, tính mean/p50/p95. Ghi kết quả vào file.
+        Chạy trên CPU (môi trường local không có GPU).
+      depends_on: [T006-03]
+      acceptance_criteria:
+        - Script benchmark chạy được không cần tham số (có default test set)
+        - Output file JSON ghi lại: mean_ms, p50_ms, p95_ms, min_ms, max_ms
+        - image embedding mean < 5000ms trên CPU (ngưỡng "đủ dùng" cho demo)
+        - text embedding mean < 500ms trên CPU
+        - Kết quả được lưu vào scripts/bench/results/embedding_latency_{timestamp}.json
+      notes_to_ag00: >
+        Số liệu này bắt buộc có trong báo cáo đồ án. Ghi rõ hardware spec
+        (CPU model, RAM) trong file kết quả để giải thích với giảng viên.
+
+    - id: T006-10
+      title: "[beta] Search quality benchmark (MRR, HitRate, Precision, Recall)"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Chạy mrr_benchmark.py trên test set chuẩn. Test set cần được chuẩn bị trước
+        (xem notes). Ghi lại tất cả metrics bắt buộc theo DOS.md mục 2.2.E.
+      depends_on: [T006-08]
+      acceptance_criteria:
+        - Test set tối thiểu 50 ảnh với ground truth labels
+        - Đo đủ 5 chỉ số: MRR, HitRate@5, Precision@5, Recall@5, search_latency_ms
+        - Kết quả được lưu vào scripts/bench/results/search_quality_{timestamp}.json
+        - MRR >= 0.5 (ngưỡng tối thiểu để demo có ý nghĩa)
+        - p95 search latency < 3000ms trên local
+      notes_to_ag00: >
+        Test set gợi ý: dùng COCO-val subset nhỏ hoặc tự tạo bộ ảnh theo chủ đề.
+        Ground truth = danh sách image_id nên xuất hiện khi query với ảnh/text tương ứng.
+        Xem data_schema.yaml → testing_and_ci.benchmarking.
+
+    - id: T006-11
+      title: "[beta] Backend response time test"
+      assigned_to: AG-03
+      priority: P1
+      status: backlog
+      description: >
+        Đo response time của các endpoint quan trọng. Dùng locust hoặc wrk.
+        Không cần load test nặng — chỉ cần single-user latency và nhẹ concurrency.
+      depends_on: [T006-03]
+      acceptance_criteria:
+        - POST /auth/login p95 < 200ms
+        - POST /search/text p95 < 5000ms (bao gồm AI embedding time)
+        - POST /search/image p95 < 8000ms (upload + embed + search)
+        - POST /media/upload/init p95 < 500ms
+        - Kết quả lưu vào scripts/bench/results/backend_latency_{timestamp}.json
+      notes_to_ag00: ""
+
+    - id: T006-12
+      title: "[beta] Stability test — 30 phút liên tục"
       assigned_to: AG-00
       priority: P1
       status: backlog
-      depends_on: [T005-02]
+      description: >
+        Chạy toàn bộ stack liên tục 30 phút với traffic giả lập nhẹ
+        (1-2 concurrent users). Kiểm tra không có memory leak hay container crash.
+      depends_on: [T006-10, T006-11]
+      acceptance_criteria:
+        - Tất cả containers vẫn 'healthy' sau 30 phút
+        - Không có OOM (Out of Memory) kill
+        - Celery worker xử lý hết queue, không có task stuck
+        - Redis memory usage không tăng không kiểm soát
+        - Log không có ERROR level nào không giải thích được
+      notes_to_ag00: >
+        Dùng e2e_smoke.sh chạy lặp trong vòng lặp để tạo traffic.
+        Monitor bằng: docker stats --no-stream mỗi 5 phút.
+
+# ---------------------------------------------------------------------------
+# PHASE 7 — Packaging & Demo Preparation
+# Mục tiêu: Đóng gói thành sản phẩm nộp. Một lệnh khởi động. Demo sẵn sàng.
+# Prerequisite: Tất cả task Phase 6 status 'done'.
+# ---------------------------------------------------------------------------
+phase_7:
+  name: "Packaging & Demo Preparation"
+  owner: AG-00
+  status: backlog
+  notes_from_ag00: >
+    Giai đoạn cuối. Mục tiêu duy nhất: giảng viên clone repo về,
+    chạy 1 lệnh, và toàn bộ hệ thống lên với dữ liệu demo sẵn có.
+    Không cần cài bất cứ thứ gì ngoài Docker Desktop.
+
+  tasks:
+
+    - id: T007-01
+      title: "[workflow:seed] Demo data seed bundle"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        Tạo script seed dữ liệu demo để chạy tự động khi stack khởi động lần đầu.
+        Dữ liệu demo phải đủ để trình bày toàn bộ tính năng mà không cần upload thủ công.
+      depends_on: [T006-12]
+      acceptance_criteria:
+        - Tạo 3 tài khoản demo: admin/demo123, user_a/demo123, user_b/demo123
+        - user_a và user_b là bạn bè (bảng friends)
+        - Mỗi user có 2 album với tổng cộng 10+ ảnh đã được index (index_status = 'ready')
+        - Ảnh demo đa dạng chủ đề: người, phong cảnh, đồ vật (để test search có ý nghĩa)
+        - Các ảnh có đủ cả 3 mức privacy (0, 1, 2) để demo privacy filter
+        - Script idempotent: chạy lần 2 không tạo thêm bản ghi trùng
+        - Seed hoàn tất trong < 120 giây
+      notes_to_ag00: >
+        Ảnh seed nên được commit vào repo tại scripts/seed/assets/ (ảnh nhỏ, < 500KB mỗi cái).
+        Chọn ảnh có license tự do (Unsplash, Pexels).
+
+    - id: T007-02
+      title: "[workflow:start] One-command startup script bundle"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Tạo scripts/start.sh (Linux/Mac) và scripts/start.cmd (Windows).
+        Script thực hiện toàn bộ quá trình từ pull image đến stack sẵn sàng.
+      depends_on: [T006-12, T007-01]
+      acceptance_criteria:
+        - Thứ tự thực hiện trong script:
+            1. docker compose pull (lấy image mới nhất từ registry)
+            2. docker compose up -d
+            3. Đợi Storage healthy (polling /health/readiness)
+            4. Chạy Alembic migration tự động
+            5. Init Milvus collection và MinIO buckets
+            6. Chạy demo data seed (chỉ nếu database còn trống)
+            7. Chạy e2e_smoke.sh để xác nhận stack hoạt động
+            8. In URL truy cập: http://localhost (frontend), http://localhost:8000/docs (API)
+        - Script dừng và báo lỗi rõ ràng nếu bất kỳ bước nào fail
+        - Tổng thời gian chạy lần đầu < 5 phút (trên máy có internet tốt)
+        - Chạy lại lần 2: bỏ qua seed nếu data đã có, stack lên trong < 60 giây
+      notes_to_ag00: ""
+
+    - id: T007-03
+      title: "[workflow:docs] README.md + deployment documentation bundle"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Viết README.md ở root của repo. Đây là tài liệu giảng viên đọc đầu tiên.
+        Ngắn gọn, đủ dùng — không cần quá chi tiết.
+      depends_on: [T007-02]
+      acceptance_criteria:
+        - Mục "Quick Start": 3 bước (clone, cấu hình .env, chạy start.sh)
+        - Mục "Architecture": sơ đồ tổng quan (có thể là ASCII hoặc link đến file ảnh)
+        - Mục "Demo Accounts": liệt kê 3 tài khoản demo và mật khẩu
+        - Mục "Key Features": 3 tính năng nổi bật (upload, privacy search, evaluation)
+        - Mục "Benchmark Results": dán kết quả từ T006-09 và T006-10
+        - Mục "Tech Stack": bảng giống DOS.md mục 1 nhưng ngắn gọn hơn
+        - Không chứa bất kỳ secret hay credential thật nào
+      notes_to_ag00: ""
+
+    - id: T007-04
+      title: "[workflow:registry] Final image push & version lock bundle"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Tag và push tất cả image với version cuối cùng. Lock version trong
+        docker-compose.yml để không bị thay đổi khi pull.
+      depends_on: [T007-02]
+      acceptance_criteria:
+        - Tất cả image được tag với format {service}:v{major}.{minor}.{patch}
+        - docker-compose.yml dùng tag cố định — không dùng 'latest'
+        - Image digest (SHA256) được ghi vào .context/Sessions/ log cuối
+        - Chạy thử: xóa toàn bộ image local, chạy start.sh → pull về và stack lên bình thường
+      notes_to_ag00: ""
+
+    - id: T007-05
+      title: "[final] Pre-submission checklist"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Checklist cuối trước khi nộp. AG-00 tự review từng mục.
+      depends_on: [T007-01, T007-02, T007-03, T007-04]
+      acceptance_criteria:
+        # Security
+        - Không có secret, password, API key nào hardcode trong source code
+        - File .env không được commit lên repo (chỉ .env.example)
+        - .gitignore bao gồm: .env, __pycache__, node_modules, *.pyc
+        # Functionality
+        - Chạy start.sh trên máy sạch (chưa có data) → stack lên, smoke test pass
+        - Đăng nhập bằng tài khoản demo → upload ảnh → search → nhận kết quả đúng
+        - Privacy filter hoạt động đúng với cả 3 level
+        # Documentation
+        - README.md có đủ 6 mục theo T007-03
+        - Benchmark results được ghi đầy đủ (từ T006-09, T006-10)
+        - Image version được lock trong docker-compose.yml
+        # Code quality
+        - Không có debug print/console.log còn sót trong production code
+        - Tất cả endpoint trong openapi.yaml đều đã được implement
+      notes_to_ag00: ""

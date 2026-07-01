@@ -285,7 +285,7 @@
     - ISS_AG02_003: Incorrect relative paths (RESOLVED)
     - ISS_AG02_004: Services not running (DOCUMENTED)
 
-    Key distinction: Structural validation ✓, Runtime needs services ⚠
+    Key distinction: Structural validation ✓, Runtime needs services
   metrics:
     - issues_documented: 2
     - issues_resolved: 2

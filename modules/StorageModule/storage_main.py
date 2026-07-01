@@ -76,6 +76,7 @@ def _build_configs() -> tuple[PostgresConfig, SchemaConfig, MilvusConfig, MinioC
         port=milvus_port,
         collection_name=_get_required_env("COLLECTION_NAME"),
         vector_dim=_get_int_env("COLLECTION_VECTOR_DIM"),
+        index_type=_get_required_env("COLLECTION_INDEX_TYPE"),
         index_params={
             "M": _get_int_env("COLLECTION_INDEX_M"),
             "efConstruction": _get_int_env("COLLECTION_INDEX_EF_CONSTRUCTION"),
@@ -125,26 +126,27 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Storage module setup utility")
     parser.add_argument(
         "command",
-        choices=["schema", "collection", "bucket", "seed", "all"],
-        help="Which storage setup workflow to run.",
+        choices=["schema", "collection", "bucket", "seed", "init", "all"],
+        help="Which storage setup workflow to run. 'init' runs schema+collection+bucket (no seed).",
     )
     args = parser.parse_args()
 
     postgres_config, schema_config, collection_config, bucket_config = _build_configs()
 
-    if args.command in {"schema", "all"}:
+    if args.command in {"schema", "init", "all"}:
         schema_router = SchemaWorkflowRouter(postgres_config, schema_config)
         schema_router.upgrade_schema()
 
-    if args.command in {"collection", "all"}:
+    if args.command in {"collection", "init", "all"}:
         collection_router = CollectionWorkflowRouter(collection_config)
         collection_router.setup_collection()
 
-    if args.command in {"bucket", "all"}:
+    if args.command in {"bucket", "init", "all"}:
         bucket_router = BucketWorkflowRouter(bucket_config)
         bucket_router.setup_buckets()
 
     if args.command in {"seed", "all"}:
+        # 'init' intentionally excluded — seed must not run in production
         seed_router = SeedWorkflowRouter(postgres_config, bucket_config)
         seed_router.run_seed(_build_seed_config())
 

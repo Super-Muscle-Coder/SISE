@@ -44,13 +44,14 @@ def get_collection(collection_name: str) -> Collection:
 def create_hnsw_index(
     collection: Collection,
     field_name: str,
+    index_type: str,
     index_params: dict,
     metric_type: str,
 ) -> None:
     collection.create_index(
         field_name=field_name,
         index_params={
-            "index_type": "HNSW",
+            "index_type": index_type,
             "params": index_params,
             "metric_type": metric_type,
         },

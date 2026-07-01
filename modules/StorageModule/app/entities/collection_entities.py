@@ -8,6 +8,7 @@ class MilvusConfig:
     port: int
     collection_name: str
     vector_dim: int
+    index_type: str
     index_params: Dict[str, int]
     metric_type: str
     search_params: Dict[str, int]

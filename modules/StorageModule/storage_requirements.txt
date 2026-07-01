@@ -1,6 +1,32 @@
-alembic>=1.12
-SQLAlchemy>=2.0
-psycopg[binary]>=3.1
-pymilvus>=2.4.0
-minio>=7.2.0
-redis>=5.0.0
+# =============================================================================
+# StorageModule — storage_requirements.txt (pinned)
+# =============================================================================
+# Tất cả version được pin cứng (==) để đảm bảo reproducible build.
+# Cập nhật bằng cách chạy: pip freeze > storage_requirements.txt
+# trong virtualenv Python 3.13 sau khi test ổn định.
+#
+# KHÔNG dùng >= trong production requirements.
+#    >= cho phép pip tự ý upgrade lên version mới có breaking change.
+# =============================================================================
+
+# Database — PostgreSQL
+alembic==1.13.3
+SQLAlchemy==2.0.36
+psycopg[binary]==3.2.3
+
+# Vector DB — Milvus
+pymilvus==2.4.9
+
+# Object Storage — MinIO
+minio==7.2.12
+
+# Cache — Redis
+redis==5.2.1
+
+# Build & packaging
+setuptools==75.1.0
+
+# Transitive dependencies (explicit pin to match pymilvus 2.4.9 constraints)
+# pymilvus 2.4.9 requires: environs<=9.5.0, marshmallow<4.0
+marshmallow==3.19.0
+environs==9.5.0

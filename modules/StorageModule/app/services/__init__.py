@@ -1,7 +1,7 @@
-from app.services.bucket_services import ensure_buckets
-from app.services.collection_services import ensure_collection
-from app.services.schema_services import downgrade_schema, run_schema_migrations
-from app.services.seed_services import seed_storage
+from .bucket_services import ensure_buckets
+from .collection_services import ensure_collection
+from .schema_services import downgrade_schema, run_schema_migrations
+from .seed_services import seed_storage
 
 __all__ = [
     "ensure_buckets",

@@ -206,3 +206,35 @@ py -3.13 .\modules\StorageModule\tests\test_seed_workflow.py
 | ISS_AG02_003 | Incorrect relative paths | MEDIUM | ✓ RESOLVED | Use `Path(__file__).parent` |
 | ISS_AG02_004 | Services not running | CRITICAL | ✓ DOCUMENTED | Use `start_storage_stack.ps1` |
 
+---
+
+## Issue 005: Known Limitations in Collection & Seed Workflows
+
+### Issue Summary
+- **Issue ID**: LIM_AG02_001
+- **Type**: Known Limitation (not a defect)
+- **Status**: DOCUMENTED
+- **Detection Date**: 2026-05-12
+
+### Limitation 1: Milvus Collection Index.params Structure
+When validating existing collection in `collection_services._validate_index()`, 
+the code accesses `params.get("index_type")` from `index.params` dict. 
+Pymilvus 2.4.x may return different dict structures depending on client/server version.
+
+**Impact**: Runtime validation may fail to read existing index params.
+
+**Workaround**: When running collection workflow first time against real Milvus:
+1. Enable debug logging to inspect actual `index.params` structure
+2. Adjust key names in `_validate_index()` if structure differs from expected
+
+**Reproduction**: Deploy to staging → run `storage_main.py collection` → observe logs
+
+### Limitation 2: Seed Data Has index_status='ready' But Milvus Empty
+Seed script sets `images.index_status = 'ready'` but does not actually insert vectors into Milvus.
+
+**Impact**: Search queries will not match seed images until real indexing pipeline processes them.
+
+**Expected Behavior**: Seed data is for database/bucket testing only. Vector indexing happens 
+via AG-03's Celery pipeline in production, not via seed script.
+
+**Not a Bug**: Intentional. Seed script is dev/test utility, not production data loader.

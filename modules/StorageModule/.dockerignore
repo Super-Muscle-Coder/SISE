@@ -1,0 +1,44 @@
+# =============================================================================
+# StorageModule — .dockerignore
+# =============================================================================
+# Loại trừ các file không cần thiết trong Docker build context.
+# Giảm build context size và ngăn secrets lọt vào image.
+# =============================================================================
+
+# ── Secrets & configs cục bộ ─────────────────────────────────────────────────
+# KHÔNG bao giờ đưa credentials vào image
+configs/
+*.env
+*.env.local
+*.env.staging
+
+# ── Development & test artifacts ─────────────────────────────────────────────
+tests/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Documentation ─────────────────────────────────────────────────────────────
+documents/
+
+# ── Scripts Windows ───────────────────────────────────────────────────────────
+# .cmd và .ps1 không chạy được trong Linux container
+scripts/
+
+# ── IDE & Version control ─────────────────────────────────────────────────────
+.git/
+.gitignore
+*.pyproj
+*.sln
+.vs/
+env/
+.venv/
+venv/
+
+# ── Logs & temp ───────────────────────────────────────────────────────────────
+*.log
+*.tmp
