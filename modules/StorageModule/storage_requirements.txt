@@ -23,10 +23,15 @@ minio==7.2.12
 # Cache — Redis
 redis==5.2.1
 
+# bonus for production: pin wheel to avoid build issues with some packages
+wheel==0.47.0
+
 # Build & packaging
-setuptools==75.1.0
+setuptools==78.1.1
 
 # Transitive dependencies (explicit pin to match pymilvus 2.4.9 constraints)
 # pymilvus 2.4.9 requires: environs<=9.5.0, marshmallow<4.0
-marshmallow==3.19.0
+marshmallow==3.26.2
 environs==9.5.0
+
+
