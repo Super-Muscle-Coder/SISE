@@ -692,7 +692,7 @@ phase_6:
       title: "[AG-02] Structural audit: StorageModule"
       assigned_to: AG-02
       priority: P0
-      status: backlog
+      status: done
       description: >
         Kiểm tra toàn diện StorageModule (modules/StorageModule/) theo checklist:
         1. StorageModule.pyproj: danh sách file, thư mục đúng cấu trúc

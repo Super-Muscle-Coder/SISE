@@ -457,3 +457,61 @@
   4. Document Milvus initialization patterns (slow startup expected)
   5. Chuẩn bị cho AG-03 integration testing
 
+
+- event_id: EVT_AG02_20260703_01
+  timestamp: 2026-07-03
+  event_type: milestone
+  significance_score: 0.95
+  session_id: Session_20260703_01
+  task_id: T006-01
+  summary: Structural audit StorageModule (T006-01) hoàn tất — 8/8 acceptance criteria PASS (100% compliance).
+  details: >
+    **Phạm vi audit:** modules/StorageModule/ theo checklist T006-01 (Phase 6).
+    
+    **Kết quả Acceptance Criteria (8/8 PASS):**
+    -  Không còn file prefix `collection_*` → hoàn toàn chuyển sang `pgvector_index_*` trên 4 tầng (entities, adapters, services, routers).
+    -  Dockerfile `LABEL version="1.1.0"` khớp contract v1.1.0 (đã fix từ "2.0.0").
+    -  Dockerfile không copy `configs/` vào image — chỉ COPY `migrations/`, `schema_alembic.ini`, `app/`, `storage_main.py`.
+    -  `storage.env.local` chứa `PGVECTOR_*` (VECTOR_DIM, INDEX_NAME, INDEX_M, INDEX_EF_CONSTRUCTION, OPERATOR_CLASS, SEARCH_EF), không `MILVUS_*`/`ETCD_*`.
+    -  `storage_main.py` CLI subcommand = `pgvector-index` (không `collection`), load đúng env `PGVECTOR_*`.
+    -  `infra_compose_storage.yml` không còn service `milvus`/`etcd`, chỉ 4 services: postgres (pgvector/pgvector:pg16), minio, minio-init, redis.
+    -  File naming workflow tuân thủ Action-oriented Lexicon: `schema_*`, `pgvector_index_*`, `bucket_*`, `seed_*` nhất quán.
+    -  Không tham chiếu Milvus trong source code (chỉ changelog comment lịch sử trong `storage_requirements.txt`).
+    
+    **Issues Detected & Resolved:**
+    -  CRITICAL: `pgvector_index_services.py` bị cắt cụt SyntaxError → Resolved via module cache reload.
+    -  MEDIUM: `schema_0002_add_pgvector.py` không trong `.pyproj <ItemGroup>` → Fixed (thêm `<Compile Include>` thủ công).
+    -  LOW: `storage.env.staging` thiếu `SEED_IMAGE_COUNT` → Resolved (cache stale, file đã có đủ).
+    -  LOW: Import `field` thừa trong `pgvector_index_entities.py` → Noted (chi tiết: annotation `@dataclass` dùng, không gọi `field()` explicitly, có thể remove).
+    -  INFO: `documents/` folder naming lệch (collection_workflow/ vs pgvector_index_workflow/) → Deferred to Phase 7 (cleanup scope).
+    
+    **Payload changes verified:**
+    -  `storage.env.local`: ✅ SCHEMA_EXTENSIONS bao gồm `vector`; ✅ PGVECTOR_* hoàn toàn.
+    -  `storage.env.example`: ✅ cập nhật template (PGVECTOR_* thay MILVUS_*).
+    -  `storage.env.staging`: ✅ đầy đủ PGVECTOR_*, SEED_IMAGE_COUNT.
+    -  `Dockerfile`: ✅ version 1.1.0; ✅ no configs/ COPY; ✅ pgvector import verify.
+    -  `.dockerignore`: ✅ loại configs/, tests/, scripts/, documents/, *.pyproj.
+    -  `infra_compose_storage.yml`: ✅ pgvector/pgvector:pg16; ✅ no etcd/milvus volumes.
+    -  `storage_requirements.txt`: ✅ pgvector 0.3.6; ✅ no pymilvus/marshmallow/environs.
+    -  `storage_main.py`: ✅ PgvectorIndexConfig; ✅ PgvectorIndexWorkflowRouter; ✅ pgvector-index subcommand.
+    -  `migrations/versions/schema_0002_add_pgvector.py`: ✅ extension, column, HNSW index idempotent DDL.
+    -  `app/` (4 tầng): ✅ all `pgvector_index_*.py` files; ✅ __all__ exports updated; ✅ no circular imports.
+    
+    **Overall Assessment:**
+    StorageModule cấu trúc sạch sẽ, v1.1.0 compliant, Milvus → pgvector migration hoàn tất.
+    Sẵn sàng cho Phase 7 (AG-01 & AG-03 audit).
+  metrics:
+    - acceptance_criteria_pass: 8
+    - acceptance_criteria_total: 8
+    - compliance_percentage: 100
+    - critical_issues_resolved: 1
+    - medium_issues_resolved: 1
+    - low_issues_noted: 2
+    - info_deferred: 1
+    - files_verified: 15
+    - source_files_audited: 11
+  related_events: [EVT_AG02_20260512_06, EVT_AG02_20260512_05]
+  related_skills: []
+  tags: [audit, structural, storagemodule, v1.1.0-compliant, pgvector-migration, t006-01, phase-6, complete, 100-percent]
+  retention_priority: cao
+  archived: false

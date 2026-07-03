@@ -41,7 +41,7 @@ FROM python:3.13-slim-bookworm AS runtime
 
 LABEL maintainer="SISE Project"
 LABEL module="StorageModule"
-LABEL version="2.0.0"
+LABEL version="1.1.0"
 LABEL description="Storage infrastructure: PostgreSQL schemas with pgvector (HNSW), MinIO buckets, Redis cache"
 
 # Install only runtime dependencies
