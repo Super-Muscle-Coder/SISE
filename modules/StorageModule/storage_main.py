@@ -4,11 +4,11 @@ from typing import List
 from urllib.parse import urlparse
 
 from app.entities.bucket_entities import LifecycleRuleConfig, MinioConfig
-from app.entities.collection_entities import MilvusConfig
+from app.entities.collection_entities import PgvectorIndexConfig
 from app.entities.schema_entities import PostgresConfig, SchemaConfig
 from app.entities.seed_entities import SeedConfig
 from app.routers.bucket_routers import BucketWorkflowRouter
-from app.routers.collection_routers import CollectionWorkflowRouter
+from app.routers.collection_routers import PgvectorIndexWorkflowRouter
 from app.routers.schema_routers import SchemaWorkflowRouter
 from app.routers.seed_routers import SeedWorkflowRouter
 
@@ -54,16 +54,14 @@ def _build_lifecycle_rules(
     ]
 
 
-def _build_configs() -> tuple[PostgresConfig, SchemaConfig, MilvusConfig, MinioConfig]:
+def _build_configs() -> tuple[PostgresConfig, SchemaConfig, PgvectorIndexConfig, MinioConfig]:
     database_url = _get_required_env("DATABASE_URL")
     minio_endpoint = _get_required_env("MINIO_ENDPOINT")
     minio_access_key = _get_required_env("MINIO_ACCESS_KEY")
     minio_secret_key = _get_required_env("MINIO_SECRET_KEY")
-    milvus_host = _get_required_env("MILVUS_HOST")
-    milvus_port = _get_int_env("MILVUS_PORT")
 
     extensions_raw = _get_required_env("SCHEMA_EXTENSIONS")
-    extensions = [value.strip() for value in extensions_raw.split(",") if value.strip()]
+    extensions = [v.strip() for v in extensions_raw.split(",") if v.strip()]
     schema_config = SchemaConfig(
         migration_tool=_get_required_env("SCHEMA_MIGRATION_TOOL"),
         target_revision=_get_required_env("SCHEMA_TARGET_REVISION"),
@@ -71,18 +69,16 @@ def _build_configs() -> tuple[PostgresConfig, SchemaConfig, MilvusConfig, MinioC
         extensions=extensions,
     )
 
-    collection_config = MilvusConfig(
-        host=milvus_host,
-        port=milvus_port,
-        collection_name=_get_required_env("COLLECTION_NAME"),
-        vector_dim=_get_int_env("COLLECTION_VECTOR_DIM"),
-        index_type=_get_required_env("COLLECTION_INDEX_TYPE"),
+    pgvector_config = PgvectorIndexConfig(
+        database_url=database_url,
+        vector_dim=_get_int_env("PGVECTOR_VECTOR_DIM"),
+        index_name=_get_required_env("PGVECTOR_INDEX_NAME"),
         index_params={
-            "M": _get_int_env("COLLECTION_INDEX_M"),
-            "efConstruction": _get_int_env("COLLECTION_INDEX_EF_CONSTRUCTION"),
+            "m": _get_int_env("PGVECTOR_INDEX_M"),
+            "ef_construction": _get_int_env("PGVECTOR_INDEX_EF_CONSTRUCTION"),
         },
-        metric_type=_get_required_env("COLLECTION_METRIC_TYPE"),
-        search_params={"ef": _get_int_env("COLLECTION_SEARCH_EF")},
+        operator_class=_get_required_env("PGVECTOR_OPERATOR_CLASS"),
+        search_ef=_get_int_env("PGVECTOR_SEARCH_EF"),
     )
 
     raw_bucket = _get_required_env("BUCKET_RAW_IMAGES")
@@ -109,7 +105,7 @@ def _build_configs() -> tuple[PostgresConfig, SchemaConfig, MilvusConfig, MinioC
     return (
         PostgresConfig(database_url=database_url),
         schema_config,
-        collection_config,
+        pgvector_config,
         bucket_config,
     )
 
@@ -126,20 +122,23 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Storage module setup utility")
     parser.add_argument(
         "command",
-        choices=["schema", "collection", "bucket", "seed", "init", "all"],
-        help="Which storage setup workflow to run. 'init' runs schema+collection+bucket (no seed).",
+        choices=["schema", "pgvector-index", "bucket", "seed", "init", "all"],
+        help=(
+            "Which storage setup workflow to run. "
+            "'init' runs schema + pgvector-index + bucket (no seed)."
+        ),
     )
     args = parser.parse_args()
 
-    postgres_config, schema_config, collection_config, bucket_config = _build_configs()
+    postgres_config, schema_config, pgvector_config, bucket_config = _build_configs()
 
     if args.command in {"schema", "init", "all"}:
         schema_router = SchemaWorkflowRouter(postgres_config, schema_config)
         schema_router.upgrade_schema()
 
-    if args.command in {"collection", "init", "all"}:
-        collection_router = CollectionWorkflowRouter(collection_config)
-        collection_router.setup_collection()
+    if args.command in {"pgvector-index", "init", "all"}:
+        pgvector_router = PgvectorIndexWorkflowRouter(pgvector_config)
+        pgvector_router.setup_pgvector_index()
 
     if args.command in {"bucket", "init", "all"}:
         bucket_router = BucketWorkflowRouter(bucket_config)

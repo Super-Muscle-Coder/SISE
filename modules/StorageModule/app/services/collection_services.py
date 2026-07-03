@@ -1,85 +1,115 @@
-from typing import Dict
+"""pgvector-index workflow service layer.
+
+Implements ensure_pgvector_index(): the idempotent setup operation that
+validates (and repairs if necessary) the HNSW index on images.embedding.
+
+Dependency order:
+  1. vector extension must exist (owned by schema migration).
+  2. images.embedding column must exist (owned by schema migration).
+  3. idx_images_embedding_hnsw HNSW index — created here if absent,
+     validated here if present.
+"""
+
+import sqlalchemy as sa
 
 from app.adapters import collection_adapters
-from app.entities.collection_entities import MilvusConfig
+from app.entities.collection_entities import PgvectorIndexConfig
 
 
-class CollectionValidationError(ValueError):
-    pass
+class PgvectorIndexValidationError(ValueError):
+    """Raised when the existing HNSW index parameters do not match the contract."""
 
 
-def ensure_collection(config: MilvusConfig) -> None:
-    collection_adapters.connect_to_milvus(config.host, config.port)
+def ensure_pgvector_index(config: PgvectorIndexConfig) -> None:
+    """Ensure the HNSW index on images.embedding exists and matches config.
 
-    if not collection_adapters.collection_exists(config.collection_name):
-        fields = collection_adapters.build_collection_fields(config.vector_dim)
-        collection = collection_adapters.create_collection(
-            config.collection_name,
-            fields,
+    Steps:
+      1. Verify the `vector` extension is installed (schema migration concern).
+      2. Verify images.embedding column exists (schema migration concern).
+      3. If HNSW index absent: create it.
+      4. If HNSW index present: validate m and ef_construction parameters.
+
+    Raises:
+        PgvectorIndexValidationError: If extension/column is missing (migration
+            not applied) or if existing index params mismatch the contract.
+    """
+    engine = collection_adapters.create_pgvector_engine(config.database_url)
+    with engine.connect() as conn:
+        _assert_extension(conn)
+        _assert_embedding_column(conn)
+        _ensure_hnsw_index(conn, config)
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _assert_extension(conn: sa.Connection) -> None:
+    if not collection_adapters.extension_exists(conn, "vector"):
+        raise PgvectorIndexValidationError(
+            "pgvector extension 'vector' is not installed. "
+            "Run 'alembic upgrade head' to apply schema migrations first."
         )
+
+
+def _assert_embedding_column(conn: sa.Connection) -> None:
+    if not collection_adapters.column_exists(conn, "images", "embedding"):
+        raise PgvectorIndexValidationError(
+            "Column 'images.embedding' not found. "
+            "Run 'alembic upgrade head' to apply schema migrations first."
+        )
+
+
+def _ensure_hnsw_index(conn: sa.Connection, config: PgvectorIndexConfig) -> None:
+    if not collection_adapters.hnsw_index_exists(conn, config.index_name):
         collection_adapters.create_hnsw_index(
-            collection,
-            field_name="vector",
-            index_type=config.index_type,
-            index_params=config.index_params,
-            metric_type=config.metric_type,
+            conn,
+            table="images",
+            column="embedding",
+            index_name=config.index_name,
+            operator_class=config.operator_class,
+            m=config.index_params["m"],
+            ef_construction=config.index_params["ef_construction"],
         )
-        collection_adapters.load_collection(collection)
+        conn.commit()
         return
 
-    collection = collection_adapters.get_collection(config.collection_name)
-    _validate_collection_schema(collection, config.vector_dim)
-    _validate_index(collection, config.index_params, config.metric_type, config.index_type)
-    collection_adapters.load_collection(collection)
+    _validate_hnsw_params(conn, config)
 
 
-def _validate_collection_schema(collection, vector_dim: int) -> None:
-    schema_fields = {field.name: field for field in collection.schema.fields}
-    expected_fields = {"image_id", "vector", "user_id", "privacy_level"}
-    if set(schema_fields.keys()) != expected_fields:
-        raise CollectionValidationError(
-            f"Unexpected fields: {set(schema_fields.keys())}."
-        )
-    vector_field = schema_fields["vector"]
-    if getattr(vector_field, "dim", None) != vector_dim:
-        raise CollectionValidationError(f"Vector dim mismatch. Expected {vector_dim}.")
-    if not schema_fields["image_id"].is_primary:
-        raise CollectionValidationError("image_id must be primary key.")
-
-
-def _validate_index(
-    collection,
-    index_params: Dict[str, int],
-    metric_type: str,
-    index_type: str,
+def _validate_hnsw_params(
+    conn: sa.Connection, config: PgvectorIndexConfig
 ) -> None:
-    indexes = collection_adapters.get_indexes(collection)
-    if not indexes:
-        collection_adapters.create_hnsw_index(
-            collection,
-            field_name="vector",
-            index_type=index_type,
-            index_params=index_params,
-            metric_type=metric_type,
-        )
+    """Validate existing HNSW index parameters against the contract.
+
+    Parses reloptions (e.g. ['m=16', 'ef_construction=200']) and compares
+    to config.index_params. No-op if reloptions is None (PostgreSQL stores
+    defaults implicitly for some index types).
+    """
+    reloptions = collection_adapters.get_hnsw_index_reloptions(
+        conn, config.index_name
+    )
+    if not reloptions:
         return
 
-    index = indexes[0]
-    if index.field_name != "vector":
-        raise CollectionValidationError("HNSW index must target vector field.")
+    option_dict: dict[str, int] = {}
+    for opt in reloptions:
+        key, _, value = opt.partition("=")
+        option_dict[key.strip()] = int(value.strip())
 
-    params = index.params or {}
-    existing_index_type = params.get("index_type")
-    existing_metric = params.get("metric_type")
-    existing_params = params.get("params") or {}
+    expected_m = config.index_params["m"]
+    expected_ef = config.index_params["ef_construction"]
+    actual_m = option_dict.get("m")
+    actual_ef = option_dict.get("ef_construction")
 
-    if existing_index_type != index_type:
-        raise CollectionValidationError(f"Index type mismatch; expected {index_type}.")
-    if existing_metric != metric_type:
-        raise CollectionValidationError("Metric type mismatch for HNSW index.")
-
-    for key, expected_value in index_params.items():
-        if existing_params.get(key) != expected_value:
-            raise CollectionValidationError(
-                f"Index param mismatch for {key}. Expected {expected_value}."
-            )
+    if actual_m is not None and actual_m != expected_m:
+        raise PgvectorIndexValidationError(
+            f"HNSW index param mismatch: m={actual_m}, expected {expected_m}. "
+            "Use REINDEX INDEX CONCURRENTLY to rebuild with correct parameters."
+        )
+    if actual_ef is not None and actual_ef != expected_ef:
+        raise PgvectorIndexValidationError(
+            f"HNSW index param mismatch: ef_construction={actual_ef}, "
+            f"expected {expected_ef}. "
+            "Use REINDEX INDEX CONCURRENTLY to rebuild with correct parameters."
+        )

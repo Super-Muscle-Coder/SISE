@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:16
+    # pgvector/pgvector:pg16 bundles the vector extension (>= 0.7.0) with PostgreSQL 16.
+    # Replaces plain postgres:16-bookworm + etcd + milvus (removed in v1.1.0).
+    image: pgvector/pgvector:pg16
     container_name: sise-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sise}
@@ -15,29 +17,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - storage_net
-
-  etcd:
-    image: quay.io/coreos/etcd:v3.5.14
-    container_name: sise-etcd
-    environment:
-      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
-      ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
-    ports:
-      - "2379:2379"
-    volumes:
-      - etcd_data:/bitnami/etcd
-    healthcheck:
-      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - storage_net
+    restart: unless-stopped
 
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
     container_name: sise-minio
     command: server /data --console-address ":9001"
     environment:
@@ -49,61 +35,66 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - storage_net
+    restart: unless-stopped
 
-  milvus:
-    image: milvusdb/milvus:v2.4.12
-    container_name: sise-milvus
-    command: ["milvus", "run", "standalone"]
-    environment:
-      ETCD_ENDPOINTS: http://etcd:2379
-      MINIO_ADDRESS: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
-    ports:
-      - "19530:19530"
-      - "9091:9091"
-    volumes:
-      - milvus_data:/var/lib/milvus
+  minio-init:
+    image: minio/mc:RELEASE.2024-11-17T19-35-25Z
+    container_name: sise-minio-init
     depends_on:
-      - etcd
-      - minio
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set minio http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin} &&
+      /usr/bin/mc mb --ignore-existing minio/raw-images &&
+      /usr/bin/mc mb --ignore-existing minio/thumbnails &&
+      echo 'MinIO buckets initialized successfully'
+      "
     networks:
       - storage_net
+    restart: on-failure
 
   redis:
-    image: redis:7.4
+    image: redis:7.4-alpine
     container_name: sise-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: ["redis-server", "--appendonly", "yes"]
+    command:
+      - redis-server
+      - "--appendonly"
+      - "yes"
+      - "--appendfsync"
+      - "everysec"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - storage_net
+    restart: unless-stopped
 
 volumes:
   postgres_data:
-  etcd_data:
+    driver: local
   minio_data:
-  milvus_data:
+    driver: local
   redis_data:
+    driver: local
 
 networks:
   storage_net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

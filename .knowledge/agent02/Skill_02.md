@@ -4,9 +4,9 @@
 - id: SKILL_AG02_20260512
 - agent_id: AG-02
 - agent_name: StorageModuleAgent
-- skill_version: 1.0.0
+- skill_version: 1.1.0
 - created_at: 2026-05-12
-- last_updated: 2026-05-12
+- last_updated: 2026-07-03
 - status: active
 - retention_policy_days: 365
 
@@ -26,8 +26,7 @@ StorageModule requires **Python 3.13** per agent_boundaries.yaml. System has Pyt
 
 ### Root Cause
 Multiple Python versions on system:
-- Python 3.14.4 (default): Minimal dependencies
-- Python 3.13.12 (user AppData): Has all required dependencies
+- Python 3.13.12 (default): Has all required dependencies
 - Python 3.11: Not tested
 
 ### Solution: Use Explicit Python Version
@@ -116,7 +115,7 @@ env_vars = load_env_from_file(str(env_file))
 
 ### Files Updated
 - `modules/StorageModule/tests/test_schema_workflow.py`
-- `modules/StorageModule/tests/test_collection_workflow.py`
+- `modules/StorageModule/tests/test_pgvector_index_workflow.py`  (formerly `test_collection_workflow.py`)
 - `modules/StorageModule/tests/test_bucket_workflow.py`
 - `modules/StorageModule/tests/test_seed_workflow.py`
 
@@ -143,7 +142,7 @@ failed: Connection refused
 ```
 
 ### Root Cause
-Storage services (PostgreSQL, MinIO, Milvus, Redis, etcd) were not running. These services must be started via Docker Compose.
+Storage services (PostgreSQL, MinIO, Redis) were not running. These services must be started via Docker Compose. (Note: `etcd` and `Milvus` are no longer part of the stack — the vector store now lives inside PostgreSQL via the `pgvector` extension.)
 
 ### Solution: Start Services
 
@@ -162,11 +161,9 @@ docker-compose -f infra_compose_storage.yml up -d
 
 **Service Endpoints After Startup**:
 ```
-PostgreSQL:    postgresql://sise:sise_password@localhost:5432/sise
+PostgreSQL:    postgresql://sise:sise_password@localhost:5432/sise   # includes pgvector extension
 MinIO API:     http://minioadmin:minioadmin@localhost:9000
 MinIO Console: http://localhost:9001
-Milvus:        localhost:19530
-etcd:          localhost:2379
 Redis:         redis://localhost:6379
 ```
 
@@ -178,7 +175,7 @@ Redis:         redis://localhost:6379
 
 # Or individual workflows
 py -3.13 .\modules\StorageModule\tests\test_schema_workflow.py
-py -3.13 .\modules\StorageModule\tests\test_collection_workflow.py
+py -3.13 .\modules\StorageModule\tests\test_pgvector_index_workflow.py
 py -3.13 .\modules\StorageModule\tests\test_bucket_workflow.py
 py -3.13 .\modules\StorageModule\tests\test_seed_workflow.py
 ```
@@ -208,6 +205,15 @@ py -3.13 .\modules\StorageModule\tests\test_seed_workflow.py
 
 ---
 
+## Changelog
+
+- **2026-07-03**: Migrated all vector-store references from Milvus to pgvector (PostgreSQL `vector` extension), per `data_schema.yaml` v1.1.0 / `openapi.yaml` v1.1.0 / `StorageModuleAgent.agent.md` v1.1.0:
+  - Removed `MILVUS_HOST`, `MILVUS_PORT`, and `etcd` from required services and env vars.
+  - Renamed `test_collection_workflow.py` → `test_pgvector_index_workflow.py` and its `storage_main.py` subcommand from `collection` → `pgvector-index`.
+  - Reframed Issue 005 limitations from Milvus `index.params` introspection to pgvector `pg_indexes` DDL parsing, and from "Milvus empty" to "`images.embedding` column NULL".
+
+---
+
 ## Issue 005: Known Limitations in Collection & Seed Workflows
 
 ### Issue Summary
@@ -216,25 +222,32 @@ py -3.13 .\modules\StorageModule\tests\test_seed_workflow.py
 - **Status**: DOCUMENTED
 - **Detection Date**: 2026-05-12
 
-### Limitation 1: Milvus Collection Index.params Structure
-When validating existing collection in `collection_services._validate_index()`, 
-the code accesses `params.get("index_type")` from `index.params` dict. 
-Pymilvus 2.4.x may return different dict structures depending on client/server version.
+### Limitation 1: pgvector HNSW Index Parameter Introspection
+When validating an existing index in `pgvector_index_services._validate_index()`,
+the code reads HNSW parameters (`m`, `ef_construction`) back from PostgreSQL via
+`SELECT indexdef FROM pg_indexes WHERE indexname = 'idx_images_embedding_hnsw'` and parses the
+`WITH (m = ..., ef_construction = ...)` clause from the returned DDL string. Parsing a DDL string
+is more brittle than a structured catalog read.
 
-**Impact**: Runtime validation may fail to read existing index params.
+**Impact**: If PostgreSQL/pgvector changes how `WITH` options are rendered in `indexdef` across
+versions, the regex-based parser in `_validate_index()` may fail to extract the parameters correctly.
 
-**Workaround**: When running collection workflow first time against real Milvus:
-1. Enable debug logging to inspect actual `index.params` structure
-2. Adjust key names in `_validate_index()` if structure differs from expected
+**Workaround**: When running the pgvector index workflow for the first time against a real PostgreSQL instance:
+1. Enable debug logging to inspect the raw `indexdef` string returned by `pg_indexes`.
+2. Adjust the parsing regex in `_validate_index()` if the rendered format differs from expected.
+3. Prefer querying `pg_catalog` / `pg_am`-level structured metadata over string parsing where available in the pgvector/PostgreSQL version deployed.
 
-**Reproduction**: Deploy to staging → run `storage_main.py collection` → observe logs
+**Reproduction**: Deploy to staging → run `storage_main.py pgvector-index` → observe logs
 
-### Limitation 2: Seed Data Has index_status='ready' But Milvus Empty
-Seed script sets `images.index_status = 'ready'` but does not actually insert vectors into Milvus.
+### Limitation 2: Seed Data Has index_status='ready' But embedding Column Empty
+Seed script sets `images.index_status = 'ready'` but does not actually populate the
+`images.embedding` (pgvector) column — it is left `NULL`.
 
-**Impact**: Search queries will not match seed images until real indexing pipeline processes them.
+**Impact**: Search queries (`ORDER BY embedding <=> :query_vector`) will not match seed images
+until the real indexing pipeline processes them, since `NULL` embeddings are excluded/unordered
+in ANN search.
 
-**Expected Behavior**: Seed data is for database/bucket testing only. Vector indexing happens 
-via AG-03's Celery pipeline in production, not via seed script.
+**Expected Behavior**: Seed data is for database/bucket testing only. Vector indexing (populating
+`images.embedding`) happens via AG-03's Celery pipeline in production, not via the seed script.
 
 **Not a Bug**: Intentional. Seed script is dev/test utility, not production data loader.

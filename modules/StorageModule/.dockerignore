@@ -1,44 +1,75 @@
 # =============================================================================
 # StorageModule — .dockerignore
 # =============================================================================
-# Loại trừ các file không cần thiết trong Docker build context.
-# Giảm build context size và ngăn secrets lọt vào image.
+# Reduce Docker build context and prevent secrets from entering image
 # =============================================================================
 
-# ── Secrets & configs cục bộ ─────────────────────────────────────────────────
-# KHÔNG bao giờ đưa credentials vào image
+# ── Secrets & Environment Files ──────────────────────────────────────────────
 configs/
-*.env
-*.env.local
-*.env.staging
+.env
+.env.local
+.env.staging
+*.pem
+*.key
+*.crt
 
-# ── Development & test artifacts ─────────────────────────────────────────────
+# ── Development & Testing ───────────────────────────────────────────────────
 tests/
+test_*.py
+*_test.py
+pytest.ini
+.pytest_cache/
+.coverage
+.coveragerc
+htmlcov/
+
+# ── Python Cache & Build ────────────────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.pytest_cache/
-.coverage
-htmlcov/
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
 
-# ── Documentation ─────────────────────────────────────────────────────────────
-documents/
+# ── Virtual Environments ────────────────────────────────────────────────────
+venv/
+env/
+.venv/
+ENV/
 
-# ── Scripts Windows ───────────────────────────────────────────────────────────
-# .cmd và .ps1 không chạy được trong Linux container
-scripts/
-
-# ── IDE & Version control ─────────────────────────────────────────────────────
+# ── IDE & Version Control ───────────────────────────────────────────────────
 .git/
 .gitignore
+.github/
+.vscode/
+.idea/
 *.pyproj
 *.sln
 .vs/
-env/
-.venv/
-venv/
+*.swp
+*.swo
+*~
 
-# ── Logs & temp ───────────────────────────────────────────────────────────────
+# ── Documentation & Logs ───────────────────────────────────────────────────
+documents/
 *.log
 *.tmp
+README.md
+CHANGELOG.md
+
+# ── Scripts (Windows-specific, don't need in Linux container) ──────────────
+scripts/
+*.cmd
+*.ps1
+*.bat
+Makefile
+makefile
+
+# ── OS-specific ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.exe

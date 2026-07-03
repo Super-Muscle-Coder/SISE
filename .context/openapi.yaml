@@ -8,7 +8,9 @@ info:
     - presigned upload flow with idempotency semantics,
     - standardized error responses and operation examples,
     - dependency-aware health probes exposing expected vector dimension.
-  version: 1.0.0
+    v1.1.0: vector store migrated from Milvus to pgvector (PostgreSQL extension `vector`);
+    /vector/index and /vector/search/hybrid now operate on the images.embedding column.
+  version: 1.1.0
 
 servers:
   - url: http://localhost:8000
@@ -531,10 +533,10 @@ paths:
           $ref: '#/components/responses/Unauthorized'
 
           # --- VECTOR INDEXING & SEARCH -------------------------------------------------------------------------------------------------
-  /vector/index: # Index a vector into the vector DB and associate with image metadata. Endpoint này yêu cầu xác thực và cho phép client gửi một vector embedding cùng với image_id để lập chỉ mục vào vector DB. Client cũng có thể gửi metadata bổ sung nếu cần. Server sẽ lưu vector vào vector DB và liên kết nó với metadata của ảnh. Lưu ý rằng quá trình lập chỉ mục có thể là bất đồng bộ, vì vậy ngay cả khi yêu cầu trả về thành công, vector có thể vẫn đang chờ để được lập chỉ mục.
+  /vector/index: # Index a vector by writing it into the images.embedding column (pgvector, PostgreSQL). Endpoint này yêu cầu xác thực và cho phép client gửi một vector embedding cùng với image_id để lập chỉ mục. Client cũng có thể gửi metadata bổ sung nếu cần. Server sẽ UPDATE cột embedding (pgvector) của bản ghi images tương ứng, cùng transaction với metadata. Lưu ý rằng quá trình lập chỉ mục có thể là bất đồng bộ, vì vậy ngay cả khi yêu cầu trả về thành công, vector có thể vẫn đang chờ để được lập chỉ mục.
     post:
       operationId: indexVector
-      summary: Index a vector into the vector DB and associate with image metadata
+      summary: Index a vector (write to images.embedding via pgvector) and associate with image metadata
       tags: [StorageModule]
       security:
         - BearerAuth: []
@@ -572,7 +574,7 @@ paths:
           $ref: '#/components/responses/StandardError'
 
   # ------------------------------------------------------------------------------------------------------------------
-  /vector/search/hybrid: # Privacy-aware hybrid ANN search (vector + structured metadata filter). Endpoint này yêu cầu xác thực và cho phép client thực hiện tìm kiếm gần đúng (ANN) kết hợp giữa vector embedding và bộ lọc metadata có cấu trúc. Client gửi một vector truy vấn cùng với top_k, metric, và một biểu thức lọc để giới hạn kết quả dựa trên metadata (ví dụ privacy_level, user_id, tags). Server sẽ thực hiện tìm kiếm ANN trong vector DB dựa trên vector truy vấn và sau đó áp dụng bộ lọc metadata để trả về các kết quả phù hợp nhất. Phản hồi bao gồm danh sách các mục kết quả với image_id, score, minio_url, và metadata liên quan.
+  /vector/search/hybrid: # Privacy-aware hybrid ANN search (pgvector + structured metadata filter, cùng 1 câu SQL trên PostgreSQL). Endpoint này yêu cầu xác thực và cho phép client thực hiện tìm kiếm gần đúng (ANN) kết hợp giữa vector embedding và bộ lọc metadata có cấu trúc. Client gửi một vector truy vấn cùng với top_k, metric, và một biểu thức lọc để giới hạn kết quả dựa trên metadata (ví dụ privacy_level, user_id, tags). Server biên dịch filter thành mệnh đề SQL WHERE và thực hiện ANN search bằng toán tử khoảng cách pgvector (<=> cho cosine) trên cột images.embedding, JOIN trực tiếp với metadata trong cùng một truy vấn — không cần đồng bộ dữ liệu giữa 2 hệ thống. Phản hồi bao gồm danh sách các mục kết quả với image_id, score, minio_url, và metadata liên quan.
     post:
       operationId: searchHybrid
       summary: Privacy-aware hybrid ANN search (vector + structured metadata filter)
@@ -1156,8 +1158,7 @@ components:
         dependencies:
           type: object
           properties:
-            postgres: { type: string, example: "connected" }
-            milvus: { type: string, example: "ready" }
+            postgres: { type: string, example: "connected", description: "Bao gồm cả pgvector extension (thay thế Milvus)" }
             minio: { type: string, example: "reachable" }
             ai_service: { type: string, example: "warm" }
 
@@ -1188,8 +1189,8 @@ tags: # Logical grouping of endpoints for better organization and documentation
     description: Album CRUD operations
   - name: AIModule # AI inference endpoints (embedding extraction)
     description: Embedding extraction endpoints
-  - name: StorageModule # Vector DB indexing and search endpoints
-    description: Vector DB indexing and search
+  - name: StorageModule # Vector indexing and search endpoints (pgvector trên PostgreSQL)
+    description: Vector indexing and search (backed by pgvector on PostgreSQL, replacing Milvus)
   - name: EvaluationService  # Metrics and evaluation endpoints
     description: Evaluation runs and metrics reporting
   - name: Admin # Admin-only endpoints for maintenance and reindexing

@@ -1,19 +1,20 @@
 ---
 name: StorageModuleAgent
-description: Storage infrastructure. PostgreSQL schemas with Alembic migrations, Milvus collection setup with HNSW indexing, MinIO bucket initialization, Redis configuration, and Docker Compose for all storage services.
+description: Storage infrastructure. PostgreSQL schemas with Alembic migrations, pgvector extension setup with HNSW indexing, MinIO bucket initialization, Redis configuration, and Docker Compose for all storage services.
 ---
 
 # StorageModuleAgent
 
 ## Metadata
 - **name**: `StorageModuleAgent`
-- **description**: Storage infrastructure. PostgreSQL schemas with Alembic migrations, Milvus collection setup with HNSW indexing, MinIO bucket initialization, Redis configuration, and Docker Compose for all storage services.
-- **version**: `1.0.0`
-- **api_version**: `1.0.0`
-- **schema_version**: `1.0.0`
+- **description**: Storage infrastructure. PostgreSQL schemas with Alembic migrations, pgvector extension setup with HNSW indexing, MinIO bucket initialization, Redis configuration, and Docker Compose for all storage services.
+- **version**: `1.1.0`
+- **api_version**: `1.1.0`
+- **schema_version**: `1.1.0`
 - **change_log**:
   - `1.0.0` (2026-05-09): Initial release.
-- **last_updated**: `2026-05-09`
+  - `1.1.0` (2026-07-03): Replaced Milvus with pgvector (PostgreSQL extension `vector`) as the vector store, per `data_schema.yaml` v1.1.0.
+- **last_updated**: `2026-07-03`
 - **updated_by**: `ProjectOwner`
 - **context_refs**:
   - `.context/DOS.md`
@@ -29,8 +30,6 @@ description: Storage infrastructure. PostgreSQL schemas with Alembic migrations,
   - `MINIO_ENDPOINT`
   - `MINIO_ACCESS_KEY`
   - `MINIO_SECRET_KEY`
-  - `MILVUS_HOST`
-  - `MILVUS_PORT`
   - `REDIS_URL`
 - **ci_validation_hooks**:
   - **pre_commit**:
@@ -41,8 +40,7 @@ description: Storage infrastructure. PostgreSQL schemas with Alembic migrations,
   - python: "3.13"
   - alembic: ">=1.12"
   - postgres: "16"
-  - milvus: "2.4.x"
-  - etcd: "3.5.x"
+  - pgvector: ">=0.7.0"    # PostgreSQL extension `vector`, thay thế Milvus 2.4.x + etcd 3.5.x
   - minio: "2024.x"
   - redis: "7.x"
   - docker-compose: ">=2.0"
@@ -61,14 +59,14 @@ description: Storage infrastructure. PostgreSQL schemas with Alembic migrations,
 ---
 
 ## Role
-Build and manage the storage infrastructure layer. Provide PostgreSQL schemas, Milvus collections, MinIO buckets, and Redis cache. Do not implement business logic.
+Build and manage the storage infrastructure layer. Provide PostgreSQL schemas (including the `vector` extension / pgvector column and HNSW index), MinIO buckets, and Redis cache. Do not implement business logic.
 
 ---
 
 ## Core Responsibilities
 - **Knowledge Management**: ABSOLUTE responsibility to maintain `.knowledge/agent02/` directory. Must update `KnowledgeBase_02.md` for trusted references, `Skill_02.md` for unexpected issue resolutions, and `Log_02.md` after significant events. AG-00 performs a weekly audit to verify freshness and completeness.
 - **PostgreSQL Schema Management**: Implement Alembic migrations for all tables and indexes defined in `data_schema.yaml -> database_spec.postgresql`, with idempotent `upgrade()`/`downgrade()`.
-- **Milvus Collection Setup**: Create collection `sise_v1` with schema and index parameters from `data_schema.yaml -> milvus`, ensure `vector_dim` equals `global_configs.vector_dim`.
+- **pgvector Setup**: Enable the `vector` extension, add the `images.embedding vector(N)` column, and build the `idx_images_embedding_hnsw` HNSW index using parameters from `data_schema.yaml -> database_spec.postgresql.pgvector`; ensure `vector_dim` equals `global_configs.vector_dim`.
 - **MinIO Bucket Initialization**: Create `raw-images` and `thumbnails`, apply lifecycle rules, enforce private access policy.
 - **Redis Configuration**: Configure cache settings and provide stable connection URLs for AG-03.
 - **Docker Compose**: Maintain `docker-compose.storage.yml` with all storage services, volumes, and internal networking.
@@ -99,8 +97,7 @@ Build and manage the storage infrastructure layer. Provide PostgreSQL schemas, M
 ### Required Inputs from External Systems
 | Source | Input Type | Format | SLA | Quality Standard | Validation |
 |--------|-----------|--------|-----|------------------|------------|
-| PostgreSQL | Database engine | Connection string | Always available | Healthy connection | Health check |
-| Milvus | Vector DB | Host/port | Always available | Healthy connection | Readiness probe |
+| PostgreSQL | Database engine (incl. pgvector extension) | Connection string | Always available | Healthy connection | Health check |
 | MinIO | Object storage | Endpoint + keys | Always available | Healthy connection | Bucket check |
 | Redis | Cache | URL | Always available | Healthy connection | Ping test |
 
@@ -122,13 +119,13 @@ Build and manage the storage infrastructure layer. Provide PostgreSQL schemas, M
   - `alembic upgrade head` completes with no errors
 - **Consumer**: AG-03
 
-#### Output 2: Vector DB Collection
-- **Type**: Milvus collection and index
+#### Output 2: Vector Column & Index (pgvector)
+- **Type**: PostgreSQL `vector` extension, `images.embedding` column, HNSW index (via Alembic migration)
 - **Quality Gates**:
   - `vector_dim` matches `global_configs.vector_dim`
-  - HNSW params match `data_schema.yaml`
+  - HNSW params (`m`, `ef_construction`) match `data_schema.yaml`
 - **Validation**:
-  - Collection schema inspection matches contract
+  - `SELECT * FROM pg_indexes WHERE indexname='idx_images_embedding_hnsw'` matches contract
 - **Consumer**: AG-03
 
 #### Output 3: MinIO Buckets
@@ -163,8 +160,8 @@ Build and manage the storage infrastructure layer. Provide PostgreSQL schemas, M
 - Alembic
 
 ### Libraries
-- PostgreSQL drivers
-- pymilvus
+- PostgreSQL drivers (psycopg / asyncpg)
+- pgvector (Python client library for the `vector` type)
 - minio client
 - redis client
 
@@ -181,7 +178,7 @@ Build and manage the storage infrastructure layer. Provide PostgreSQL schemas, M
 ## Knowledge Scope
 ### Must Know (Core Domain)
 - PostgreSQL schemas, indexes, and Alembic workflows
-- Milvus collection and HNSW index management
+- pgvector extension, `vector` column types, and HNSW index management (CONCURRENTLY builds, `m`/`ef_construction`/`hnsw.ef_search` tuning)
 - MinIO bucket policies and lifecycle rules
 - Redis data structures and eviction policies
 - Docker Compose volumes and networking
@@ -206,7 +203,7 @@ If AG-02 starts implementing business logic or app-layer behavior, it is a bound
 |-------------|------|------|-------------|-------------------|
 | `migration_events_total` | Counter | count | Alembic migrations executed | Migration logs |
 | `storage_setup_duration_ms` | Gauge | ms | Time to provision storage | Setup scripts |
-| `milvus_collection_ready` | Gauge | boolean | Collection readiness | Health check |
+| `pgvector_index_ready` | Gauge | boolean | `idx_images_embedding_hnsw` readiness | Health check |
 | `minio_bucket_ready` | Gauge | boolean | Bucket readiness | Bucket check |
 
 ### SLOs (Service Level Objectives)
@@ -220,8 +217,7 @@ If AG-02 starts implementing business logic or app-layer behavior, it is a bound
 | `StorageSetupFailure` | Setup scripts fail | Critical | Investigate logs and rollback |
 
 ### Health Probes
-- PostgreSQL readiness
-- Milvus readiness
+- PostgreSQL readiness (includes pgvector extension check)
 - MinIO readiness
 - Redis readiness
 
@@ -230,7 +226,7 @@ If AG-02 starts implementing business logic or app-layer behavior, it is a bound
 ## Error Handling Patterns
 ### Common Scenarios & Predefined Responses
 - Database already initialized -> use idempotent migrations
-- Collection already exists -> validate schema and index parameters
+- `vector` extension or HNSW index already exists -> validate index parameters (`m`, `ef_construction`) instead of erroring
 - Bucket already exists -> validate policy and lifecycle rules
 
 ### Difference from Skill.md
@@ -240,8 +236,7 @@ Error Handling Patterns define expected failures; `Skill_02.md` records unexpect
 
 ## Fault Domains & Resilience
 ### Single Points of Failure (SPOFs)
-- PostgreSQL availability
-- Milvus availability
+- PostgreSQL availability (now also hosts the vector store via pgvector)
 - MinIO availability
 
 ### Cascading Failure Scenarios
@@ -253,7 +248,7 @@ Error Handling Patterns define expected failures; `Skill_02.md` records unexpect
 
 ### Resilience Testing
 - **Cadence**: Monthly storage restore drill
-- **Tools**: pg_dump/restore, MinIO replication checks, Milvus snapshot validation
+- **Tools**: pg_dump/restore (covers metadata + pgvector embeddings), MinIO replication checks
 
 ---
 
@@ -261,23 +256,23 @@ Error Handling Patterns define expected failures; `Skill_02.md` records unexpect
 ### Contract File Compatibility
 | Contract File | Min Version | Max Version | Current | Breaking Changes | Notes |
 |--------------|-------------|-------------|---------|-----------------|-------|
-| `data_schema.yaml` | 1.0.0 | 1.x.x | 1.0.0 | 2.0.0 may change `vector_dim` | Requires collection rebuild |
+| `data_schema.yaml` | 1.1.0 | 1.x.x | 1.1.0 | 2.0.0 may change `vector_dim` | Requires `idx_images_embedding_hnsw` rebuild |
 | `agent_boundaries.yaml` | 1.0.0 | 1.x.x | 1.0.0 | 2.0.0 may change working_dir | Review required |
 
 ### Dependency Compatibility
 | Dependency | Min Version | Max Version | Current | Reason for Min | Reason for Max |
 |-----------|-------------|-------------|---------|----------------|----------------|
 | PostgreSQL | 16 | 16.x | 16 | Required by schema | 17.x untested |
-| Milvus | 2.4 | 2.x | 2.4 | Stable HNSW | 3.x untested |
+| pgvector | 0.7.0 | 0.x.x | 0.7.0 | Native HNSW index support | 1.x untested |
 | MinIO | 2024.x | 2024.x | 2024.x | S3 compatibility | 2025.x untested |
 | Redis | 7 | 7.x | 7 | Redis ACL support | 8.x untested |
 
 ### Known Compatibility Issues
-- `data_schema.yaml` 2.0.0 changes `vector_dim` (requires Milvus rebuild)
+- `data_schema.yaml` 2.0.0 changes `vector_dim` (requires `idx_images_embedding_hnsw` rebuild via `CREATE INDEX CONCURRENTLY`)
 
 ### Upgrade Path
 - Minor upgrades: validate migrations and run CI
-- Major upgrades: coordinate downtime and rebuild collections
+- Major upgrades: coordinate downtime and rebuild the pgvector HNSW index
 
 ---
 
@@ -285,7 +280,7 @@ Error Handling Patterns define expected failures; `Skill_02.md` records unexpect
 ### Functional Correctness
 - `alembic upgrade head` runs without errors
 - All tables and indexes exist in PostgreSQL
-- Milvus collection `sise_v1` exists with HNSW index
+- `vector` extension enabled, `images.embedding` column and `idx_images_embedding_hnsw` HNSW index exist
 - MinIO buckets `raw-images` and `thumbnails` exist
 
 ### Performance SLOs

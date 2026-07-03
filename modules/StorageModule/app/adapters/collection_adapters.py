@@ -1,78 +1,96 @@
-from typing import List
+"""pgvector-index workflow adapters.
 
-from pymilvus import (
-    Collection,
-    CollectionSchema,
-    DataType,
-    FieldSchema,
-    connections,
-    utility,
-)
+Provides low-level PostgreSQL DDL operations for the pgvector-index
+workflow: extension checks, column checks, and HNSW index management.
+All operations use raw SQL via SQLAlchemy Core to avoid coupling to
+the pgvector Python ORM layer (not required for setup tooling).
+"""
 
+from typing import Optional
 
-def connect_to_milvus(host: str, port: int, alias: str = "default") -> None:
-    connections.connect(alias=alias, host=host, port=port)
+import sqlalchemy as sa
+from sqlalchemy import text
 
 
-def collection_exists(collection_name: str) -> bool:
-    return utility.has_collection(collection_name)
+def create_pgvector_engine(database_url: str) -> sa.Engine:
+    """Create a SQLAlchemy engine for pgvector DDL operations."""
+    return sa.create_engine(database_url, pool_pre_ping=True)
 
 
-def build_collection_fields(vector_dim: int) -> List[FieldSchema]:
-    return [
-        FieldSchema(
-            name="image_id",
-            dtype=DataType.VARCHAR,
-            is_primary=True,
-            max_length=36,
+def extension_exists(conn: sa.Connection, extension_name: str) -> bool:
+    """Return True if the given PostgreSQL extension is installed."""
+    result = conn.execute(
+        text("SELECT 1 FROM pg_extension WHERE extname = :name"),
+        {"name": extension_name},
+    )
+    return result.scalar() is not None
+
+
+def column_exists(conn: sa.Connection, table: str, column: str) -> bool:
+    """Return True if the column exists in the given table."""
+    result = conn.execute(
+        text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = :table AND column_name = :column"
         ),
-        FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=vector_dim),
-        FieldSchema(name="user_id", dtype=DataType.INT64),
-        FieldSchema(name="privacy_level", dtype=DataType.INT32),
-    ]
+        {"table": table, "column": column},
+    )
+    return result.scalar() is not None
 
 
-def create_collection(collection_name: str, fields: List[FieldSchema]) -> Collection:
-    schema = CollectionSchema(fields, description="SISE image vectors")
-    return Collection(name=collection_name, schema=schema)
+def hnsw_index_exists(conn: sa.Connection, index_name: str) -> bool:
+    """Return True if an index with the given name exists in pg_indexes."""
+    result = conn.execute(
+        text("SELECT 1 FROM pg_indexes WHERE indexname = :name"),
+        {"name": index_name},
+    )
+    return result.scalar() is not None
 
 
-def get_collection(collection_name: str) -> Collection:
-    return Collection(collection_name)
+def get_hnsw_index_reloptions(
+    conn: sa.Connection, index_name: str
+) -> Optional[list]:
+    """Return the reloptions list of an index (e.g. ['m=16', 'ef_construction=200']).
+
+    Returns None if the index does not exist or has no reloptions set.
+    """
+    result = conn.execute(
+        text(
+            "SELECT reloptions FROM pg_class "
+            "WHERE relname = :name AND relkind = 'i'"
+        ),
+        {"name": index_name},
+    )
+    row = result.fetchone()
+    if row is None:
+        return None
+    return row[0]  # list[str] or None when no options stored
 
 
 def create_hnsw_index(
-    collection: Collection,
-    field_name: str,
-    index_type: str,
-    index_params: dict,
-    metric_type: str,
+    conn: sa.Connection,
+    table: str,
+    column: str,
+    index_name: str,
+    operator_class: str,
+    m: int,
+    ef_construction: int,
 ) -> None:
-    collection.create_index(
-        field_name=field_name,
-        index_params={
-            "index_type": index_type,
-            "params": index_params,
-            "metric_type": metric_type,
-        },
+    """Create the HNSW index if it does not already exist (idempotent)."""
+    conn.execute(
+        text(
+            f"CREATE INDEX IF NOT EXISTS {index_name} "
+            f"ON {table} USING hnsw ({column} {operator_class}) "
+            f"WITH (m = {m}, ef_construction = {ef_construction})"
+        )
     )
 
 
-def get_indexes(collection: Collection):
-    return collection.indexes
-
-
-def load_collection(collection: Collection) -> None:
-    collection.load()
-
-
 __all__ = [
-    "connect_to_milvus",
-    "collection_exists",
-    "build_collection_fields",
-    "create_collection",
-    "get_collection",
+    "create_pgvector_engine",
+    "extension_exists",
+    "column_exists",
+    "hnsw_index_exists",
+    "get_hnsw_index_reloptions",
     "create_hnsw_index",
-    "get_indexes",
-    "load_collection",
 ]

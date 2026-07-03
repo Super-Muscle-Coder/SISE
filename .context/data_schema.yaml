@@ -5,10 +5,12 @@
 #           Đảm bảo Output mà Project A cung cấp đáp ứng Input Project B mong muốn.
 # Writer  : Project Owner + AG-00
 # Reader  : Tất cả agents
-# Version : 1.0.0 
+# Version : 1.1.0
+# Changelog v1.1.0: Thay thế Milvus bằng pgvector (extension `vector` trên PostgreSQL)
+#                   làm vector store. Xem section database_spec.postgresql.pgvector.
 # =============================================================================
 
-schema_version: 1.0.0
+schema_version: 1.1.0
 migration_tool: alembic
 
 # ---------------------------------------------------------------------------
@@ -18,7 +20,7 @@ migration_tool: alembic
 # ---------------------------------------------------------------------------
 global_configs:
   vector_dim: 512                     # ViT-B/32. Đổi thành 768 nếu dùng ViT-L/14.
-                                      # ⚠ THAY ĐỔI GIÁ TRỊ NÀY SẼ YÊU CẦU XÓA VÀ TÁI TẠO MILVUS COLLECTION.
+                                      # ⚠ THAY ĐỔI GIÁ TRỊ NÀY SẼ YÊU CẦU DROP VÀ REBUILD CỘT/INDEX pgvector (images.embedding, idx_images_embedding_hnsw).
   supported_dims: [512, 768]
 
   max_file_size_mb: 20
@@ -64,7 +66,7 @@ transaction_semantics:
       actor: Celery Worker (AG-03 quản lý)
       action: >
         Enqueue Celery task: fetch ảnh từ MinIO → gọi AG-01 (POST /embed/image)
-        → nhận vector → insert vào Milvus
+        → nhận vector → UPDATE images.embedding (cột pgvector) trong PostgreSQL
       on_failure: Đánh dấu images.index_status = 'failed'; schedule retry theo retry_policy
 
     - step: S5_Commit_Ready
@@ -94,6 +96,7 @@ database_spec:
     extensions:
       - uuid-ossp    # Dùng cho gen_random_uuid()
       - pgcrypto     # Dùng cho password hashing
+      - vector       # pgvector — lưu trữ và ANN search embedding ngay trong PostgreSQL (thay thế Milvus)
 
     migration_notes: >
       Dùng Alembic để quản lý migration. Bao gồm scripts tạo extensions và indexes.
@@ -148,6 +151,7 @@ database_spec:
           # privacy_level: 0 = Private, 1 = Friends, 2 = Public
           tags:              JSONB                    # Mảng tag tùy chỉnh
           index_status:      "VARCHAR(20) DEFAULT 'pending' CHECK (index_status IN ('pending','ready','failed'))"
+          embedding:         "vector(512)"           # pgvector column. PHẢI bằng global_configs.vector_dim. Nullable cho đến khi S4_Async_Index hoàn tất.
           created_at:        TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           updated_at:        TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           deleted_at:        TIMESTAMP WITH TIME ZONE NULL  # Soft delete
@@ -157,44 +161,38 @@ database_spec:
           - CREATE INDEX IF NOT EXISTS idx_images_created_at ON images (created_at)
           - CREATE INDEX IF NOT EXISTS idx_images_tags_gin ON images USING gin (tags)
           - CREATE INDEX IF NOT EXISTS idx_images_index_status ON images (index_status)
+          - "CREATE INDEX IF NOT EXISTS idx_images_embedding_hnsw ON images USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 200)"
 
   # -----------------------------------------------------------------------
-  # Milvus
+  # pgvector (thay thế Milvus — vector store nằm ngay trong PostgreSQL)
   # -----------------------------------------------------------------------
-  milvus:
-    collection_name: sise_v1
-    vector_dim: 512   # Phải bằng global_configs.vector_dim. Không được hard-code khác giá trị này.
+  pgvector:
+    replaces: milvus            # Ghi chú lịch sử: trước v1.1.0 dùng Milvus collection `sise_v1`, đã migrate sang pgvector do vấn đề ổn định vận hành.
+    table: images                # Vector được lưu trực tiếp trong cột images.embedding, không còn store riêng biệt.
+    column: embedding
+    vector_dim: 512               # Phải bằng global_configs.vector_dim. Không được hard-code khác giá trị này.
 
-    fields:
-      - name: image_id
-        type: VarChar
-        is_primary: true
-        max_length: 36          # UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    # Không còn "fields" riêng: image_id, user_id, privacy_level đã có sẵn trong bảng images (PostgreSQL),
+    # nên filter theo metadata giờ là JOIN/WHERE thuần SQL, không cần đồng bộ dữ liệu giữa 2 hệ thống.
 
-      - name: vector
-        type: FloatVector
-        dim: 512                # Phải bằng vector_dim ở trên
-
-      - name: user_id
-        type: Int64             # Tham chiếu đến PostgreSQL users.id
-
-      - name: privacy_level
-        type: Int32             # 0 = Private, 1 = Friends, 2 = Public
-
-    index_type: HNSW
+    index_type: HNSW              # pgvector >= 0.5.0 hỗ trợ HNSW native
     index_params:
-      M: 16                     # Số cạnh tối đa mỗi node. Tăng M → tăng recall nhưng tốn RAM.
-      efConstruction: 200       # Độ chính xác khi build index. Tăng → chậm hơn nhưng chính xác hơn.
+      m: 16                       # Tương đương Milvus M. Số cạnh tối đa mỗi node.
+      ef_construction: 200        # Tương đương Milvus efConstruction.
 
     search_params:
-      ef: 64                    # Độ chính xác khi search. Tăng → chính xác hơn nhưng chậm hơn.
+      hnsw.ef_search: 64          # SET LOCAL hnsw.ef_search = 64; trước khi query. Tương đương Milvus search ef.
 
-    metric_type: COSINE         # Cosine Similarity — chuẩn cho CLIP vector
+    metric_type: COSINE
+    operator_class: vector_cosine_ops   # Dùng <=> operator trong SQL cho cosine distance
 
     notes: >
-      Backup collection snapshot định kỳ theo backup_and_dr bên dưới.
-      Khi cần reindex (schema change hoặc tune), dùng batch reindex với resume token.
-      Giữ old index read-only cho đến khi new index được validate.
+      Vector nằm chung transaction với metadata (cùng 1 PostgreSQL instance) nên loại bỏ hoàn toàn
+      vấn đề đồng bộ 2 hệ thống (Postgres + Milvus) trước đây. Backup theo cùng chu kỳ pg_dump của PostgreSQL,
+      không còn collection snapshot riêng.
+      Khi cần reindex (schema change hoặc tune tham số HNSW), dùng
+      `REINDEX INDEX CONCURRENTLY idx_images_embedding_hnsw` hoặc rebuild với resume token ở batch job,
+      giữ index cũ hoạt động cho đến khi index mới build xong (CONCURRENTLY tránh lock table).
 
   # -----------------------------------------------------------------------
   # MinIO
@@ -232,7 +230,7 @@ database_spec:
 observability:
   metrics:
     - embedding_latency_ms    # Thời gian AG-01 trả về vector
-    - index_latency_ms        # Thời gian Celery worker insert vào Milvus
+    - index_latency_ms        # Thời gian Celery worker UPDATE cột embedding (pgvector) trong PostgreSQL
     - search_qps              # Query per second của Search Service
     - mrr_score               # Mean Reciprocal Rank (chạy định kỳ)
     - hit_rate                # Hit Rate@K (chạy định kỳ)
@@ -241,12 +239,15 @@ observability:
   tracing: opentelemetry
   logging: structured_json    # Loguru hoặc ELK Stack
 
+  metrics_note: >
+    embedding_latency_ms giờ đo cả bước AG-01 trả vector; index_latency_ms đo thời gian
+    UPDATE cột embedding + build/refresh HNSW index trong PostgreSQL (thay vì insert Milvus).
+
   health_probes:
     liveness: /health/liveness
     readiness: /health/readiness
     readiness_checks:
-      - postgres
-      - milvus
+      - postgres           # Bao gồm cả pgvector extension check (SELECT extname FROM pg_extension WHERE extname='vector')
       - minio
       - ai_service
 
@@ -259,11 +260,9 @@ backup_and_dr:
     cadence: daily
     retention_days: 30
     method: "pg_dump + WAL archiving"
-
-  milvus:
-    cadence: weekly
-    retention_weeks: 8
-    method: collection snapshot
+    note: >
+      Từ khi migrate sang pgvector, backup PostgreSQL đã bao gồm luôn dữ liệu embedding
+      (cột images.embedding). Không còn backup job riêng cho vector store.
 
   minio:
     cadence: daily
@@ -271,8 +270,8 @@ backup_and_dr:
     method: "replication + lifecycle rules"
 
   restore_playbook: >
-    1. Restore PostgreSQL từ pg_dump gần nhất.
-    2. Restore Milvus từ collection snapshot.
+    1. Restore PostgreSQL từ pg_dump gần nhất (bao gồm cột embedding pgvector).
+    2. Rebuild HNSW index (idx_images_embedding_hnsw) nếu chưa được khôi phục cùng dump.
     3. Verify MinIO objects khớp với PostgreSQL records.
     4. Test DR procedure mỗi quý (quarterly).
 
@@ -288,15 +287,13 @@ security_and_secrets:
     - MINIO_ENDPOINT
     - MINIO_ACCESS_KEY
     - MINIO_SECRET_KEY
-    - MILVUS_HOST
-    - MILVUS_PORT
     - REDIS_URL
     - JWT_SECRET
     - AI_SERVICE_URL      # URL nội bộ của AG-01 (ví dụ: http://ai-service:8001)
 
   network:
     recommended: >
-      Private VPC cho PostgreSQL, Milvus, MinIO.
+      Private VPC cho PostgreSQL (bao gồm pgvector) và MinIO.
       Chỉ Backend và Celery Worker mới có quyền kết nối trực tiếp.
       Frontend (Web/Mobile) chỉ giao tiếp với Backend qua HTTPS.
 
@@ -316,9 +313,12 @@ testing_and_ci:
 operational_playbooks:
 
   reindex_strategy:
-    when: "Schema change hoặc index tuning"
-    approach: "Batch reindex với resume token; dùng job queue và monitor tiến độ"
-    safety: "Giữ old index read-only cho đến khi new index được validate"
+    when: "Schema change hoặc HNSW parameter tuning (m, ef_construction)"
+    approach: >
+      Batch backfill cột images.embedding với resume token (theo updated_at/id cursor);
+      dùng job queue và monitor tiến độ. Build index mới bằng
+      `CREATE INDEX CONCURRENTLY ... USING hnsw (...)` để không khoá bảng images.
+    safety: "Giữ index cũ hoạt động cho đến khi index mới (CONCURRENTLY) build xong và được validate, sau đó DROP index cũ."
 
   incident_response:
     on_index_failure: >
@@ -331,6 +331,9 @@ operational_playbooks:
     on_vector_dim_mismatch: >
       Client gọi GET /health/readiness, đọc header X-Expected-Vector-Dim.
       Backend trả HTTP 400 với error code ERR_VECTOR_DIM_MISMATCH.
+      (Lưu ý: với pgvector, cột embedding được khai báo cứng `vector(512)` ở DDL,
+      nên INSERT/UPDATE với vector sai chiều sẽ tự động bị PostgreSQL từ chối ở tầng DB;
+      AG-03 vẫn phải validate trước ở tầng service để trả đúng structured error thay vì để lộ raw DB exception.)
 
 # ---------------------------------------------------------------------------
 # GHI CHÚ KỸ THUẬT
@@ -346,11 +349,15 @@ notes:
     Dùng structured FilterExpression JSON (and/or/leaf).
     Dùng op 'contains' cho tags (JSONB array membership).
     Dùng op 'in' cho enums/numeric lists.
-    AG-03 phải validate và sanitize filter expression trước khi truyền vào Milvus hoặc SQL.
+    AG-03 phải validate và sanitize filter expression trước khi biên dịch thành mệnh đề SQL WHERE
+    (kết hợp cùng ANN search trên cột images.embedding), tránh SQL injection qua field/value.
 
   privacy_level_1_query: >
     Với privacy_level = 1 (Friends), AG-03 phải:
     1. Query bảng friends để lấy danh sách friend_id của current_user.
-    2. Milvus filter: (privacy_level == 2) OR (user_id == current_user_id)
-       OR (privacy_level == 1 AND user_id IN [friend_ids]).
+    2. SQL WHERE clause trên bảng images (kết hợp ANN search bằng toán tử <=> của pgvector):
+       (privacy_level = 2) OR (user_id = current_user_id)
+       OR (privacy_level = 1 AND user_id IN (friend_ids)).
+       Vì filter và vector search giờ cùng nằm trong 1 câu SQL/1 hệ CSDL,
+       không còn rủi ro lệch pha dữ liệu giữa metadata (Postgres) và vector store (Milvus) như trước.
     Không cache danh sách friend quá 5 phút để đảm bảo tính nhất quán.

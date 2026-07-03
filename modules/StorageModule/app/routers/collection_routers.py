@@ -1,10 +1,16 @@
-from app.entities.collection_entities import MilvusConfig
+from app.entities.collection_entities import PgvectorIndexConfig
 from app.services import collection_services
 
 
-class CollectionWorkflowRouter:
-    def __init__(self, milvus_config: MilvusConfig) -> None:
-        self._milvus_config = milvus_config
+class PgvectorIndexWorkflowRouter:
+    """Router for the pgvector-index workflow.
 
-    def setup_collection(self) -> None:
-        collection_services.ensure_collection(self._milvus_config)
+    Orchestrates ensure_pgvector_index() which validates and (if needed)
+    creates the HNSW index on images.embedding in PostgreSQL.
+    """
+
+    def __init__(self, pgvector_config: PgvectorIndexConfig) -> None:
+        self._pgvector_config = pgvector_config
+
+    def setup_pgvector_index(self) -> None:
+        collection_services.ensure_pgvector_index(self._pgvector_config)

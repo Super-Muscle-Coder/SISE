@@ -79,7 +79,6 @@
     <Content Include="documents\collection_workflow\COLLECTION_WORKFLOW_DEEP_GUIDE.md" />
     <Content Include="documents\collection_workflow\COLLECTION_WORKFLOW_QUICK_GUIDE.md" />
     <Content Include="documents\collection_workflow\COLLECTION_WORKFLOW_REFERENCES.md" />
-    <Content Include="documents\INDEX.md" />
     <Content Include="documents\infra_workflow\INFRA_WORKFLOW_README.md" />
     <Content Include="documents\schema_workflow\SCHEMA_WORKFLOW_DEEP_GUIDE.md" />
     <Content Include="documents\schema_workflow\SCHEMA_WORKFLOW_QUICK_GUIDE.md" />

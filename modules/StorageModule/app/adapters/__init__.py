@@ -6,14 +6,12 @@ from .bucket_adapters import (
     make_bucket,
 )
 from .collection_adapters import (
-    build_collection_fields,
-    collection_exists,
-    connect_to_milvus,
-    create_collection,
+    column_exists,
     create_hnsw_index,
-    get_collection,
-    get_indexes,
-    load_collection,
+    create_pgvector_engine,
+    extension_exists,
+    get_hnsw_index_reloptions,
+    hnsw_index_exists,
 )
 from .schema_adapters import (
     build_alembic_config,
@@ -25,18 +23,16 @@ from .schema_adapters import (
 __all__ = [
     # schema
     "build_alembic_config",
+    "create_postgres_engine",
     "run_downgrade",
     "run_upgrade",
-    "create_postgres_engine",
-    # collection
-    "connect_to_milvus",
-    "collection_exists",
-    "build_collection_fields",
-    "create_collection",
+    # pgvector-index
+    "create_pgvector_engine",
+    "extension_exists",
+    "column_exists",
+    "hnsw_index_exists",
+    "get_hnsw_index_reloptions",
     "create_hnsw_index",
-    "get_collection",
-    "get_indexes",
-    "load_collection",
     # bucket
     "create_minio_client",
     "bucket_exists",

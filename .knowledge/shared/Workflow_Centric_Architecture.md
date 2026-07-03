@@ -2,9 +2,10 @@
 **Document Type:** Architecture Reference
 **Status:** Active (enforced via CI/CD)
 **Owner:** AG-00 (OrchestratorAgent) + ProjectOwner
-**Last Updated:** 2026-05-12
-**Version:** 2.2.0
+**Last Updated:** 2026-07-03
+**Version:** 2.3.0
 **Applies To:** All modules (AIModule, BackendModule, StorageModule, frontendweb, FrontendMobile)
+**Changelog v2.3.0:** Updated StorageModule AG-02 section: replaced all Milvus/etcd references with pgvector (PostgreSQL `vector` extension) per `data_schema.yaml` v1.1.0 and `openapi.yaml` v1.1.0 migration.
 ---
 
 # KIẾN TRÚC 5 LỚP VÀ QUY TẮC WORKFLOW-CENTRIC (SISE PROJECT)
@@ -78,7 +79,7 @@ Thay vì áp dụng MVC tĩnh khiến số lượng tệp phình to mất kiểm
 
 ## 2. WORKFLOW ĐẶC TẢ THEO TỪNG MODULE
 
-Dưới đây là đặc tả kỹ thuật nghiêm ngặt về phân rã chức năng cho từng Module dựa trên `DOS.md`, `Tasks.yaml` và `data_schema.yaml`.
+Dưới đây là đặc tả kỹ thuật nghiêm ngặt về phân rã chức năng cho từng Module dựa trên `DOS.md`, `Tasks.yaml`, `openapi.yaml` và `data_schema.yaml`.
 
 ### 2.1 AG-01: AIModule
 - **Đặc tả luồng xử lý:** Pipeline Inference chuyên dụng phân tách tính toán CPU/GPU (Feature Extraction).
@@ -89,10 +90,10 @@ Dưới đây là đặc tả kỹ thuật nghiêm ngặt về phân rã chức 
   3. `text_embedding`: Text Tokenization $\rightarrow$ Model Inference $\rightarrow$ Temporal Text Vector float32[].
 
 ### 2.2 AG-02: StorageModule
-- **Đặc tả luồng xử lý:** Infrastructure as Code (IaC) và Database Initialization scripts.
+- **Đặc tả luồng xử lý:** Infrastructure as Code (IaC) và Database Initialization scripts. Vector store nằm ngay trong PostgreSQL thông qua extension `pgvector` (thay thế Milvus từ v2.3.0).
 - **Luồng chức năng (Mắt xích phân rã):**
-  1. `schema`: Quản trị Alembic Migrations (PostgreSQL) đảm bảo DDL cho Entities khớp `database_spec.postgresql`.
-  2. `collection`: Milvus Schema Initialization (HNSW Indexing, M: 16, efConstruction: 200) cho collection `sise_v1`.
+  1. `schema`: Quản trị Alembic Migrations (PostgreSQL) đảm bảo DDL cho Entities khớp `database_spec.postgresql`, bao gồm extension `vector`, cột `images.embedding`, và HNSW index.
+  2. `pgvector-index`: pgvector Index Initialization (HNSW Indexing, M: 16, ef_construction: 200, operator_class: vector_cosine_ops) cho index `idx_images_embedding_hnsw` trên cột `images.embedding`.
   3. `bucket`: MinIO Initial Setup (Lifecycles retention policy cho `raw-images` & `thumbnails`).
 
 ### 2.3 AG-03: BackendModule
@@ -101,8 +102,8 @@ Dưới đây là đặc tả kỹ thuật nghiêm ngặt về phân rã chức 
 - **Luồng chức năng (Mắt xích phân rã):**
   1. `auth`: Bearer Token validation, JWT decode to extract identity payload.
   2. `upload`: Orchestration of 5-step pipelining (Presigned URL initialization $\rightarrow$ Binary verification $\rightarrow$ Pending metadata persistence $\rightarrow$ Celery queueing $\rightarrow$ Ready commit).
-  3. `indexing`: Asynchronous Job Consumer. Liên kết AG-01 AI Inference & AG-02 Milvus Storage.
-  4. `search`: Multimodal query ingestion. Áp dụng Privacy-Aware Metadata Filter trên Milvus Engine.
+  3. `indexing`: Asynchronous Job Consumer. Liên kết AG-01 AI Inference & AG-02 pgvector Storage (PostgreSQL `vector` extension).
+  4. `search`: Multimodal query ingestion. Áp dụng Privacy-Aware Metadata Filter trên pgvector HNSW Index (SQL-based, không còn Milvus Engine riêng biệt).
   5. `evaluation`: Benchmarking daemon trigger (MRR, HitRate, Precision computation).
 
 ### 2.4 AG-04 & AG-05: WebFrontend / MobileFrontend
@@ -130,7 +131,7 @@ Phần này định hình các rào cản kỹ thuật tĩnh (Static Constraints
 Dựa trên `agent_boundaries.yaml` và `DOS.md`, các tập vi phạm sau sẽ trigger Lỗi Hậu Kiểm (CI Reject):
 
 - **[AP-1] Delegation Breach (Vi phạm Uỷ quyền Khối lượng):** AG-03 tự ý khởi tạo cấu trúc tính toán (như Resize Array hoặc Deep Learning Embedding) mà không sử dụng AG-01. (Nguyên tắc: `heavy_image_processing` bị cấm hoàn toàn tại lớp API Gateway).
-- **[AP-2] Direct Resource Manipulation (Cấm xâm phạm Hạ tầng Dữ liệu Chéo):** AG-03 gọi SQLAlchemy can thiệp cơ sở dữ liệu vật lý riêng của AG-01 hoặc AG-04 chọc thẳng HTTP tới Milvus. Mọi trao đổi phải đóng gói theo RESTful protocol quy định tại `openapi.yaml`.
+- **[AP-2] Direct Resource Manipulation (Cấm xâm phạm Hạ tầng Dữ liệu Chéo):** AG-03 gọi SQLAlchemy can thiệp cơ sở dữ liệu vật lý riêng của AG-01, hoặc AG-04 chọc thẳng vào PostgreSQL/pgvector mà không qua AG-02 wrapper. Mọi trao đổi phải đóng gói theo RESTful protocol quy định tại `openapi.yaml`.
 - **[AP-3] Hardcoded Configuration (Trạng thái Cứng):** Bí mật cấp cao hoặc tham chiếu URI nằm trong nội hàm của Adapter. (Thay vào đó, phải Inject từ Env config tại bước Startup).
 - **[AP-4] Logic Bleed in Entities (Tràn Logic thực thể):** Định nghĩa Data Types như `Pydantic BaseModel` chứa Methods có tính toán State.
 - **[AP-5] Circular Dependency (Phụ thuộc Tuyến tính Nghịch):** Module A.Service mapping sang Module B.Service, trong khi Module B.Service gọi trực tiếp module A. Tính Linear Directed Graph bị phá huỷ.
