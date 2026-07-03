@@ -13,7 +13,7 @@ This happens automatically during Docker build when we run: python -c "import ap
 # Ensures all routers can load, which triggers full dependency chain validation
 try:
     from .routers.schema_routers import SchemaWorkflowRouter  # noqa: F401
-    from .routers.collection_routers import PgvectorIndexWorkflowRouter  # noqa: F401
+    from .routers.pgvector_index_routers import PgvectorIndexWorkflowRouter  # noqa: F401
     from .routers.bucket_routers import BucketWorkflowRouter  # noqa: F401
     from .routers.seed_routers import SeedWorkflowRouter  # noqa: F401
 except ImportError as e:

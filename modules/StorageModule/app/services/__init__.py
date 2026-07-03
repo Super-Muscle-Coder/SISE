@@ -1,5 +1,5 @@
 from .bucket_services import ensure_buckets
-from .collection_services import ensure_pgvector_index
+from .pgvector_index_services import ensure_pgvector_index
 from .schema_services import downgrade_schema, run_schema_migrations
 from .seed_services import seed_storage
 

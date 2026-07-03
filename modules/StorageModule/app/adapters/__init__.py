@@ -5,7 +5,7 @@ from .bucket_adapters import (
     delete_bucket_policy,
     make_bucket,
 )
-from .collection_adapters import (
+from .pgvector_index_adapters import (
     column_exists,
     create_hnsw_index,
     create_pgvector_engine,

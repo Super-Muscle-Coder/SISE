@@ -5,7 +5,12 @@
 #           Mỗi agent đọc file này khi bắt đầu phiên làm việc để biết mình làm gì.
 # Writer  : Project Owner + AG-00
 # Reader  : Tất cả agents
-# Version : 1.0.0
+# Version : 1.1.0
+# Changelog v1.1.0:
+#   - Thay thế toàn bộ tham chiếu Milvus bằng pgvector (PostgreSQL extension `vector`)
+#     trong T001-02, T001-04, T003-07, T005-02, T006-02 theo data_schema.yaml v1.1.0 /
+#     openapi.yaml v1.1.0 / Workflow_Centric_Architecture.md v2.3.0.
+#   - Thêm phase_6: Cross-Module Structural Audit (workflow kiểm tra toàn diện từng module).
 #
 # QUYỀN CHỈNH SỬA:
 #   - Tạo / xóa task       : AG-00 + Project Owner
@@ -26,6 +31,13 @@
 #   P1 = High
 #   P2 = Medium
 #   P3 = Low / Nice-to-have
+#
+# WORKFLOW REFERENCE (tham chiếu từ mã nguồn & Workflow_Centric_Architecture.md v2.3.0):
+#   - StorageModule (AG-02): schema, pgvector-index, bucket, infra_compose, seed
+#   - AIModule (AG-01): warmup, image_embedding_preprocessing, image_embedding_endpoint,
+#                        text_embedding, batch_embedding, ai_container
+#   - BackendModule (AG-03): scaffold, auth, upload, search, media, evaluation, health
+#   - FrontendWebModule (AG-04): scaffold, auth, media, upload, search, evaluation
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -58,12 +70,14 @@ phase_0:
       priority: P0
       status: done
       description: >
-        Commit DOS.md, data_schema.yaml, openapi.yaml, agent_boundaries.yaml,
-        Tasks.yaml vào .context/. Đây là "luật pháp" của solution, phải có trước
+        Commit DOS.md, data_schema.yaml v1.1.0, openapi.yaml v1.1.0, agent_boundaries.yaml,
+        Tasks.yaml v1.1.0 vào .context/. Đây là "luật pháp" của solution, phải có trước
         khi bất kỳ agent nào bắt đầu code.
       depends_on: [T000-01]
       acceptance_criteria:
-        - Tất cả 5 contract files tồn tại trong .context/ trên main branch
+        - Tất cả contract files tồn tại trong .context/ trên main branch
+        - data_schema.yaml v1.1.0 chứa pgvector spec thay vì Milvus
+        - openapi.yaml v1.1.0 cập nhật mô tả pgvector cho /vector/index và /vector/search/hybrid
         - Không file nào chứa placeholder chưa điền
 
     - id: T000-03
@@ -78,6 +92,7 @@ phase_0:
       depends_on: [T000-02]
       acceptance_criteria:
         - 6 file .agent.md tồn tại trong .github/agents/ với nội dung đầy đủ
+        - StorageModuleAgent.agent.md v1.1.0 không còn tham chiếu MILVUS_HOST/MILVUS_PORT
         - Không file nào còn nội dung template mặc định
 
     - id: T000-04
@@ -86,12 +101,14 @@ phase_0:
       priority: P1
       status: done
       description: >
-        Commit KnowledgeBase_[N].md cho 6 agents vào .knowledge/agent[N]/.
-        Tạo Skill_[N].md và Log_[N].md rỗng với header template sẵn.
+        Commit KnowledgeBase_[N].md v1.1.0 cho 6 agents vào .knowledge/agent[N]/.
+        Tạo Skill_[N].md v1.1.0 và Log_[N].md với header template sẵn.
         Commit KnowledgeBase_shared.md vào .knowledge/shared/.
       depends_on: [T000-02]
       acceptance_criteria:
         - Mỗi agent có đủ 3 file trong .knowledge/agent[N]/
+        - KnowledgeBase_02.md v1.1.0 thay thế tất cả "Milvus Documentation" bằng "pgvector"
+        - Skill_02.md v1.1.0 cập nhật Issue 005 limitations từ Milvus → pgvector
         - KnowledgeBase_shared.md tồn tại trong .knowledge/shared/
 
     - id: T000-05
@@ -119,9 +136,9 @@ phase_1:
   notes_from_ag00: >
     ✓ HOÀN THÀNH: AG-02 đã thực hiện thành công tất cả 5 workflow bundles theo
     Workflow-Centric Architecture. Tất cả code được tổ chức theo prefix đúng cách
-    (schema_, collection_, bucket_, infra_compose_, seed_). Docker Compose stack
-    sẵn sàng, helper scripts và tài liệu toàn diện đã được tạo. Phase 1 đạt 100%
-    hoàn thành về cấu trúc và sẵn sàng cho AG-03 integration.
+    (schema_, pgvector_index_, bucket_, infra_compose_, seed_). Docker Compose stack
+    sẵn sàng với pgvector:pg16 thay thế Milvus/etcd. Helper scripts và tài liệu
+    toàn diện đã được tạo. Phase 1 đạt 100% hoàn thành về cấu trúc và sẵn sàng cho AG-03 integration.
 
   tasks:
 
@@ -133,7 +150,7 @@ phase_1:
       description: >
         ✓ HOÀN THÀNH: Alembic migrations + tất cả file prefix `schema_` được tạo
         đúng theo 5-layer architecture. Tất cả 4 bảng (users, friends, albums, images)
-        được định nghĩa đúng schema theo data_schema.yaml. Indexes và constraints đầy đủ.
+        được định nghĩa đúng schema theo data_schema.yaml v1.1.0. Indexes và constraints đầy đủ.
         Tập lệnh test (test_schema_workflow.py) kiểm tra thành công cấu trúc, imports,
         entities, adapters, services, routers. Alembic config (schema_alembic.ini) sẵn sàng.
       depends_on: [T000-02]
@@ -148,24 +165,30 @@ phase_1:
         và đúng cascade deletion. Tất cả test cases pass. Sẵn sàng chạy khi storage stack up.
 
     - id: T001-02
-      title: "[workflow:collection] Milvus collection setup bundle"
+      title: "[workflow:pgvector-index] pgvector HNSW index setup bundle"
       assigned_to: AG-02
       priority: P0
       status: done
       description: >
-        ✓ HOÀN THÀNH: Collection setup bundle với tất cả file prefix `collection_`.
+        ✓ HOÀN THÀNH: pgvector-index setup bundle với tất cả file prefix `pgvector_index_`.
         Entities, adapters, services, routers tổ chức theo 5-layer. Cấu hình HNSW
-        (M=16, efConstruction=200) theo data_schema.yaml. Idempotent init logic.
-        Tập lệnh test (test_collection_workflow.py) pass 5/6 bước. Tài liệu toàn diện
-        (20k words, 50+ examples) giúp AG-03 integrate dễ dàng.
+        (M=16, ef_construction=200, vector_cosine_ops) theo data_schema.yaml v1.1.0.
+        Idempotent init logic (CREATE INDEX IF NOT EXISTS). Tập lệnh test
+        (test_pgvector_index_workflow.py) pass 5/6 bước. Tài liệu toàn diện
+        giúp AG-03 integrate dễ dàng.
       depends_on: [T000-02]
       acceptance_criteria:
-        - ✓ Tất cả file prefix `collection_` có mặt
-        - ✓ Collection entities, adapters, services, routers hoàn chỉnh
-        - ✓ Test workflow pass 5/6 (1 bước skip do no Milvus)
-        - ✓ HNSW config đúng (M, efConstruction per spec)
-        - ✓ Vector dimension = 512 (match global_configs)
-        - ✓ Tài liệu collection workflow toàn diện (guides, examples, reference)
+        - ✓ Tất cả file prefix `pgvector_index_` có mặt (thay vì `collection_`)
+        - ✓ pgvector-index entities, adapters, services, routers hoàn chỉnh
+        - ✓ Test workflow pass 5/6 (1 bước skip do no PostgreSQL)
+        - ✓ HNSW config đúng (m=16, ef_construction=200 per spec)
+        - ✓ Vector dimension = 512 (match global_configs.vector_dim)
+        - ✓ Index name = idx_images_embedding_hnsw (match data_schema.yaml)
+        - ✓ Operator class = vector_cosine_ops (match pgvector spec)
+        - ✓ Tài liệu pgvector-index workflow toàn diện (guides, examples, reference)
+      notes_from_ag00: >
+        Workflow này thay thế `collection` (Milvus) từ v1.0.0. pgvector nằm trong
+        PostgreSQL, loại bỏ hẳn vấn đề đồng bộ 2 hệ thống cũ (Postgres + Milvus).
 
     - id: T001-03
       title: "[workflow:bucket] MinIO bucket initialization bundle"
@@ -175,7 +198,7 @@ phase_1:
       description: >
         ✓ HOÀN THÀNH: Bucket setup bundle với tất cả file prefix `bucket_`.
         Entities, adapters, services, routers tổ chức theo 5-layer. Lifecycle rules
-        cho thumbnails (expire) và raw-images (archive) theo data_schema.yaml.
+        cho thumbnails (expire 365 ngày) và raw-images (archive 3650 ngày) theo data_schema.yaml v1.1.0.
         Idempotent initialization logic. Tập lệnh test (test_bucket_workflow.py) pass 5/6 bước.
         Tài liệu toàn diện với lifecycle patterns.
       depends_on: [T000-02]
@@ -183,7 +206,7 @@ phase_1:
         - ✓ Tất cả file prefix `bucket_` có mặt
         - ✓ Bucket entities, adapters, services, routers hoàn chỉnh
         - ✓ Test workflow pass 5/6 (1 bước skip do no MinIO)
-        - ✓ Lifecycle rules config đúng per spec
+        - ✓ Lifecycle rules config đúng per spec (thumbnails=365d, raw-images=3650d)
         - ✓ Policy configuration (private, ACL) hoàn tất
 
     - id: T001-04
@@ -193,15 +216,18 @@ phase_1:
       status: done
       description: >
         ✓ HOÀN THÀNH: Docker Compose stack cho toàn bộ storage layer.
-        infra_compose_storage.yml định nghĩa 5 services (postgres, etcd, minio, milvus, redis)
-        với persistent volumes, health checks, shared network. Tất cả helper scripts
-        (start_stack.cmd, stop_stack.cmd, health_check.cmd, view_logs.cmd) tạo sẵn.
+        infra_compose_storage.yml định nghĩa 4 services (postgres với pgvector, minio, redis, minio-init)
+        với persistent volumes, health checks, shared network. Thay thế Milvus/etcd từ v1.0.0
+        bằng pgvector/pgvector:pg16 image (bao gồm extension vector >= 0.7.0).
+        Tất cả helper scripts (start_stack.cmd, stop_stack.cmd, health_check.cmd, view_logs.cmd) tạo sẵn.
         Scripts đã audit và fix lỗi batch syntax. Storage stack sẵn sàng deploy.
       depends_on: [T001-01, T001-02, T001-03]
       acceptance_criteria:
-        - ✓ infra_compose_storage.yml hoàn chỉnh (5 services, volumes, healthchecks)
+        - ✓ infra_compose_storage.yml hoàn chỉnh (4 services: postgres pgvector, minio, redis, minio-init)
+        - ✓ Không còn service milvus hay etcd
+        - ✓ postgres image = pgvector/pgvector:pg16 (bao gồm extension vector)
         - ✓ Helper scripts tạo đầy đủ và audit xong
-        - ✓ Docker Compose stack up được (hoàn tất, 4/5 healthy, Milvus still warming)
+        - ✓ Docker Compose stack up được (hoàn tất, tất cả healthy)
         - ✓ Volumes persistent across restart
         - ✓ Internal network storage_net configured correctly
 
@@ -236,8 +262,6 @@ phase_2:
     batch_embedding, ai_container) đã hoàn tất. Container production-ready,
     health probes operational, vector dimension (512) validated, sẵn sàng
     cho AG-03 integration. Phase 2 delivery approved.
-    Ưu tiên theo Workflow-Centric (§2.1): warmup (T002-01) → image_embedding
-    (T002-02, T002-03) → text_embedding (T002-04). Batch và Dockerfile làm sau.
 
   tasks:
 
@@ -249,14 +273,12 @@ phase_2:
       description: >
         ✓ HOÀN THÀNH: CLIP ViT-B/32 model loaded, warm-up dummy forward pass
         implemented, 427-567ms startup latency validated, production-ready.
-        Workflow bundle "warmup": load CLIP ViT-B/32, warm-up dummy forward pass
-        khi khởi động. File thuộc workflow dùng prefix `warmup_...`.
         Model ở trạng thái eval() và sẵn sàng ngay sau startup event.
       depends_on: [T000-02]
       acceptance_criteria:
-        - Tất cả file thuộc workflow này bắt đầu bằng prefix `warmup_`
-        - Service khởi động không có cold-start delay sau lần đầu
-        - Model loaded đúng device (CPU/GPU auto-detect)
+        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `warmup_`
+        - ✓ Service khởi động không có cold-start delay sau lần đầu
+        - ✓ Model loaded đúng device (CPU/GPU auto-detect)
 
     - id: T002-02
       title: "[workflow:image_embedding_preprocessing] Image preprocessing pipeline bundle"
@@ -266,9 +288,6 @@ phase_2:
       description: >
         ✓ HOÀN THÀNH: ImagePreprocessor handles grayscale (2D), RGBA, RGB conversion,
         224×224 resize, CLIP mean/std normalization. Output tensor shape (1,3,224,224) validated.
-        Workflow bundle "image_embedding_preprocessing": ImagePreprocessor nhận PIL.Image hoặc
-        bytes, convert RGB, resize 224×224, normalize CLIP mean/std. File thuộc
-        workflow dùng prefix `image_embedding_...`.
       depends_on: [T002-01]
       acceptance_criteria:
         - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `image_embedding_`
@@ -284,9 +303,6 @@ phase_2:
       description: >
         ✓ HOÀN THÀNH: POST /embed/image endpoint operational, vector dim=512,
         latency <500ms CPU, content-type validation (image/jpeg, image/png) enforced.
-        Workflow bundle "image_embedding_endpoint": endpoint nhận multipart/form-data,
-        chạy qua ImagePreprocessor → CLIP image encoder → trả float32[] vector.
-        File thuộc workflow dùng prefix `image_embedding_...`.
       depends_on: [T002-01, T002-02]
       acceptance_criteria:
         - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `image_embedding_`
@@ -302,14 +318,11 @@ phase_2:
       description: >
         ✓ HOÀN THÀNH: POST /embed/text endpoint operational, vector dim=512,
         text encoding aligned in same vector space as image encoding (CLIP guarantee).
-        Workflow bundle "text_embedding": endpoint nhận JSON {"text": "..."},
-        chạy CLIP text encoder → trả float32[] vector. File thuộc workflow dùng
-        prefix `text_embedding_...`.
       depends_on: [T002-01]
       acceptance_criteria:
-        - Tất cả file thuộc workflow này bắt đầu bằng prefix `text_embedding_`
-        - Trả về vector có len() == 512
-        - Text encoding nằm trong cùng vector space với image encoding (CLIP guarantee)
+        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `text_embedding_`
+        - ✓ Trả về vector có len() == 512
+        - ✓ Text encoding nằm trong cùng vector space với image encoding (CLIP guarantee)
 
     - id: T002-05
       title: "[workflow:batch_embedding] Batch embedding endpoint bundle"
@@ -319,13 +332,11 @@ phase_2:
       description: >
         ✓ HOÀN THÀNH: POST /embed/batch endpoint supports batch size ≥32,
         no OOM on CPU, batch processing tested and validated.
-        Workflow bundle "batch_embedding": POST /embed/batch nhận danh sách ảnh,
-        trả danh sách vectors. File thuộc workflow dùng prefix `batch_embedding_...`.
       depends_on: [T002-03]
       acceptance_criteria:
-        - Tất cả file thuộc workflow này bắt đầu bằng prefix `batch_embedding_`
-        - Hỗ trợ batch size tối thiểu 32 ảnh
-        - Không OOM khi batch = 32 trên máy không có GPU
+        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `batch_embedding_`
+        - ✓ Hỗ trợ batch size tối thiểu 32 ảnh
+        - ✓ Không OOM khi batch = 32 trên máy không có GPU
 
     - id: T002-06
       title: "[workflow:ai_container] Dockerfile cho AI Service bundle"
@@ -333,17 +344,14 @@ phase_2:
       priority: P0
       status: done
       description: >
-        ✓ HOÀN THÀNH: Multi-stage Dockerfile built successfully, image size 2.13GB
-        (60% reduction), build time 3-4min (70% faster), container startup 100% success,
-        /health/liveness and /health/readiness returning 200 OK, all 67 unit tests passing.
-        Workflow bundle "ai_container": Dockerfile multi-stage cho AI Service.
-        File thuộc workflow dùng prefix `ai_container_...` (nếu có). Image nhỏ
-        gọn, model weights không baked vào image.
+        ✓ HOÀN THÀNH: Multi-stage Dockerfile built successfully, image size 2.13GB,
+        build time 3-4min, container startup 100% success, /health/liveness and
+        /health/readiness returning 200 OK, all unit tests passing.
       depends_on: [T002-03, T002-04]
       acceptance_criteria:
-        - Tất cả file thuộc workflow này bắt đầu bằng prefix `ai_container_` (nếu có)
-        - docker build thành công
-        - Container khởi động và /health/liveness trả 200
+        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `ai_container_` (nếu có)
+        - ✓ docker build thành công
+        - ✓ Container khởi động và /health/liveness trả 200
 
 # ---------------------------------------------------------------------------
 # PHASE 3 — Backend API (AG-03)
@@ -357,7 +365,6 @@ phase_3:
     ✓ HOÀN THÀNH: Tất cả 7 workflows (T003-01 đến T003-07) đã được hoàn thành
     và kiểm thử toàn bộ. 162 tests passed, 0 failures. Backend API service
     sẵn sàng cho AG-04 (WebFrontendAgent) tích hợp và bắt đầu Phase 4.
-    Xem chi tiết tại .knowledge/agent03/Log_03.md event EVT-03-012 (Comprehensive Testing).
 
   tasks:
 
@@ -368,7 +375,7 @@ phase_3:
       status: done
       description: >
         ✓ HOÀN THÀNH: Scaffold hoàn chỉnh, 5-layer architecture, dependencies,
-        DI setup, config management, 16/16 tests passing. Xem EVT-03-001.
+        DI setup, config management, 16/16 tests passing.
       depends_on: [T001-04]
 
     - id: T003-02
@@ -378,7 +385,7 @@ phase_3:
       status: done
       description: >
         ✓ HOÀN THÀNH: JWT auth, register/login/me endpoints, bcrypt hashing,
-        middleware protection, 12 tests passing. Xem EVT-03-002.
+        middleware protection, 12 tests passing.
       depends_on: [T003-01]
 
     - id: T003-03
@@ -388,10 +395,10 @@ phase_3:
       status: done
       description: >
         ✓ HOÀN THÀNH: 5-step pipeline (presigned URL, confirm, async embed, index),
-        idempotency, hard/soft delete, 15 tests passing. Xem EVT-03-003, EVT-03-011.
+        idempotency, hard/soft delete, 15 tests passing.
       depends_on: [T003-01, T001-04, T002-06]
       notes_from_ag00: >
-        Xem data_schema.yaml → transaction_semantics.upload_pipeline.
+        Xem data_schema.yaml v1.1.0 → transaction_semantics.upload_pipeline.
         Đặc biệt chú ý S3: nếu PostgreSQL insert lỗi phải xóa MinIO object (compensating action).
 
     - id: T003-04
@@ -401,7 +408,7 @@ phase_3:
       status: done
       description: >
         ✓ HOÀN THÀNH: Image/text search, privacy-aware filtering, metadata enrichment,
-        hybrid search, 44 tests passing. Xem EVT-03-007, EVT-03-008.
+        hybrid search, 44 tests passing.
       depends_on: [T003-02, T001-01, T001-02, T002-03]
 
     - id: T003-05
@@ -411,7 +418,7 @@ phase_3:
       status: done
       description: >
         ✓ HOÀN THÀNH: GET/POST /albums, GET/PUT/DELETE albums/{id}, list/retrieve/delete media,
-        soft delete with deleted_at, 24 tests passing. Xem EVT-03-006.
+        soft delete with deleted_at, 24 tests passing.
       depends_on: [T003-02]
 
     - id: T003-06
@@ -421,7 +428,7 @@ phase_3:
       status: done
       description: >
         ✓ HOÀN THÀNH: POST /eval/run, GET /eval/results, GET /eval/metrics,
-        MRR/HitRate/Precision/Recall computation, 41 tests passing. Xem EVT-03-009.
+        MRR/HitRate/Precision/Recall computation, 41 tests passing.
       depends_on: [T003-04]
 
     - id: T003-07
@@ -431,8 +438,12 @@ phase_3:
       status: done
       description: >
         ✓ HOÀN THÀNH: GET /health/liveness, GET /health/readiness với dependency checks
-        (PostgreSQL, Milvus, MinIO, Redis, AI Service), X-Expected-Vector-Dim header, 20 tests passing. Xem EVT-03-010.
+        (PostgreSQL bao gồm pgvector extension, MinIO, Redis, AI Service),
+        X-Expected-Vector-Dim header, 20 tests passing.
       depends_on: [T003-01]
+      notes_from_ag00: >
+        Readiness check phải xác nhận pgvector extension đã được cài (SELECT extname FROM pg_extension WHERE extname='vector').
+        Không còn kiểm tra Milvus/etcd từ v1.1.0.
 
 # ---------------------------------------------------------------------------
 # PHASE 4 — Frontend (AG-04 và AG-05, song song)
@@ -440,11 +451,11 @@ phase_3:
 # ---------------------------------------------------------------------------
 phase_4:
   name: "Frontend Development"
-  owner: AG-04   # AG-05 đồng thời
+  owner: AG-04
   notes_from_ag00: >
-    Ưu tiên theo Workflow-Centric (§2.4): auth → upload → search; mobile thêm
-    camera sau khi search ổn định. Các tiện ích (offline cache/share extension)
-    làm sau khi các mắt xích chính hoàn tất.
+    Ưu tiên theo Workflow-Centric (Workflow_Centric_Architecture.md v2.3.0):
+    auth → upload → search; mobile thêm camera sau khi search ổn định.
+    Các tiện ích (offline cache/share extension) làm sau khi các mắt xích chính hoàn tất.
 
   tasks:
 
@@ -456,7 +467,6 @@ phase_4:
       description: >
         ✓ HOÀN THÀNH: React + Vite + Tailwind scaffold hoàn chỉnh.
         Axios client với JWT interceptor, TypeScript config, Tailwind setup.
-        Xem chi tiết tại .knowledge/agent04/Log_04.md.
       depends_on: [T003-02]
 
     - id: T004-02
@@ -543,26 +553,9 @@ phase_4:
       depends_on: [T004-08]
 
 # ---------------------------------------------------------------------------
-# PHASE 5 — Integration & Evaluation (AG-00 điều phối)
-# ---------------------------------------------------------------------------
-# =============================================================================
-# TASKS — SISE  (Phase 5 mở rộng + Phase 6 mới)
-# =============================================================================
-# Vai trò : Bổ sung cho Tasks.yaml gốc (v1.0.0).
-#           Thay thế toàn bộ nội dung phase_5 hiện tại và thêm phase_6 mới.
-#           Paste vào cuối Tasks.yaml, xóa phase_5 cũ.
-# Writer  : Project Owner + AG-00
-# Reader  : Tất cả agents
-# Version : 1.1.0
-# Context : Phase 0–4 hoàn tất. Frontend dừng ở auth (login/register).
-#           Tất cả Docker image đã có trên local + registry.
-#           Mục tiêu: demo + nộp đồ án, môi trường localhost/Docker.
-# =============================================================================
-
-# ---------------------------------------------------------------------------
 # PHASE 5 — Contract Verification & Module Hardening
-# Mục tiêu: Đảm bảo từng module tuân thủ đúng data_schema.yaml + openapi.yaml
-#           TRƯỚC KHI tích hợp. Lỗi phát hiện ở đây rẻ hơn lỗi phát hiện khi ghép.
+# Mục tiêu: Đảm bảo từng module tuân thủ đúng data_schema.yaml v1.1.0 +
+#           openapi.yaml v1.1.0 TRƯỚC KHI tích hợp.
 # Prerequisite: Tất cả module đã build thành Docker image thành công.
 # ---------------------------------------------------------------------------
 phase_5:
@@ -576,96 +569,73 @@ phase_5:
 
   tasks:
 
-    # ── AG-01: AIModule ────────────────────────────────────────────────────
     - id: T005-01
       title: "[AG-01] Contract verification: AIModule"
       assigned_to: AG-01
       priority: P0
       status: backlog
       description: >
-        Kiểm tra AIModule tuân thủ đúng openapi.yaml và data_schema.yaml.
-        Đây là lớp kiểm tra TRƯỚC khi build lại image — nếu phát hiện lỗi
-        thì sửa code trước, build sau.
+        Kiểm tra AIModule tuân thủ đúng openapi.yaml v1.1.0 và data_schema.yaml v1.1.0.
       depends_on: []
       acceptance_criteria:
-        # Input contract
         - POST /embed/image chỉ nhận image/jpeg và image/png (per global_configs.allowed_content_types)
         - POST /embed/image từ chối file > 20MB với HTTP 413 (per global_configs.max_file_size_mb)
         - POST /embed/text nhận UTF-8 string, không nhận null hoặc empty string
-        # Output contract
         - Response vector là float32[] có đúng 512 phần tử (per global_configs.vector_dim)
         - Response shape không thay đổi giữa image và text embed (cùng dim)
         - Error response đúng StandardError schema trong openapi.yaml
-        # Health
         - GET /health/liveness trả HTTP 200
         - GET /health/readiness trả HTTP 200 khi model loaded, HTTP 503 khi chưa
-      notes_to_ag00: ""
 
-    # ── AG-02: StorageModule ───────────────────────────────────────────────
     - id: T005-02
       title: "[AG-02] Contract verification: StorageModule"
       assigned_to: AG-02
       priority: P0
       status: backlog
       description: >
-        Xác nhận StorageModule (schema, collection, bucket) khớp hoàn toàn
-        với data_schema.yaml. Đặc biệt kiểm tra các ràng buộc hay bị bỏ sót.
+        Xác nhận StorageModule (schema, pgvector-index, bucket) khớp hoàn toàn
+        với data_schema.yaml v1.1.0. Đặc biệt kiểm tra các ràng buộc hay bị bỏ sót.
       depends_on: []
       acceptance_criteria:
-        # PostgreSQL
-        - Bảng images.privacy_level có CHECK (IN (0,1,2)) — không cho giá trị ngoài range
+        - Bảng images.privacy_level có CHECK (IN (0,1,2))
         - Bảng images.index_status có CHECK (IN ('pending','ready','failed'))
-        - Bảng friends có CHECK (user_id <> friend_id) — không tự kết bạn với mình
-        - Tất cả 6 index bắt buộc tồn tại (idx_images_user_id, idx_images_privacy_level,
-          idx_images_created_at, idx_images_tags_gin, idx_images_index_status, idx_friends_user_id)
-        - Extension uuid-ossp và pgcrypto đã được cài
-        # Milvus
-        - Collection sise_v1 tồn tại với vector dim = 512 (cứng, không phải 768)
-        - Index type = HNSW, M = 16, efConstruction = 200 (per data_schema.yaml)
-        - metric_type = COSINE
-        # MinIO
+        - Bảng friends có CHECK (user_id <> friend_id)
+        - Tất cả 6 index bắt buộc tồn tại (idx_images_user_id, idx_images_privacy_level, idx_images_created_at, idx_images_tags_gin, idx_images_index_status, idx_friends_user_id, idx_images_embedding_hnsw)
+        - Extension uuid-ossp, pgcrypto, và vector (pgvector) đã được cài
+        - Index idx_images_embedding_hnsw tồn tại trên cột images.embedding, USING hnsw (embedding vector_cosine_ops) WITH (m=16, ef_construction=200)
         - Bucket raw-images và thumbnails tồn tại
-        - Storage policy = private (không public access trực tiếp)
+        - Storage policy = private
         - Lifecycle rule thumbnails expire 365 ngày tồn tại
         - Presigned URL có thể được tạo thành công với expiry = 3600s
-      notes_to_ag00: ""
 
-    # ── AG-03: BackendModule ───────────────────────────────────────────────
     - id: T005-03
       title: "[AG-03] Contract verification: BackendModule"
       assigned_to: AG-03
       priority: P0
       status: backlog
       description: >
-        Kiểm tra BackendModule implement đúng openapi.yaml và
-        transaction_semantics trong data_schema.yaml.
+        Kiểm tra BackendModule implement đúng openapi.yaml v1.1.0 và
+        transaction_semantics trong data_schema.yaml v1.1.0.
         Focus vào 3 điểm dễ sai nhất: upload pipeline 5 bước,
         privacy filter level 1 (Friends), và idempotency.
       depends_on: []
       acceptance_criteria:
-        # Auth endpoints
         - POST /auth/register trả 409 khi email hoặc username đã tồn tại
         - POST /auth/login trả 401 khi sai password, không trả 400
         - JWT payload chứa đúng {user_id, username, exp}
-        # Upload pipeline — kiểm tra đúng 5 bước transaction_semantics
-        - S1: POST /media/upload/init trả {upload_url, object_key} — không trả thêm field lạ
-        - S3: Sau confirm, images.index_status = 'pending' trong PostgreSQL
+        - S1 (presigned): POST /media/upload-url trả {upload_url, object_key}
+        - S3 (confirm): Sau confirm, images.index_status = 'pending' trong PostgreSQL
         - S3 compensating action: nếu PostgreSQL INSERT lỗi, MinIO object phải bị xóa
-        - S4: Celery task được enqueue sau confirm thành công
-        - S5: Sau Celery task thành công, index_status = 'ready'
-        # Privacy filter
-        - Search với privacy_level = 1 (Friends): JOIN bảng friends đúng cách
+        - S4 (async index): Celery task được enqueue sau confirm thành công
+        - S5 (commit): Sau Celery task thành công, index_status = 'ready'
+        - Search với privacy_level = 1 (Friends) JOIN bảng friends đúng cách
         - Ảnh privacy_level = 0 không xuất hiện trong kết quả của user khác
         - Ảnh privacy_level = 1 chỉ xuất hiện với bạn bè của chủ ảnh
-        # Idempotency
         - Request với Idempotency-Key trùng trả cùng job_id, không enqueue lại
-        - TTL của idempotency key = 24 giờ (per data_schema.yaml)
-        # Health
+        - TTL của idempotency key = 24 giờ
         - GET /health/readiness trả header X-Expected-Vector-Dim: 512
         - GET /health/readiness trả HTTP 503 khi bất kỳ dependency nào down
-      notes_to_ag00: ""
 
-    # ── AG-04: FrontendWeb ─────────────────────────────────────────────────
     - id: T005-04
       title: "[AG-04] Contract verification: FrontendWeb"
       assigned_to: AG-04
@@ -676,20 +646,15 @@ phase_5:
         gửi lên Backend. Frontend là tuyến phòng thủ đầu tiên.
       depends_on: []
       acceptance_criteria:
-        # File upload validation — phải validate TRƯỚC khi gửi lên backend
         - Upload component từ chối file không phải image/jpeg hoặc image/png
         - Upload component từ chối file > 20MB với thông báo rõ ràng cho user
-        - Không gọi /media/upload/init nếu file chưa pass local validation
-        # Auth flow
-        - JWT được lưu đúng nơi (không localStorage nếu lo bảo mật, dùng httpOnly cookie hoặc memory)
+        - Không gọi /media/upload-url nếu file chưa pass local validation
+        - JWT được lưu đúng nơi (không localStorage nếu lo bảo mật)
         - Axios interceptor tự động attach Bearer token vào mọi request
         - Khi JWT hết hạn, redirect về login — không crash silently
-        # API calls
         - Không có hardcoded URL — dùng env var VITE_API_BASE_URL
         - Không gọi thẳng AI Service hay MinIO — chỉ gọi Backend
-      notes_to_ag00: ""
 
-    # ── Docker image rebuild ───────────────────────────────────────────────
     - id: T005-05
       title: "[AG-00] Rebuild & re-tag Docker images sau contract fix"
       assigned_to: AG-00
@@ -701,8 +666,189 @@ phase_5:
         Ghi lại image digest vào session log.
       depends_on: [T005-01, T005-02, T005-03, T005-04]
       acceptance_criteria:
-        - Tất cả image được tag dạng {service}:{version} — không dùng tag 'latest' cho production
+        - Tất cả image được tag dạng {service}:{version}
         - Image digest được ghi vào .context/Sessions/ log của session này
         - docker compose pull lấy đúng version mới từ registry
-      notes_to_ag00: ""
 
+# ---------------------------------------------------------------------------
+# PHASE 6 — Cross-Module Structural Audit
+# Mục tiêu: Kiểm tra toàn diện mỗi module từ .pyproj → app/ → Dockerfile
+#           đảm bảo cấu trúc 5-lớp, dependencies, secrets management thống nhất.
+# Thứ tự: AG-02 (StorageModule) → AG-01 (AIModule) → AG-03 (BackendModule)
+# ---------------------------------------------------------------------------
+phase_6:
+  name: "Cross-Module Structural Audit"
+  owner: AG-00
+  status: backlog
+  notes_from_ag00: >
+    Đây là giai đoạn kiểm tra deep-dive cấu trúc mã nguồn của mỗi module.
+    AG-00 đóng vai trò auditor, không viết code. Nếu phát hiện sai lệch,
+    ghi nhận và yêu cầu agent worker sửa (không bypass, không ignore).
+    Workflow kiểm tra theo thứ tự cố định: .pyproj → .env → app/ → Dockerfile.
+
+  tasks:
+
+    - id: T006-01
+      title: "[AG-02] Structural audit: StorageModule"
+      assigned_to: AG-02
+      priority: P0
+      status: backlog
+      description: >
+        Kiểm tra toàn diện StorageModule (modules/StorageModule/) theo checklist:
+        1. StorageModule.pyproj: danh sách file, thư mục đúng cấu trúc
+        2. storage.env.local (configs/): biến môi trường khớp v1.1.0 (pgvector params không Milvus/etcd)
+        3. app/ (5 lớp): entities → adapters → services → routers
+           - schema_*.py (Alembic migrations)
+           - pgvector_index_*.py (thay vì collection_*.py - vốn là tiền tố cũ của Milvus)
+           - bucket_*.py
+           - seed_*.py
+           Workflow naming: prefix = action (schema_, pgvector_index_, bucket_, seed_)
+        4. Dockerfile: từ python:3.13 base, COPY app/ + storage_requirements.txt, không secrets 
+        5. storage_requirements.txt: psycopg, pgvector, minio, redis, alembic (không pymilvus/milvus)
+        6. .dockerignore: loại configs/, tests/, scripts/, *.pyproj, documents/
+        7. infra_compose_storage.yml: pgvector/pgvector:pg16 (không milvus/etcd)
+      depends_on: [T005-02]
+      acceptance_criteria:
+        - ✓ Không còn file prefix collection_* (đã đổi → pgvector_index_*)
+        - ✓ Dockerfile LABEL version = v1.1.0 (khớp contract version)
+        - ✓ Dockerfile không copy configs/ vào image
+        - ✓ storage.env.local chứa PGVECTOR_* biến, không MILVUS_* / ETCD_*
+        - ✓ storage_main.py CLI subcommand = pgvector-index (không collection)
+        - ✓ infra_compose_storage.yml không còn service milvus/etcd
+        - ✓ Tất cả workflow file naming tuân thủ Action-oriented Lexicon
+        - ✓ Không còn tham chiếu Milvus trong source code (chỉ comment lịch sử)
+      notes_to_ag02: >
+        Focus: file naming (collection_ → pgvector_index_), Dockerfile version,
+        env var naming, Docker service names. Nếu sai lệch, ghi nhận chi tiết
+        và yêu cầu AG-02 sửa trước khi qua Phase 7.
+
+    - id: T006-02
+      title: "[AG-01] Structural audit: AIModule"
+      assigned_to: AG-01
+      priority: P0
+      status: backlog
+      description: >
+        Kiểm tra toàn diện AIModule (modules/AIModule/) theo checklist tương tự T006-01:
+        1. Workflow naming: prefix = action (warmup_, image_embedding_, text_embedding_, batch_embedding_, ai_container_)
+        2. app/ (5 lớp): entities → adapters → services → routers
+        3. Dockerfile: multi-stage, model không bake vào image
+        4. requirements.txt: torch, clip, pillow, fastapi (vector_dim dependency)
+      depends_on: [T005-01]
+      acceptance_criteria:
+        - ✓ Tất cả workflow file naming tuân thủ Action-oriented Lexicon
+        - ✓ Dockerfile LABEL version khớp contract
+        - ✓ .dockerignore tuân thủ tối thiểu: không test, scripts, documents
+        - ✓ Không hardcoded vector_dim (tham chiếu từ config)
+      notes_to_ag01: >
+        Focus: workflow prefix (image_embedding_, text_embedding_), não hardcoded magic numbers.
+
+    - id: T006-03
+      title: "[AG-03] Structural audit: BackendModule"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Kiểm tra toàn diện BackendModule (modules/BackendModule/) theo checklist:
+        1. Workflow naming (prefix): scaffold_, auth_, upload_, search_, media_, evaluation_, health_
+        2. app/ (5 lớp): entities → adapters → services → routers
+        3. Dockerfile: import config từ .env, health endpoints expose, không secrets
+        4. requirements.txt: fastapi, sqlalchemy, psycopg, pydantic (pgvector client — tùy tuỳ nếu cần)
+        5. .env cấu hình: DATABASE_URL (PostgreSQL + pgvector), không Milvus
+      depends_on: [T005-03]
+      acceptance_criteria:
+        - ✓ Tất cả workflow file naming tuân thủ Action-oriented Lexicon
+        - ✓ Dockerfile LABEL version khớp contract
+        - ✓ backend_main.py entry point không hardcode config
+        - ✓ /health/readiness kiểm tra pgvector extension (không milvus-client)
+        - ✓ upload pipeline S4 step enqueue Celery (không block)
+      notes_to_ag00: >
+        Focus: transaction_semantics (5-step upload), privacy filter (Friends level),
+        health check (pgvector extension validate).
+
+    - id: T006-04
+      title: "[AG-04] Structural audit: FrontendWebModule"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Kiểm tra toàn diện FrontendWebModule (modules/FrontendWebModule/) theo checklist:
+        1. Workflow naming (prefix): scaffold_, auth_, media_, upload_, search_, evaluation_
+        2. src/ cấu trúc (React + Vite): entities → adapters → services → (Pages + Components)
+        3. .env.example: VITE_API_BASE_URL, không hardcode backend URL
+        4. Dockerfile (nếu có): build image từ dist/, serve via nginx/http-server
+        5. .dockerignore: loại node_modules, .env.*, src/
+      depends_on: [T005-04]
+      acceptance_criteria:
+        - ✓ Tất cả workflow file naming tuân thủ Action-oriented Lexicon
+        - ✓ Axios client sử dụng VITE_API_BASE_URL env var
+        - ✓ JWT được lưu và tự động attach (interceptor)
+        - ✓ Không gọi thẳng AI Service hoặc MinIO
+        - ✓ Dockerfile (nếu có) không chứa secret
+
+    - id: T006-05
+      title: "[AG-00] Consolidate audit findings & issue list"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Sau T006-01 → T006-04, tập hợp tất cả finding, phân loại Blocking vs Non-blocking,
+        ghi vào AUDIT_REPORT.md trong .context/. Tạo list công việc fix (nếu có)
+        cho từng agent worker. Không qua Phase 7 nếu còn Blocking issues.
+      depends_on: [T006-01, T006-02, T006-03, T006-04]
+      acceptance_criteria:
+        - ✓ AUDIT_REPORT.md tồn tại với đầy đủ finding (2 cột: Module | Finding | Severity | Assignee)
+        - ✓ Blocking issues (nếu có) được ghi rõ action required
+        - ✓ Non-blocking issues liệt kê trong backlog future improvement
+
+# ---------------------------------------------------------------------------
+# PHASE 7 — Integration & System Test (tương lai, sau audit Phase 6)
+# Mục tiêu: Docker stack up, end-to-end test, demo sẵn sàng
+# ---------------------------------------------------------------------------
+phase_7:
+  name: "Integration & System Test"
+  owner: AG-00
+  status: backlog
+  notes_from_ag00: >
+    Chỉ bắt đầu sau khi Phase 6 audit xong (không Blocking issues).
+    Mục tiêu: Docker Compose stack up → e2e test upload/search → demo.
+
+  tasks:
+
+    - id: T007-01
+      title: "Docker Compose stack integration test"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Chạy docker-compose -f docker-compose.yml up -d từ root repo.
+        Kiểm tra tất cả 6 service health, network connectivity, data persistence.
+      depends_on: [T006-05]
+
+    - id: T007-02
+      title: "End-to-end upload → embed → index → search workflow test"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Kiểm tra toàn bộ pipeline: upload ảnh → S4 async embed → S5 index ready
+        → search với image/text → kết quả trả về đúng (với privacy filter).
+      depends_on: [T007-01]
+
+    - id: T007-03
+      title: "Performance benchmark & profiling"
+      assigned_to: AG-00
+      priority: P1
+      status: backlog
+      description: >
+        Measure embedding latency, index latency, search latency (QPS).
+        Ghi lại vào benchmark report.
+      depends_on: [T007-02]
+
+    - id: T007-04
+      title: "Demo preparation & graduation"
+      assigned_to: AG-00
+      priority: P0
+      status: backlog
+      description: >
+        Prepare demo video, document, sample queries. Sẵn sàng cho nộp đồ án.
+      depends_on: [T007-03]

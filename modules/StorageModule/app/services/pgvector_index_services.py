@@ -12,8 +12,8 @@ Dependency order:
 
 import sqlalchemy as sa
 
-from app.adapters import collection_adapters
-from app.entities.collection_entities import PgvectorIndexConfig
+from app.adapters import pgvector_index_adapters
+from app.entities.pgvector_index_entities import PgvectorIndexConfig
 
 
 class PgvectorIndexValidationError(ValueError):
@@ -33,7 +33,7 @@ def ensure_pgvector_index(config: PgvectorIndexConfig) -> None:
         PgvectorIndexValidationError: If extension/column is missing (migration
             not applied) or if existing index params mismatch the contract.
     """
-    engine = collection_adapters.create_pgvector_engine(config.database_url)
+    engine = pgvector_index_adapters.create_pgvector_engine(config.database_url)
     with engine.connect() as conn:
         _assert_extension(conn)
         _assert_embedding_column(conn)
@@ -45,7 +45,7 @@ def ensure_pgvector_index(config: PgvectorIndexConfig) -> None:
 # ---------------------------------------------------------------------------
 
 def _assert_extension(conn: sa.Connection) -> None:
-    if not collection_adapters.extension_exists(conn, "vector"):
+    if not pgvector_index_adapters.extension_exists(conn, "vector"):
         raise PgvectorIndexValidationError(
             "pgvector extension 'vector' is not installed. "
             "Run 'alembic upgrade head' to apply schema migrations first."
@@ -53,7 +53,7 @@ def _assert_extension(conn: sa.Connection) -> None:
 
 
 def _assert_embedding_column(conn: sa.Connection) -> None:
-    if not collection_adapters.column_exists(conn, "images", "embedding"):
+    if not pgvector_index_adapters.column_exists(conn, "images", "embedding"):
         raise PgvectorIndexValidationError(
             "Column 'images.embedding' not found. "
             "Run 'alembic upgrade head' to apply schema migrations first."
@@ -61,8 +61,8 @@ def _assert_embedding_column(conn: sa.Connection) -> None:
 
 
 def _ensure_hnsw_index(conn: sa.Connection, config: PgvectorIndexConfig) -> None:
-    if not collection_adapters.hnsw_index_exists(conn, config.index_name):
-        collection_adapters.create_hnsw_index(
+    if not pgvector_index_adapters.hnsw_index_exists(conn, config.index_name):
+        pgvector_index_adapters.create_hnsw_index(
             conn,
             table="images",
             column="embedding",
@@ -86,7 +86,7 @@ def _validate_hnsw_params(
     to config.index_params. No-op if reloptions is None (PostgreSQL stores
     defaults implicitly for some index types).
     """
-    reloptions = collection_adapters.get_hnsw_index_reloptions(
+    reloptions = pgvector_index_adapters.get_hnsw_index_reloptions(
         conn, config.index_name
     )
     if not reloptions:

@@ -25,22 +25,22 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="app\adapters\bucket_adapters.py" />
-    <Compile Include="app\adapters\collection_adapters.py" />
+    <Compile Include="app\adapters\pgvector_index_adapters.py" />
     <Compile Include="app\adapters\schema_adapters.py" />
     <Compile Include="app\adapters\seed_adapters.py" />
     <Compile Include="app\adapters\__init__.py" />
     <Compile Include="app\entities\bucket_entities.py" />
-    <Compile Include="app\entities\collection_entities.py" />
+    <Compile Include="app\entities\pgvector_index_entities.py" />
     <Compile Include="app\entities\schema_entities.py" />
     <Compile Include="app\entities\seed_entities.py" />
     <Compile Include="app\entities\__init__.py" />
     <Compile Include="app\routers\bucket_routers.py" />
-    <Compile Include="app\routers\collection_routers.py" />
+    <Compile Include="app\routers\pgvector_index_routers.py" />
     <Compile Include="app\routers\schema_routers.py" />
     <Compile Include="app\routers\seed_routers.py" />
     <Compile Include="app\routers\__init__.py" />
     <Compile Include="app\services\bucket_services.py" />
-    <Compile Include="app\services\collection_services.py" />
+    <Compile Include="app\services\pgvector_index_services.py" />
     <Compile Include="app\services\schema_services.py" />
     <Compile Include="app\services\seed_services.py" />
     <Compile Include="app\services\__init__.py" />
@@ -56,7 +56,7 @@
     <Folder Include="app\routers\" />
     <Folder Include="app\services\" />
     <Folder Include="configs\" />
-    <Folder Include="documents\collection_workflow\" />
+    <Folder Include="documents\pgvector_index_workflow\" />
     <Folder Include="documents\bucket_workflow\" />
     <Folder Include="documents\infra_workflow\" />
     <Folder Include="documents\seed_workflow\" />
@@ -76,9 +76,6 @@
     <Content Include="documents\bucket_workflow\BUCKET_WORKFLOW_DEEP_GUIDE.md" />
     <Content Include="documents\bucket_workflow\BUCKET_WORKFLOW_QUICK_GUIDE.md" />
     <Content Include="documents\bucket_workflow\BUCKET_WORKFLOW_REFERENCES.md" />
-    <Content Include="documents\collection_workflow\COLLECTION_WORKFLOW_DEEP_GUIDE.md" />
-    <Content Include="documents\collection_workflow\COLLECTION_WORKFLOW_QUICK_GUIDE.md" />
-    <Content Include="documents\collection_workflow\COLLECTION_WORKFLOW_REFERENCES.md" />
     <Content Include="documents\infra_workflow\INFRA_WORKFLOW_README.md" />
     <Content Include="documents\schema_workflow\SCHEMA_WORKFLOW_DEEP_GUIDE.md" />
     <Content Include="documents\schema_workflow\SCHEMA_WORKFLOW_QUICK_GUIDE.md" />

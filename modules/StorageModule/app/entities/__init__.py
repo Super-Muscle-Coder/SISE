@@ -1,5 +1,5 @@
 from .bucket_entities import LifecycleRuleConfig, MinioConfig
-from .collection_entities import PgvectorIndexConfig
+from .pgvector_index_entities import PgvectorIndexConfig
 from .schema_entities import PostgresConfig, SchemaConfig
 from .seed_entities import SeedConfig
 

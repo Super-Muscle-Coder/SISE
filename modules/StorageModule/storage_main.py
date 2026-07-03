@@ -4,11 +4,11 @@ from typing import List
 from urllib.parse import urlparse
 
 from app.entities.bucket_entities import LifecycleRuleConfig, MinioConfig
-from app.entities.collection_entities import PgvectorIndexConfig
+from app.entities.pgvector_index_entities import PgvectorIndexConfig
 from app.entities.schema_entities import PostgresConfig, SchemaConfig
 from app.entities.seed_entities import SeedConfig
 from app.routers.bucket_routers import BucketWorkflowRouter
-from app.routers.collection_routers import PgvectorIndexWorkflowRouter
+from app.routers.pgvector_index_routers import PgvectorIndexWorkflowRouter
 from app.routers.schema_routers import SchemaWorkflowRouter
 from app.routers.seed_routers import SeedWorkflowRouter
 

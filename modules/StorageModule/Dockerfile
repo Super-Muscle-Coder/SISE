@@ -5,6 +5,7 @@
 # ✅ Non-root user (security best practice)
 # ✅ Python 3.13 with verified package compatibility
 # ✅ pgvector (PostgreSQL extension `vector`) replaces pymilvus
+# Version Dockerfile: 1.1.0
 # =============================================================================
 
 # ── Stage 1: Builder (compile dependencies) ──────────────────────────────────
