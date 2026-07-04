@@ -13,3 +13,9 @@ class SchemaConfig:
     target_revision: str
     downgrade_revision: str
     extensions: List[str]
+
+# Export
+__all__ = [
+    "PostgresConfig",
+    "SchemaConfig",
+]

@@ -32,3 +32,9 @@ def downgrade_schema(postgres_config: PostgresConfig, schema_config: SchemaConfi
 def _resolve_migration_path() -> str:
     module_root = Path(__file__).resolve().parents[2]
     return os.fspath(module_root / "migrations")
+
+# Export
+__all__=[
+    "run_schema_migrations",
+    "downgrade_schema",
+]

@@ -24,3 +24,8 @@ class PgvectorIndexConfig:
     index_params: Dict[str, int]
     operator_class: str
     search_ef: int
+
+# Export
+__all__=[
+    "PgvectorIndexConfig", 
+]

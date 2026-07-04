@@ -1,10 +1,10 @@
 # =============================================================================
 # StorageModule — Dockerfile (Production-Ready, Python 3.13 Optimized)
 # =============================================================================
-# ✅ Multi-stage build for lean runtime
-# ✅ Non-root user (security best practice)
-# ✅ Python 3.13 with verified package compatibility
-# ✅ pgvector (PostgreSQL extension `vector`) replaces pymilvus
+# Multi-stage build for lean runtime
+# Non-root user (security best practice)
+# Python 3.13 with verified package compatibility
+# pgvector (PostgreSQL extension `vector`) replaces pymilvus
 # Version Dockerfile: 1.1.0
 # =============================================================================
 
@@ -22,12 +22,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY storage_requirements.txt .
 
-# ✅ Install setuptools FIRST (provides pkg_resources)
+# Install setuptools FIRST (provides pkg_resources)
 RUN pip install --no-cache-dir --upgrade \
     setuptools==78.1.1 \
     wheel==0.47.0
 
-# ✅ Install all requirements
+# Install all requirements
 RUN pip install --no-cache-dir --user -r storage_requirements.txt
 
 # Clean up build artifacts and tests
@@ -51,7 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Install setuptools in runtime (for pkg_resources compatibility)
+# Install setuptools in runtime (for pkg_resources compatibility)
 RUN pip install --no-cache-dir \
     setuptools==78.1.1 \
     wheel==0.47.0
@@ -79,8 +79,8 @@ COPY --chown=appuser:appuser storage_main.py .
 # Switch to non-root user
 USER appuser
 
-# ✅ Verify imports work correctly
-RUN python -c "import app; import pgvector; import redis; import psycopg; print('✅ All imports verified')"
+# Verify imports work correctly
+RUN python -c "import app; import pgvector; import redis; import psycopg; print('All imports verified')"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \

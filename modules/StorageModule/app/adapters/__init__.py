@@ -20,6 +20,7 @@ from .schema_adapters import (
     run_upgrade,
 )
 
+# Export all adapters for easy access in other modules
 __all__ = [
     # schema
     "build_alembic_config",

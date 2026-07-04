@@ -14,3 +14,8 @@ class PgvectorIndexWorkflowRouter:
 
     def setup_pgvector_index(self) -> None:
         pgvector_index_services.ensure_pgvector_index(self._pgvector_config)
+
+# Export
+__all__=[
+    "PgvectorIndexWorkflowRouter",
+]

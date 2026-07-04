@@ -12,3 +12,8 @@ class SchemaWorkflowRouter:
 
     def downgrade_schema(self) -> None:
         schema_services.downgrade_schema(self._postgres_config, self._schema_config)
+
+# Export
+__all__=[
+    "SchemaWorkflowRouter",
+]

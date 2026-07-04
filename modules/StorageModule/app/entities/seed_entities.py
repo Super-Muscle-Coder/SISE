@@ -6,3 +6,8 @@ class SeedConfig:
     user_count: int
     album_count: int
     image_count: int
+
+# Export
+__all__ = [
+    "SeedConfig",
+]

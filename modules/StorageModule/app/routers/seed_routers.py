@@ -11,3 +11,8 @@ class SeedWorkflowRouter:
 
     def run_seed(self, seed_config: SeedConfig) -> None:
         seed_services.seed_storage(self._postgres_config, self._minio_config, seed_config)
+
+# Export
+__all__=[
+    "SeedWorkflowRouter",
+]

@@ -113,3 +113,8 @@ def _validate_hnsw_params(
             f"expected {expected_ef}. "
             "Use REINDEX INDEX CONCURRENTLY to rebuild with correct parameters."
         )
+
+# Export
+__all__=[
+    "ensure_pgvector_index",
+]

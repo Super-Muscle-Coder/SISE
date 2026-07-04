@@ -47,7 +47,7 @@
     <Compile Include="app\__init__.py" />
     <Compile Include="migrations\env.py" />
     <Compile Include="migrations\versions\schema_0001_create_storage_schema.py" />
-	<Compile Include="migrations\versions\schema_002_add_pgvector.py" />
+    <Compile Include="migrations\versions\schema_0002_add_pgvector.py" />
     <Compile Include="storage_main.py" />
   </ItemGroup>
   <ItemGroup>
