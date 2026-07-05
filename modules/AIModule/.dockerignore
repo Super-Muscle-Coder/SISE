@@ -54,6 +54,11 @@ README.md
 *.md
 CHANGELOG.md
 
+# Documents, scripts, tests (explicit, comprehensive exclusion for clarity)
+documents/
+scripts/
+tests/
+
 # CI/CD pipelines (not needed in runtime image)
 .github/
 .gitlab-ci.yml

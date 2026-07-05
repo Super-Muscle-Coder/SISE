@@ -1,0 +1,114 @@
+# =============================================================================
+# Docker Compose — AI Module (AIModule)
+# =============================================================================
+# Purpose: Local development and testing of AI Inference Service in isolation
+# Services: 1 service (ai-service) — CLIP-based embedding extraction
+# 
+# Usage:
+#   docker-compose up                 # Start service with detach
+#   docker-compose logs -f ai-service # Follow logs
+#   docker-compose down               # Stop all services
+#
+# Notes:
+#   - This compose file is for AIModule ONLY (standalone development)
+#   - To integrate with StorageModule/BackendModule, use a separate
+#     docker-compose at the project root that combines all services
+#   - All configuration loaded from configs/ai.env.local (do not hardcode)
+# =============================================================================
+
+version: "3.8"
+
+services:
+  ai-service:
+    # Build from the Dockerfile in this directory
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    # Service configuration
+    container_name: ai-service-dev
+    image: ai-service:latest
+    
+    # Port mapping: container:host
+    ports:
+      - "8001:8001"
+    
+    # Load environment variables from external file
+    # (matches: AI_SERVICE_PORT, CLIP_MODEL_NAME, DEVICE, MODEL_CACHE_DIR, 
+    #  VECTOR_DIM, WARMUP_ITERATIONS, etc. — all variables defined in ai.env.local)
+    env_file:
+      - ./configs/ai.env.local
+    
+    # Volume mounts for development and model caching
+    volumes:
+      # Model cache directory: persist downloaded models across container restarts
+      - ./models:/app/ai-service/model_cache
+      
+      # Source code (optional, for development only — uncomment if doing live coding)
+      # - ./app:/app/ai-service/app
+      # - ./ai_main.py:/app/ai-service/ai_main.py
+    
+    # Health check configuration
+    healthcheck:
+      test: 
+        - CMD
+        - python
+        - -c
+        - "import http.client; conn = http.client.HTTPConnection('localhost', 8001); conn.request('GET', '/health/liveness'); exit(0 if conn.getresponse().status == 200 else 1)"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Resource limits (optional, adjust based on available CPU/RAM)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 4G
+    #     reservations:
+    #       cpus: '1'
+    #       memory: 2G
+
+# Network configuration
+networks:
+  default:
+    name: ai-service-network
+    driver: bridge
+
+# Volume for persistent model cache
+volumes:
+  models:
+    driver: local
+
+# =============================================================================
+# INTEGRATION NOTES (for future combining with other modules)
+# =============================================================================
+# When integrating with BackendModule/StorageModule:
+# 
+# 1. Move this service definition into a root-level docker-compose.yml
+# 2. Add storage services (PostgreSQL, MinIO, Redis, etc.)
+# 3. Update env_file to load from root-level config path
+# 4. Add depends_on to ensure storage services start before AI service
+# 5. Update AI_SERVICE_URL in backend config to match the network name
+# 
+# Example (future):
+#   services:
+#     ai-service:
+#       env_file: ./config/.env.production
+#       depends_on:
+#         - postgres
+#         - minio
+#         - redis
+#       networks:
+#         - sise-network

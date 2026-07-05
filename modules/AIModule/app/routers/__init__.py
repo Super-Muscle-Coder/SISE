@@ -12,7 +12,6 @@ from app.routers.batch_embedding_routers import create_batch_embedding_router
 __all__ = [
     # Warmup workflow
     "create_warmup_router",
-    "get_warmup_startup_handler",
     # Image embedding workflow
     "create_image_embedding_router",
     # Text embedding workflow

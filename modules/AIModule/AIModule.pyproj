@@ -42,6 +42,8 @@
     <Content Include="configs\ai.env.example" />
     <Content Include="configs\ai.env.local" />
     <Content Include="configs\ai.env.staging" />
+    <Content Include="docker-compose. yml" />
+    <Content Include="Dockerfile" />
     <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_DEEP_GUIDE.md" />
     <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_QUICK_GUIDE.md" />
     <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_REFERENCES.md" />
@@ -79,11 +81,6 @@
     <Compile Include="app\services\warmup_services.py" />
     <Compile Include="app\services\__init__.py" />
     <Compile Include="app\__init__.py" />
-    <Compile Include="scripts\entrypoint.py" />
-    <Compile Include="tests\test_batch_embedding_workflow.py" />
-    <Compile Include="tests\test_image_embedding_workflow.py" />
-    <Compile Include="tests\test_text_embedding_workflow.py" />
-    <Compile Include="tests\test_warmup_workflow.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="Global|PythonCore|3.13" />

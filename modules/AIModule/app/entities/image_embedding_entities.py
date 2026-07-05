@@ -20,15 +20,6 @@ class ImagePreprocessConfig:
     normalize_std: tuple = (0.26862954, 0.26130258, 0.27577711)  # CLIP ImageNet std
     vector_dim: int = 512  # data_schema.yaml -> global_configs.vector_dim
 
-
-@dataclass
-class ImageEmbeddingRequest:
-    """Request structure for image embedding endpoint."""
-    image_bytes: bytes
-    image_format: str  # 'jpeg', 'png'
-    metadata: Optional[dict] = None
-
-
 @dataclass
 class ImageEmbeddingResult:
     """Result structure for image embedding response."""
@@ -43,6 +34,5 @@ class ImageEmbeddingResult:
 # Export 
 __all__ = [
     "ImagePreprocessConfig",
-    "ImageEmbeddingRequest",
     "ImageEmbeddingResult",
 ]

@@ -9,7 +9,6 @@ CONSTRAINT: Entities layer exports only pure dataclasses, no logic functions.
 from app.entities.warmup_entities import CLIPConfig, WarmupResult
 from app.entities.image_embedding_entities import (
     ImagePreprocessConfig,
-    ImageEmbeddingRequest,
     ImageEmbeddingResult,
 )
 from app.entities.text_embedding_entities import (
@@ -29,7 +28,6 @@ __all__ = [
     "WarmupResult",
     # Image embedding workflow
     "ImagePreprocessConfig",
-    "ImageEmbeddingRequest",
     "ImageEmbeddingResult",
     # Text embedding workflow
     "TextEmbeddingRequest",

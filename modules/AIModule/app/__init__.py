@@ -21,7 +21,7 @@ Import Strategy:
 # Layer Exports (component-based workflow organization)
 from app.entities import (
     CLIPConfig, WarmupResult,
-    ImagePreprocessConfig, ImageEmbeddingRequest, ImageEmbeddingResult,
+    ImagePreprocessConfig, ImageEmbeddingResult,
     TextEmbeddingRequest, TextEmbeddingResult, TextProcessConfig,
     BatchEmbeddingConfig, BatchEmbeddingRequest, BatchEmbeddingResult,
 )
@@ -33,13 +33,13 @@ from app.adapters import (
 )
 from app.services import WarmupService, ImageEmbeddingService, TextEmbeddingService, BatchEmbeddingService
 from app.routers import (
-    create_warmup_router, get_warmup_startup_handler,
+    create_warmup_router,
     create_image_embedding_router,
     create_text_embedding_router,
     create_batch_embedding_router,
 )
 
-__version__ = "0.1.0"
+__version__ = "1.1.0"
 __all__ = [
     # Entities — Warmup
     "CLIPConfig",
@@ -80,7 +80,6 @@ __all__ = [
 
     # Routers
     "create_warmup_router",
-    "get_warmup_startup_handler",
     "create_image_embedding_router",
     "create_text_embedding_router",
     "create_batch_embedding_router",

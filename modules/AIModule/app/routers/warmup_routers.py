@@ -5,7 +5,7 @@ FastAPI health endpoints and startup event handlers.
 Prefix: warmup_*
 """
 
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends, Response
 
 from app.services import WarmupService
 
@@ -47,7 +47,10 @@ def create_warmup_router() -> APIRouter:
         }
 
     @router.get("/readiness")
-    async def readiness_probe(warmup_svc: WarmupService = Depends(get_warmup_service)):
+    async def readiness_probe(
+        response: Response,
+        warmup_svc: WarmupService = Depends(get_warmup_service),
+    ):
         """
         Readiness probe: model loaded and warm-up complete?
 
@@ -55,8 +58,16 @@ def create_warmup_router() -> APIRouter:
           1. CLIP model is loaded
           2. Warm-up completed
           3. Device available
+
+        Per openapi.yaml (/health/readiness, response '200'), the
+        X-Expected-Vector-Dim header must be present so clients can validate
+        vector dimensions before sending data. Fix_group A.1 (Round 3): this
+        header is now set on BOTH the 200 and 503 outcomes, sourced from
+        WarmupService.get_vector_dim() (a config-value getter that does not
+        require is_ready=True, unlike get_model()/get_device()/get_tokenizer()).
         """
         health = warmup_svc.health_check()
+        vector_dim = warmup_svc.get_vector_dim()
 
         if not health["is_ready"]:
             raise HTTPException(
@@ -65,9 +76,11 @@ def create_warmup_router() -> APIRouter:
                     "status": "not_ready",
                     "reason": "Model not loaded or warm-up failed",
                     "health": health
-                }
+                },
+                headers={"X-Expected-Vector-Dim": str(vector_dim)},
             )
 
+        response.headers["X-Expected-Vector-Dim"] = str(vector_dim)
         return {
             "status": "ready",
             "service": "ai_inference",
@@ -81,26 +94,4 @@ def create_warmup_router() -> APIRouter:
 
     return router
 
-
-def get_warmup_startup_handler(warmup_svc: WarmupService):
-    """
-    Create FastAPI startup event handler for warm-up.
-
-    Args:
-        warmup_svc: WarmupService instance
-
-    Returns:
-        Async function suitable for app.add_event_handler("startup", ...)
-    """
-    async def startup_handler():
-        """Initialize and warm-up CLIP model on app startup."""
-        result = warmup_svc.initialize_and_warmup()
-        if not result.success:
-            raise RuntimeError(
-                f"Failed to initialize AI service: {result.error_message}"
-            )
-
-    return startup_handler
-
-
-__all__ = ["create_warmup_router", "get_warmup_startup_handler"]
+__all__ = ["create_warmup_router",]

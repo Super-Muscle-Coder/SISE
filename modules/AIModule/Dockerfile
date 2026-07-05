@@ -29,8 +29,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create build directory
 WORKDIR /build
 
-# Copy requirements
-COPY modules/AIModule/ai_requirements.txt .
+# Copy requirements (FIXED: removed "modules/AIModule/" prefix — build context is modules/AIModule/)
+COPY ai_requirements.txt .
 
 # Create wheels directory and build wheels
 RUN pip install --upgrade pip setuptools wheel && \
@@ -71,16 +71,13 @@ RUN pip install --no-cache-dir --no-index --find-links=/build/wheels -r ai_requi
 	rm -rf /build/wheels
 
 # Copy application code (entire app layer structure)
-COPY modules/AIModule/app ./app
-COPY modules/AIModule/ai_main.py .
-COPY modules/AIModule/scripts/entrypoint.py .
-COPY modules/AIModule/configs ./configs
+# FIXED: removed "modules/AIModule/" prefix from all COPY commands
+COPY app ./app
+COPY ai_main.py .
+COPY configs ./configs
 
 # Create model cache directory with proper permissions
 RUN mkdir -p /app/ai-service/model_cache
-
-# Make entrypoint script executable
-RUN chmod +x entrypoint.py
 
 # Set environment variables for runtime
 # CRITICAL: All AI_SERVICE_PORT, CLIP_MODEL_NAME, DEVICE, MODEL_CACHE_DIR must be set
@@ -113,8 +110,11 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 	response = conn.getresponse(); \
 	exit(0 if response.status == 200 else 1)"
 
-# Entry point: Use Python script for validation and startup
-ENTRYPOINT ["python", "/app/ai-service/entrypoint.py"]
+# Entry point: ai_main.py is now the single startup path (Fix Group C, Round 3).
+# scripts/entrypoint.py has been deleted — it used to run "uvicorn
+# ai_main:create_app --factory" but was a redundant entry point.
+# Now ai_main.py's "if __name__ == '__main__':" is the ONLY startup path.
+ENTRYPOINT ["python", "ai_main.py"]
 
 # =============================================================================
 # Notes:
@@ -162,9 +162,8 @@ ENTRYPOINT ["python", "/app/ai-service/entrypoint.py"]
 #    - FastAPI and model loading work fine under non-root
 #
 # 7. BUILD & PUSH:
-#    Build:   docker build -f modules/AIModule/ai_container_Dockerfile -t ai-service:1.1.0 .
+#    Build:   docker build -f modules/AIModule/Dockerfile -t ai-service:1.1.0 .
 #    Push:    docker tag ai-service:1.1.0 <registry>/ai-service:1.1.0
 #             docker push <registry>/ai-service:1.1.0
-#    Run:     docker-compose -f docker-compose.yml up ai-service
+#    Run:     docker-compose -f modules/AIModule/docker-compose.yml up ai-service
 #
-# =============================================================================

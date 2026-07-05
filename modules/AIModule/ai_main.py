@@ -34,6 +34,12 @@ Dependency Injection (T006-02 remediation):
   pattern in create_app(), which never called initialize_and_warmup() and
   caused is_ready to be permanently False (openapi.yaml /health/readiness
   contract violation).
+
+Single Entry Point (T006-02 remediation, Round 3):
+  scripts/entrypoint.py has been removed. This file is now the ONLY startup
+  path — see the "Startup Validation" section near the bottom, which absorbs
+  entrypoint.py's former responsibilities (required env var validation,
+  model cache dir preparation, secret-safe startup logging).
 """
 
 import os
@@ -366,7 +372,7 @@ async def lifespan(app: FastAPI):
         print("=" * 70 + "\n")
 
     except Exception as e:
-        print(f"\n❌ Startup failed: {e}\n")
+        print(f"\nStartup failed: {e}\n")
         raise
 
     # ===== REQUEST HANDLING =====
@@ -431,10 +437,10 @@ def create_app() -> FastAPI:
             "service": "AI Inference",
             "version": "0.1.0",
             "workflows": {
-                "warmup": "T002-01 ✅",
-                "image_embedding": "T002-02 ✅",
-                "text_embedding": "T002-04 ✅",
-                "batch_embedding": "T002-05 ✅",
+                "warmup": "T002-01 ",
+                "image_embedding": "T002-02 ",
+                "text_embedding": "T002-04 ",
+                "batch_embedding": "T002-05 ",
             },
             "endpoints": {
                 "health": {
@@ -463,14 +469,86 @@ def create_app() -> FastAPI:
 
 
 # ============================================================================
+# Startup Validation — absorbed from removed scripts/entrypoint.py
+# ============================================================================
+# Fix Group C (Round 3): the module used to have two competing startup paths
+# — scripts/entrypoint.py (Dockerfile ENTRYPOINT, ran "uvicorn
+# ai_main:create_app --factory") and this file's own
+# `if __name__ == "__main__":` block (called create_app() + uvicorn.run()
+# directly). Per Project Owner decision, scripts/entrypoint.py is deleted
+# entirely; ai_main.py is now the single entry point and absorbs
+# entrypoint.py's former responsibilities below.
+
+REQUIRED_STARTUP_VARS = ["AI_SERVICE_PORT", "CLIP_MODEL_NAME", "DEVICE", "MODEL_CACHE_DIR"]
+
+
+def _validate_required_env_vars() -> None:
+    """
+    Validate that all required environment variables are set before startup.
+
+    REQUIRED_STARTUP_VARS matches exactly the AIModuleAgent contract's
+    `required_env_vars` list (AI_SERVICE_PORT, CLIP_MODEL_NAME, DEVICE,
+    MODEL_CACHE_DIR) and the former scripts/entrypoint.py REQUIRED_VARS list —
+    no variable added or removed.
+
+    Raises:
+        SystemExit: If any required variable is missing (fail-fast, exit code 1)
+    """
+    missing = [name for name in REQUIRED_STARTUP_VARS if not os.getenv(name)]
+    if missing:
+        print(f"\nMissing required environment variable(s): {', '.join(missing)}\n")
+        raise SystemExit(1)
+
+
+def _prepare_model_cache_dir() -> None:
+    """
+    Create MODEL_CACHE_DIR if it does not exist yet and verify it is writable.
+
+    Raises:
+        SystemExit: If the directory cannot be created or is not writable
+    """
+    cache_dir = Path(os.getenv("MODEL_CACHE_DIR"))
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        probe_file = cache_dir / ".write_test"
+        probe_file.write_text("ok")
+        probe_file.unlink()
+    except OSError as e:
+        print(f"\nMODEL_CACHE_DIR '{cache_dir}' is not writable: {e}\n")
+        raise SystemExit(1)
+
+
+def _log_startup_config() -> None:
+    """
+    Log startup configuration.
+
+    Secret-safe by design: only the fixed REQUIRED_STARTUP_VARS whitelist is
+    ever printed here — never a dump of os.environ — so no secret potentially
+    present in the environment (e.g. a future MODEL_S3_TOKEN) can leak into
+    logs via this function.
+    """
+    print("\nStartup configuration:")
+    for name in REQUIRED_STARTUP_VARS:
+        print(f"  {name} = {os.getenv(name)}")
+
+
+# ============================================================================
 # Main Entry Point
 # ============================================================================
 
 if __name__ == "__main__":
     import uvicorn
 
-    # Load environment first
+    # Load environment first (so ai.env.local/ai.env.example values become
+    # visible to os.getenv() for the validation step below)
     _load_env_file()
+
+    # Fix Group C (Round 3): validate required env vars, prepare the model
+    # cache directory, and log startup config — responsibilities absorbed
+    # from the removed scripts/entrypoint.py.
+    _validate_required_env_vars()
+    _prepare_model_cache_dir()
+    _log_startup_config()
 
     # Read port from environment
     port = _get_int_env("AI_SERVICE_PORT", default=8001)

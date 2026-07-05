@@ -117,6 +117,20 @@ class WarmupService:
             raise RuntimeError("Model not loaded. Call initialize_and_warmup() first.")
         return self.device
 
+    def get_vector_dim(self) -> int:
+        """
+        Returns configured vector dimension (data_schema.yaml -> global_configs.vector_dim).
+
+        Unlike get_model()/get_preprocess()/get_tokenizer()/get_device(), this
+        getter does NOT raise if warm-up hasn't completed: vector_dim is a
+        static configuration value (self.config.vector_dim) known since
+        construction, not a runtime artifact produced by
+        initialize_and_warmup(). This is required so that GET /health/readiness
+        can include the X-Expected-Vector-Dim header in BOTH the 200 and 503
+        responses (openapi.yaml contract), even when the model failed to load.
+        """
+        return self.config.vector_dim
+
     def health_check(self) -> dict:
         """Returns health status of warmup service."""
         return {
