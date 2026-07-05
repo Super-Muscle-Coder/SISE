@@ -45,7 +45,7 @@ RUN pip install --upgrade pip setuptools wheel && \
 FROM python:3.13-slim AS runtime
 
 LABEL maintainer="SISE Project"
-LABEL version="1.0.0"
+LABEL version="1.1.0"
 LABEL description="AI Inference Service for SISE — CLIP-based multimodal embeddings"
 
 # Install runtime-only system dependencies
@@ -162,9 +162,9 @@ ENTRYPOINT ["python", "/app/ai-service/entrypoint.py"]
 #    - FastAPI and model loading work fine under non-root
 #
 # 7. BUILD & PUSH:
-#    Build:   docker build -f modules/AIModule/ai_container_Dockerfile -t ai-service:1.0.0 .
-#    Push:    docker tag ai-service:1.0.0 <registry>/ai-service:1.0.0
-#             docker push <registry>/ai-service:1.0.0
+#    Build:   docker build -f modules/AIModule/ai_container_Dockerfile -t ai-service:1.1.0 .
+#    Push:    docker tag ai-service:1.1.0 <registry>/ai-service:1.1.0
+#             docker push <registry>/ai-service:1.1.0
 #    Run:     docker-compose -f docker-compose.yml up ai-service
 #
 # =============================================================================

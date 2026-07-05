@@ -7,7 +7,7 @@ Ownership: AG-01 (AIModuleAgent)
 """
 
 from typing import List
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request, Depends
 from pydantic import BaseModel
 
 from ..services.batch_embedding_services import BatchEmbeddingService
@@ -21,14 +21,19 @@ class BatchEmbedResponse(BaseModel):
     processing_time_ms: float
 
 
-def create_batch_embedding_router(
-    batch_embedding_service: BatchEmbeddingService,
-) -> APIRouter:
+def get_batch_embedding_service(request: Request) -> BatchEmbeddingService:
+    """
+    FastAPI dependency: retrieve the initialized BatchEmbeddingService from app.state.
+
+    Populated once during `lifespan` startup (see ai_main.py) — reading it
+    per-request guarantees the live, warmed-up service is always used.
+    """
+    return request.app.state.batch_embedding_service
+
+
+def create_batch_embedding_router() -> APIRouter:
     """
     Create FastAPI router for batch embedding endpoints.
-
-    Args:
-        batch_embedding_service: Batch embedding service instance
 
     Returns:
         APIRouter with /inference/embed/batch endpoint
@@ -36,7 +41,10 @@ def create_batch_embedding_router(
     router = APIRouter(prefix="/inference", tags=["batch_embedding"])
 
     @router.post("/embed/batch", response_model=BatchEmbedResponse)
-    async def batch_embed_images(files: List[UploadFile] = File(...)):
+    async def batch_embed_images(
+        files: List[UploadFile] = File(...),
+        batch_embedding_service: BatchEmbeddingService = Depends(get_batch_embedding_service),
+    ):
         """
         Extract embeddings for a batch of images.
 
@@ -52,19 +60,26 @@ def create_batch_embedding_router(
             - 500 Internal Server Error: Processing error or vector dim mismatch
         """
         try:
-            # Read all file bytes and collect filenames
+            # Read all file bytes and collect filenames + content types
             file_bytes_list = []
             filenames_list = []
+            content_types_list = []
 
             for file in files:
                 content = await file.read()
                 file_bytes_list.append(content)
                 filenames_list.append(file.filename or "unknown")
+                content_types_list.append(file.content_type or "application/octet-stream")
 
             # Extract batch embeddings
+            # NOTE (bug fixed): extract_batch_embeddings() requires 3 positional
+            # arguments (file_bytes_list, filenames_list, content_types_list).
+            # The previous call only passed 2, which raised a guaranteed
+            # TypeError on every request to this endpoint.
             result, error_code = batch_embedding_service.extract_batch_embeddings(
                 file_bytes_list,
                 filenames_list,
+                content_types_list,
             )
 
             # Handle errors
@@ -120,3 +135,6 @@ def create_batch_embedding_router(
             )
 
     return router
+
+
+__all__ = ["create_batch_embedding_router"]

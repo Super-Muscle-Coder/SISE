@@ -5,7 +5,7 @@ FastAPI endpoints for text embedding extraction.
 Prefix: text_embedding_*
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 
 from app.services import TextEmbeddingService
@@ -16,12 +16,19 @@ class TextEmbedRequestBody(BaseModel):
     text: str
 
 
-def create_text_embedding_router(text_embedding_svc: TextEmbeddingService) -> APIRouter:
+def get_text_embedding_service(request: Request) -> TextEmbeddingService:
+    """
+    FastAPI dependency: retrieve the initialized TextEmbeddingService from app.state.
+
+    Populated once during `lifespan` startup (see ai_main.py) — reading it
+    per-request guarantees the live, warmed-up service is always used.
+    """
+    return request.app.state.text_embedding_service
+
+
+def create_text_embedding_router() -> APIRouter:
     """
     Create FastAPI router with text embedding endpoints.
-
-    Args:
-        text_embedding_svc: Initialized TextEmbeddingService instance
 
     Returns:
         APIRouter with /inference/embed/text endpoint
@@ -29,7 +36,10 @@ def create_text_embedding_router(text_embedding_svc: TextEmbeddingService) -> AP
     router = APIRouter(prefix="/inference/embed", tags=["text_embedding"])
 
     @router.post("/text")
-    async def embed_text(request: TextEmbedRequestBody):
+    async def embed_text(
+        request: TextEmbedRequestBody,
+        text_embedding_svc: TextEmbeddingService = Depends(get_text_embedding_service),
+    ):
         """
         Extract embedding from text input.
 
@@ -40,8 +50,8 @@ def create_text_embedding_router(text_embedding_svc: TextEmbeddingService) -> AP
 
         Returns:
           - success: bool
-          - vector: List of 512 float32 values (L2-normalized)
-          - vector_dimension: 512
+          - vector: List of vector_dim float32 values (L2-normalized)
+          - vector_dimension: int
           - processing_time_ms: float
           - error_code: str (if failed)
           - error_message: str (if failed)
@@ -107,3 +117,6 @@ def create_text_embedding_router(text_embedding_svc: TextEmbeddingService) -> AP
             )
 
     return router
+
+
+__all__ = ["create_text_embedding_router"]

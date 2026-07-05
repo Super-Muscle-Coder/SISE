@@ -17,12 +17,23 @@ Workflows (Phase 2):
 Environment Variables (from ai.env.local):
   AI_SERVICE_PORT=8001
   CLIP_MODEL_NAME=ViT-B/32
+  CLIP_PRETRAINED_TAG=openai
   DEVICE=auto
   MODEL_CACHE_DIR=./models
+  VECTOR_DIM=512
   WARMUP_ITERATIONS=5
   WARMUP_TIMEOUT_SEC=30
   IMAGE_TARGET_SIZE=224
   IMAGE_ENABLE_CACHE=False
+
+Dependency Injection (T006-02 remediation):
+  Services are constructed exactly once in `lifespan()` and published onto
+  `app.state`. Routers resolve them per-request via FastAPI Depends()
+  (see app/routers/*.py get_*_service() functions), never via closures bound
+  at router-registration time. This eliminates the previous "temp_*" service
+  pattern in create_app(), which never called initialize_and_warmup() and
+  caused is_ready to be permanently False (openapi.yaml /health/readiness
+  contract violation).
 """
 
 import os
@@ -175,12 +186,16 @@ def _build_warmup_config() -> CLIPConfig:
     Raises:
         RuntimeError: If required env vars are missing
     """
+    pretrained = _get_required_env("CLIP_PRETRAINED_TAG") if os.getenv("CLIP_PRETRAINED_TAG") else "openai"
+
     return CLIPConfig(
         model_name=_get_required_env("CLIP_MODEL_NAME"),
         device=_get_required_env("DEVICE"),
         model_cache_dir=_get_required_env("MODEL_CACHE_DIR"),
         warmup_iterations=_get_int_env("WARMUP_ITERATIONS", default=5),
         warmup_timeout_sec=_get_float_env("WARMUP_TIMEOUT_SEC", default=30.0),
+        vector_dim=_get_int_env("VECTOR_DIM", default=512),
+        pretrained=pretrained,
     )
 
 
@@ -197,7 +212,8 @@ def _build_image_embedding_config() -> ImagePreprocessConfig:
         RuntimeError: If required env vars are missing
     """
     target_size = _get_int_env("IMAGE_TARGET_SIZE", default=224)
-    return ImagePreprocessConfig(target_size=target_size)
+    vector_dim = _get_int_env("VECTOR_DIM", default=512)
+    return ImagePreprocessConfig(target_size=target_size, vector_dim=vector_dim)
 
 
 def _build_text_embedding_config() -> TextProcessConfig:
@@ -216,12 +232,14 @@ def _build_text_embedding_config() -> TextProcessConfig:
     tokenizer_name = _get_required_env("TEXT_TOKENIZER_NAME") if os.getenv("TEXT_TOKENIZER_NAME") else "clip"
     enable_cache = _get_bool_env("TEXT_ENABLE_CACHE", default=False)
     truncate_strategy = _get_required_env("TEXT_TRUNCATE_STRATEGY") if os.getenv("TEXT_TRUNCATE_STRATEGY") else "truncate"
+    vector_dim = _get_int_env("VECTOR_DIM", default=512)
 
     return TextProcessConfig(
         max_tokens=max_tokens,
         tokenizer_name=tokenizer_name,
         enable_cache=enable_cache,
         truncate_strategy=truncate_strategy,
+        vector_dim=vector_dim,
     )
 
 
@@ -241,24 +259,20 @@ def _build_batch_embedding_config() -> BatchEmbeddingConfig:
     enable_cache = _get_bool_env("BATCH_ENABLE_CACHE", default=False)
     cache_ttl_seconds = _get_int_env("BATCH_CACHE_TTL_SECONDS", default=3600)
     timeout_ms = _get_int_env("BATCH_TIMEOUT_MS", default=10000)
+    vector_dim = _get_int_env("VECTOR_DIM", default=512)
 
     return BatchEmbeddingConfig(
         max_batch_size=max_batch_size,
         enable_cache=enable_cache,
         cache_ttl_seconds=cache_ttl_seconds,
         timeout_ms=timeout_ms,
-        vector_dim=512,
+        vector_dim=vector_dim,
     )
 
 
 # ============================================================================
-
-# Global service instances (will be initialized on startup)
-warmup_service: WarmupService = None
-image_embedding_service: ImageEmbeddingService = None
-text_embedding_service: TextEmbeddingService = None
-batch_embedding_service: BatchEmbeddingService = None
-
+# FastAPI Lifespan — single source of truth for service construction
+# ============================================================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -274,12 +288,12 @@ async def lifespan(app: FastAPI):
       - Initialize batch embedding service (batch_embedding workflow)
       - Run warm-up
       - Set model to eval() mode
+      - Publish every service onto app.state so routers can resolve them
+        per-request via FastAPI Depends() (see app/routers/*.py)
 
     Shutdown (on graceful close):
       - Clean up resources
     """
-    global warmup_service, image_embedding_service, text_embedding_service, batch_embedding_service
-
     # ===== STARTUP =====
     print("\n" + "=" * 70)
     print("AI Inference Service Startup")
@@ -337,6 +351,16 @@ async def lifespan(app: FastAPI):
         batch_embedding_service = BatchEmbeddingService(warmup_service, image_embedding_service, batch_config)
         print(f"   ✓ Batch embedding service ready")
 
+        # Step 11: Publish services on app.state for per-request Depends() resolution.
+        # This is THE fix for issue 1.4 — routers read these via
+        # get_warmup_service / get_image_embedding_service / get_text_embedding_service /
+        # get_batch_embedding_service (see app/routers/*.py), so they always see
+        # these exact, already-warmed-up instances.
+        app.state.warmup_service = warmup_service
+        app.state.image_embedding_service = image_embedding_service
+        app.state.text_embedding_service = text_embedding_service
+        app.state.batch_embedding_service = batch_embedding_service
+
         print("\n" + "=" * 70)
         print("AI Service Ready")
         print("=" * 70 + "\n")
@@ -350,10 +374,10 @@ async def lifespan(app: FastAPI):
 
     # ===== SHUTDOWN =====
     print("\nAI Service Shutdown\n")
-    warmup_service = None
-    image_embedding_service = None
-    text_embedding_service = None
-    batch_embedding_service = None
+    app.state.warmup_service = None
+    app.state.image_embedding_service = None
+    app.state.text_embedding_service = None
+    app.state.batch_embedding_service = None
 
 
 # ============================================================================
@@ -364,11 +388,22 @@ def create_app() -> FastAPI:
     """
     Create and configure FastAPI application.
 
-    Initializes:
-      1. Warmup workflow router (health checks)
-      2. Image embedding workflow router (POST /inference/embed/image)
-      3. Text embedding workflow router (POST /inference/embed/text)
-      4. Batch embedding workflow router (POST /inference/embed/batch)
+    Registers routers for:
+      1. Warmup workflow (health checks: /health/liveness, /health/readiness, /health/debug)
+      2. Image embedding workflow (POST /inference/embed/image)
+      3. Text embedding workflow (POST /inference/embed/text)
+      4. Batch embedding workflow (POST /inference/embed/batch)
+
+    Dependency Injection (fix for issue 1.4):
+      Routers no longer receive a service instance as a fixed parameter at
+      registration time. Each router file defines its own get_*_service()
+      FastAPI dependency, which reads the live instance from
+      `request.app.state` at request time. Those app.state.* attributes are
+      populated exactly once during the `lifespan` startup phase above. This
+      removes the previous "temp_*" service pattern entirely (temp_warmup_service,
+      temp_image_service, temp_text_service, temp_batch_service no longer exist),
+      which used to bind routers to throwaway instances that never had
+      initialize_and_warmup() called on them.
 
     Returns:
         Configured FastAPI instance
@@ -380,38 +415,13 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
 
-    # ===== Include Warmup Router =====
-    # This registers /health/liveness, /health/readiness, /health/debug
-    # Create a temporary warmup service for router setup
-    _load_env_file()  # Load environment
-    temp_warmup_config = _build_warmup_config()
-    temp_warmup_service = WarmupService(temp_warmup_config)
-    warmup_router = create_warmup_router(temp_warmup_service)
-    app.include_router(warmup_router)
-
-    # ===== Include Image Embedding Router =====
-    # This registers POST /inference/embed/image
-    # Create a temporary image embedding service for router setup
-    temp_image_config = _build_image_embedding_config()
-    temp_image_service = ImageEmbeddingService(temp_warmup_service, temp_image_config)
-    image_router = create_image_embedding_router(temp_image_service)
-    app.include_router(image_router)
-
-    # ===== Include Text Embedding Router =====
-    # This registers POST /inference/embed/text
-    # Create a temporary text embedding service for router setup
-    temp_text_config = _build_text_embedding_config()
-    temp_text_service = TextEmbeddingService(temp_warmup_service, temp_text_config)
-    text_router = create_text_embedding_router(temp_text_service)
-    app.include_router(text_router)
-
-    # ===== Include Batch Embedding Router =====
-    # This registers POST /inference/embed/batch
-    # Create a temporary batch embedding service for router setup
-    temp_batch_config = _build_batch_embedding_config()
-    temp_batch_service = BatchEmbeddingService(temp_warmup_service, temp_image_service, temp_batch_config)
-    batch_router = create_batch_embedding_router(temp_batch_service)
-    app.include_router(batch_router)
+    # ===== Include Routers =====
+    # Service resolution happens per-request via Depends() (see docstring above).
+    # No config/service construction happens here anymore — lifespan() owns that.
+    app.include_router(create_warmup_router())
+    app.include_router(create_image_embedding_router())
+    app.include_router(create_text_embedding_router())
+    app.include_router(create_batch_embedding_router())
 
     # ===== Root Endpoint =====
     @app.get("/")
@@ -476,4 +486,3 @@ if __name__ == "__main__":
         port=port,
         log_level="info"
     )
-

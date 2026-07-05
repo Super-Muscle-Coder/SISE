@@ -22,7 +22,7 @@ from app.adapters import (
     TextTokenizer,
     VectorNormalizer,
 )
-from app.services import WarmupService
+from .warmup_services import WarmupService
 
 
 class TextEmbeddingService:
@@ -127,8 +127,11 @@ class TextEmbeddingService:
             # 5. CLIP Text Encoder
             # ================================================================
             try:
-                model = self.warmup_service.model
-                tokenizer = self.warmup_service.tokenizer
+                # Use the WarmupService getters (consistent with
+                # image_embedding_services.py / batch_embedding_services.py)
+                # instead of reaching into .model / .tokenizer attributes directly.
+                model = self.warmup_service.get_model()
+                tokenizer = self.warmup_service.get_tokenizer()
 
                 if model is None or tokenizer is None:
                     return TextEmbeddingResult(
@@ -156,22 +159,40 @@ class TextEmbeddingService:
                 )
 
             # ================================================================
-            # 6. Validate Vector Dimension
+            # 6. Validate Vector Dimension (data_schema.yaml -> global_configs.vector_dim)
             # ================================================================
-            if len(vector_np.shape) > 1 or vector_np.shape[0] != 512:
+            if len(vector_np.shape) > 1 or vector_np.shape[0] != self.text_config.vector_dim:
                 elapsed_ms = (time.time() - start_time) * 1000
                 return TextEmbeddingResult(
                     success=False,
                     error_code="ERR_VECTOR_DIM_MISMATCH",
-                    error_message=f"Expected 512-dim vector, got {vector_np.shape}",
+                    error_message=f"Expected {self.text_config.vector_dim}-dim vector, got {vector_np.shape}",
                     processing_time_ms=elapsed_ms,
                 )
 
             # ================================================================
             # 7. L2 Normalization
+            #
+            # NOTE (bug fixed): VectorNormalizer.normalize_vector() — the
+            # canonical implementation shared via app/adapters/__init__.py
+            # (defined in image_embedding_adapters.py) — returns a TUPLE
+            # (normalized_vector, is_valid). The previous code here treated
+            # the return value as a bare ndarray and called `.tolist()` on
+            # the tuple directly, which raises AttributeError on every
+            # single request. Fixed by unpacking the tuple, matching the
+            # exact pattern already used correctly in
+            # image_embedding_services.py and batch_embedding_services.py.
             # ================================================================
             try:
-                vector_normalized = VectorNormalizer.normalize_vector(vector_np)
+                vector_normalized, is_normalized = VectorNormalizer.normalize_vector(vector_np)
+                if not is_normalized:
+                    elapsed_ms = (time.time() - start_time) * 1000
+                    return TextEmbeddingResult(
+                        success=False,
+                        error_code="ERR_NORMALIZATION_FAILED",
+                        error_message="Vector normalization failed",
+                        processing_time_ms=elapsed_ms,
+                    )
                 vector_list = vector_normalized.tolist()
             except Exception as e:
                 elapsed_ms = (time.time() - start_time) * 1000
@@ -189,7 +210,7 @@ class TextEmbeddingService:
             return TextEmbeddingResult(
                 success=True,
                 vector=vector_list,
-                vector_dimension=512,
+                vector_dimension=self.text_config.vector_dim,
                 processing_time_ms=elapsed_ms,
                 error_code=None,
                 error_message=None,
@@ -204,3 +225,6 @@ class TextEmbeddingService:
                 error_message=f"Unexpected error: {str(e)}",
                 processing_time_ms=elapsed_ms,
             )
+
+# Export 
+__all__ = ["TextEmbeddingService"]

@@ -101,10 +101,10 @@ class ImageEmbeddingService:
             # Step 4: Encode image with CLIP
             tensor = tensor.to(device)
             with torch.no_grad():
-                embedding = model.encode_image(tensor)  # (1, 512)
+                embedding = model.encode_image(tensor)  # (1, vector_dim)
 
             # Convert to numpy
-            vector = embedding.cpu().numpy().astype(np.float32).squeeze()  # (512,)
+            vector = embedding.cpu().numpy().astype(np.float32).squeeze()  # (vector_dim,)
 
             # Step 5: Normalize vector
             normalized_vector, is_normalized = self.normalizer.normalize_vector(vector)
@@ -118,13 +118,13 @@ class ImageEmbeddingService:
                     error_code="ERR_NORMALIZATION_FAILED",
                 )
 
-            # Step 6: Validate vector dimension
-            if len(normalized_vector) != 512:
+            # Step 6: Validate vector dimension (data_schema.yaml -> global_configs.vector_dim)
+            if len(normalized_vector) != self.config.vector_dim:
                 elapsed_ms = (time.time() - start_time) * 1000
                 return ImageEmbeddingResult(
                     success=False,
                     processing_time_ms=elapsed_ms,
-                    error_message=f"Vector dimension mismatch: got {len(normalized_vector)}, expected 512",
+                    error_message=f"Vector dimension mismatch: got {len(normalized_vector)}, expected {self.config.vector_dim}",
                     error_code="ERR_VECTOR_DIM_MISMATCH",
                 )
 
@@ -133,7 +133,7 @@ class ImageEmbeddingService:
             return ImageEmbeddingResult(
                 success=True,
                 vector=normalized_vector.tolist(),
-                vector_dimension=512,
+                vector_dimension=self.config.vector_dim,
                 processing_time_ms=elapsed_ms,
             )
 
@@ -146,5 +146,5 @@ class ImageEmbeddingService:
                 error_code="ERR_INTERNAL",
             )
 
-
+# Export 
 __all__ = ["ImageEmbeddingService"]

@@ -31,8 +31,8 @@ class TextEmbeddingResult:
 
     Attributes:
         success: Whether embedding was extracted successfully
-        vector: List of 512 float32 embedding values (L2-normalized if requested)
-        vector_dimension: Always 512 (compatibility marker)
+        vector: List of vector_dim float32 embedding values (L2-normalized if requested)
+        vector_dimension: Embedding dimension (data_schema.yaml -> global_configs.vector_dim)
         processing_time_ms: Time taken to process text (milliseconds)
         error_code: Error code if failed (e.g., "ERR_TEXT_TOO_LONG", "ERR_MODEL_NOT_READY")
         error_message: Human-readable error message
@@ -55,8 +55,18 @@ class TextProcessConfig:
         tokenizer_name: Tokenizer model name (CLIP uses BPE, default: "ViT-B/32" implies CLIP BPE)
         enable_cache: Whether to cache tokenized strings (improves throughput, uses memory)
         truncate_strategy: How to handle over-length text ("truncate" or "error", default: "truncate")
+        vector_dim: Output embedding dimension (data_schema.yaml -> global_configs.vector_dim)
     """
     max_tokens: int = 77  # CLIP ViT-B/32 and ViT-L/14 both support max 77 tokens
     tokenizer_name: str = "clip"
     enable_cache: bool = False
     truncate_strategy: str = "truncate"  # or "error"
+    vector_dim: int = 512
+
+
+# Export 
+__all__ = [
+    "TextEmbeddingRequest",
+    "TextEmbeddingResult",
+    "TextProcessConfig",
+]

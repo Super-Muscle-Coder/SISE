@@ -115,3 +115,10 @@ class BatchPreprocessor:
                 errors.append(f"Image {i} ({filename}): Unexpected error: {str(e)}")
 
         return preprocessed, errors
+
+
+# Export
+__all__ = [
+    "BatchValidator",
+    "BatchPreprocessor",
+]

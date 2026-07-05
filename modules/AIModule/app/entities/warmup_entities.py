@@ -19,6 +19,8 @@ class CLIPConfig:
     model_cache_dir: str
     warmup_iterations: int = 5
     warmup_timeout_sec: float = 30.0
+    vector_dim: int = 512          # data_schema.yaml -> global_configs.vector_dim (single source of truth)
+    pretrained: str = "openai"     # Pretrained weight tag for open_clip.create_model_and_transforms()
 
 
 @dataclass
@@ -30,4 +32,5 @@ class WarmupResult:
     error_message: Optional[str] = None
     vector_dimension: int = 512
 
+# Export 
 __all__ = ["CLIPConfig", "WarmupResult"]

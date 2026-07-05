@@ -15,11 +15,11 @@ import open_clip
 from app.entities import CLIPConfig, WarmupResult
 
 
-class DeviceManager: # Lớp này quản lý việc phát hiện thiết bị (GPU/CPU) cho mô hình CLIP.
+class DeviceManager:  # Lớp này quản lý việc phát hiện thiết bị (GPU/CPU) cho mô hình CLIP.
     """Manages CLIP model device placement (GPU/CPU auto-detection)."""
 
     @staticmethod
-    def get_device(device_arg: str) -> str: # Phương thức xác định thiết bị tính toán cho mô hình dựa trên đối số đầu vào ('cuda', 'cpu', hoặc 'auto').
+    def get_device(device_arg: str) -> str:  # Phương thức xác định thiết bị tính toán cho mô hình dựa trên đối số đầu vào ('cuda', 'cpu', hoặc 'auto').
         """
         Determine compute device for model.
 
@@ -39,22 +39,34 @@ class DeviceManager: # Lớp này quản lý việc phát hiện thiết bị (G
         else:
             return "cpu"
 
-         
-class CLIPModelLoader: # Lớp chịu trách nhiệm tải mô hình CLIP từ OpenAI/HuggingFace, bao gồm cả việc xử lý lỗi và xác thực cấu trúc mô hình.
-    """Loads CLIP model from OpenAI/HuggingFace weights."""
+
+class CLIPModelLoader:  # Lớp chịu trách nhiệm tải mô hình CLIP từ OpenAI/HuggingFace, bao gồm cả việc xử lý lỗi và xác thực cấu trúc mô hình.
+    """Loads CLIP model, its preprocessing transform, and its tokenizer."""
 
     def __init__(self, config: CLIPConfig):
         self.config = config
         self.device = DeviceManager.get_device(config.device)
         self.model = None
         self.preprocess = None
+        self.tokenizer = None
 
-    def load(self) -> tuple: # Phương thức tải mô hình CLIP và hàm tiền xử lý, trả về mô hình, hàm tiền xử lý và thiết bị đã xác định. Nó cũng xử lý lỗi nếu quá trình tải thất bại.
+    def load(self) -> tuple:  # Phương thức tải mô hình CLIP, hàm tiền xử lý và tokenizer, trả về mô hình, hàm tiền xử lý, tokenizer và thiết bị đã xác định.
         """
-        Load CLIP model and preprocessing function.
+        Load CLIP model, preprocessing function, and tokenizer.
+
+        The pretrained weight source (e.g. "openai") is read from
+        self.config.pretrained instead of being hardcoded, per
+        Workflow_Centric_Architecture.md AP-3 (no hardcoded configuration
+        inside adapters — must be injected from env config at startup).
+
+        The tokenizer is loaded and returned here (instead of being
+        forgotten) because text_embedding_services.py requires a real
+        CLIP tokenizer to encode text — without it /inference/embed/text
+        cannot function at all (openapi.yaml contract requires a valid
+        VectorEmbeddingResponse, not a crash).
 
         Returns:
-            (model, preprocess, device)
+            (model, preprocess, tokenizer, device)
 
         Raises:
             RuntimeError: If model loading fails
@@ -64,20 +76,27 @@ class CLIPModelLoader: # Lớp chịu trách nhiệm tải mô hình CLIP từ O
             os.environ["HF_HOME"] = self.config.model_cache_dir
 
             # Load model using open_clip
-            print(f"Loading CLIP model '{self.config.model_name}' on {self.device}...")
+            print(f"Loading CLIP model '{self.config.model_name}' "
+                  f"(pretrained={self.config.pretrained}) on {self.device}...")
             model, _, preprocess = open_clip.create_model_and_transforms(
                 self.config.model_name,
                 device=self.device,
-                pretrained="openai"
+                pretrained=self.config.pretrained
             )
 
-            print(f"Model loaded successfully")
-            return model, preprocess, self.device
+            # Load the matching tokenizer for the text_embedding workflow
+            tokenizer = open_clip.get_tokenizer(self.config.model_name)
+
+            print("Model and tokenizer loaded successfully")
+            self.model = model
+            self.preprocess = preprocess
+            self.tokenizer = tokenizer
+            return model, preprocess, tokenizer, self.device
 
         except Exception as e:
             raise RuntimeError(f"Failed to load CLIP model: {e}")
 
-    def validate_model(self, model) -> bool: # Phương thức kiểm tra xem mô hình đã tải có chứa các phương thức cần thiết (encode_image và encode_text) hay không, đảm bảo rằng mô hình có cấu trúc hợp lệ để sử dụng trong quá trình warm-up.
+    def validate_model(self, model) -> bool:  # Phương thức kiểm tra xem mô hình đã tải có chứa các phương thức cần thiết (encode_image và encode_text) hay không.
         """
         Validate loaded model structure.
 
@@ -97,7 +116,7 @@ class CLIPModelLoader: # Lớp chịu trách nhiệm tải mô hình CLIP từ O
             return False
 
 
-class WarmupExecutor: # Lớp này thực hiện quá trình warm-up cho mô hình CLIP bằng cách chạy một số lần forward pass với dữ liệu giả để kích hoạt caching trên GPU/CPU, đồng thời đo thời gian và xử lý lỗi nếu có.
+class WarmupExecutor:  # Lớp này thực hiện quá trình warm-up cho mô hình CLIP bằng cách chạy một số lần forward pass với dữ liệu giả.
     """Executes model warm-up to eliminate cold-start latency."""
 
     def __init__(self, model, preprocess, device: str, config: CLIPConfig):
@@ -106,7 +125,7 @@ class WarmupExecutor: # Lớp này thực hiện quá trình warm-up cho mô hì
         self.device = device
         self.config = config
 
-    def warmup(self) -> WarmupResult: # Phương thức thực hiện quá trình warm-up bằng cách chạy một số lần forward pass với dữ liệu giả (dummy data) để kích hoạt caching trên GPU/CPU. Nó đo thời gian thực hiện và trả về kết quả dưới dạng WarmupResult, bao gồm thông tin về thành công, thiết bị, tên mô hình, thời gian warm-up và bất kỳ lỗi nào nếu xảy ra.
+    def warmup(self) -> WarmupResult:  # Phương thức thực hiện quá trình warm-up bằng cách chạy một số lần forward pass với dữ liệu giả (dummy data) để kích hoạt caching trên GPU/CPU.
         """
         Run warm-up forward passes to trigger CUDA/CPU caching.
 
@@ -143,7 +162,7 @@ class WarmupExecutor: # Lớp này thực hiện quá trình warm-up cho mô hì
                 device=self.device,
                 model_name=self.config.model_name,
                 warmup_time_ms=elapsed_ms,
-                vector_dimension=512
+                vector_dimension=self.config.vector_dim
             )
 
         except Exception as e:
@@ -156,8 +175,12 @@ class WarmupExecutor: # Lớp này thực hiện quá trình warm-up cho mô hì
                 model_name=self.config.model_name,
                 warmup_time_ms=elapsed_ms,
                 error_message=str(e),
-                vector_dimension=512
+                vector_dimension=self.config.vector_dim
             )
 
-
-__all__ = ["DeviceManager", "CLIPModelLoader", "WarmupExecutor"]
+# Export 
+__all__ = [
+    "DeviceManager",
+    "CLIPModelLoader", 
+    "WarmupExecutor"
+]

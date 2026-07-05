@@ -1,18 +1,20 @@
 """
 Text Embedding Workflow — Adapters Layer
 
-Low-level utilities for text validation, tokenization, and vector normalization.
+Low-level utilities for text validation and tokenization.
 Prefix: text_embedding_*
 
 Infrastructure-only; no business logic.
+
+NOTE: VectorNormalizer is NOT defined in this file. Per app/adapters/__init__.py,
+VectorNormalizer is defined once in image_embedding_adapters.py and shared across
+workflows (image_embedding, text_embedding, batch_embedding) via the adapters
+package export, ensuring one single implementation/contract (a tuple return of
+(normalized_vector, is_valid)) instead of divergent duplicates.
 """
 
 import re
-from typing import List, Optional, Tuple
-import numpy as np
-import torch
-
-from app.entities import TextEmbeddingRequest, TextProcessConfig
+from typing import Optional, Tuple
 
 
 class TextValidator:
@@ -147,25 +149,8 @@ class TextTokenizer:
         return truncated, True
 
 
-class VectorNormalizer:
-    """
-    L2 normalization for embedding vectors.
-    (Shared with image_embedding for consistency)
-    """
-
-    @staticmethod
-    def normalize_vector(vector: np.ndarray) -> np.ndarray:
-        """
-        L2-normalize a vector to unit magnitude.
-
-        Args:
-            vector: NumPy array (any shape)
-
-        Returns:
-            Normalized vector with magnitude ~1.0
-        """
-        norm = np.linalg.norm(vector, ord=2)
-        if norm < 1e-8:
-            # Zero vector: return as-is to avoid division by zero
-            return vector
-        return vector / norm
+# Export 
+__all__ = [
+    "TextValidator",
+    "TextTokenizer",
+]

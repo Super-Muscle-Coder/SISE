@@ -5,18 +5,24 @@ FastAPI endpoints for image embedding extraction.
 Prefix: image_embedding_*
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Depends
 
 from app.services import ImageEmbeddingService
 
 
-def create_image_embedding_router(image_embedding_svc: ImageEmbeddingService) -> APIRouter:
+def get_image_embedding_service(request: Request) -> ImageEmbeddingService:
+    """
+    FastAPI dependency: retrieve the initialized ImageEmbeddingService from app.state.
+
+    Populated once during `lifespan` startup (see ai_main.py) — reading it
+    per-request guarantees the live, warmed-up service is always used.
+    """
+    return request.app.state.image_embedding_service
+
+
+def create_image_embedding_router() -> APIRouter:
     """
     Create FastAPI router with image embedding endpoints.
-
-    Args:
-        image_embedding_svc: Initialized ImageEmbeddingService instance
 
     Returns:
         APIRouter with /inference/embed/* endpoints
@@ -24,7 +30,10 @@ def create_image_embedding_router(image_embedding_svc: ImageEmbeddingService) ->
     router = APIRouter(prefix="/inference/embed", tags=["image_embedding"])
 
     @router.post("/image")
-    async def embed_image(file: UploadFile = File(...)):
+    async def embed_image(
+        file: UploadFile = File(...),
+        image_embedding_svc: ImageEmbeddingService = Depends(get_image_embedding_service),
+    ):
         """
         Extract embedding from image file.
 
@@ -35,8 +44,8 @@ def create_image_embedding_router(image_embedding_svc: ImageEmbeddingService) ->
 
         Returns:
           - success: bool
-          - vector: List of 512 float32 values (L2-normalized)
-          - vector_dimension: 512
+          - vector: List of vector_dim float32 values (L2-normalized)
+          - vector_dimension: int
           - processing_time_ms: float
           - error_code: str (if failed)
           - error_message: str (if failed)

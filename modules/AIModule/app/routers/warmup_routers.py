@@ -5,28 +5,33 @@ FastAPI health endpoints and startup event handlers.
 Prefix: warmup_*
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Depends
 
 from app.services import WarmupService
 
 
-# Global warmup service instance
-warmup_service: WarmupService = None
+def get_warmup_service(request: Request) -> WarmupService:
+    """
+    FastAPI dependency: retrieve the initialized WarmupService from app.state.
+
+    The WarmupService instance is created and warmed up once during the
+    FastAPI `lifespan` startup phase and stored on `app.state.warmup_service`
+    (see ai_main.py). Reading it per-request instead of binding a throwaway
+    instance at router-registration time guarantees this router always
+    observes the live, warmed-up instance (fixes issue 1.4: is_ready was
+    permanently False because routers were bound to a separate "temp_*"
+    instance that never had initialize_and_warmup() called on it).
+    """
+    return request.app.state.warmup_service
 
 
-def create_warmup_router(warmup_svc: WarmupService) -> APIRouter: # Phương thức tạo router FastAPI với các endpoint kiểm tra sức khỏe (/health/liveness, /health/readiness, /health/debug) sử dụng dịch vụ warm-up đã khởi tạo. Nó cũng lưu trữ instance của WarmupService trong một biến toàn cục để sử dụng trong các endpoint.
+def create_warmup_router() -> APIRouter:
     """
     Create FastAPI router with health check endpoints.
-
-    Args:
-        warmup_svc: Initialized WarmupService instance
 
     Returns:
         APIRouter with /health/* endpoints
     """
-    global warmup_service
-    warmup_service = warmup_svc
-
     router = APIRouter(prefix="/health", tags=["health"])
 
     @router.get("/liveness")
@@ -42,7 +47,7 @@ def create_warmup_router(warmup_svc: WarmupService) -> APIRouter: # Phương th�
         }
 
     @router.get("/readiness")
-    async def readiness_probe():
+    async def readiness_probe(warmup_svc: WarmupService = Depends(get_warmup_service)):
         """
         Readiness probe: model loaded and warm-up complete?
 
@@ -51,7 +56,7 @@ def create_warmup_router(warmup_svc: WarmupService) -> APIRouter: # Phương th�
           2. Warm-up completed
           3. Device available
         """
-        health = warmup_service.health_check()
+        health = warmup_svc.health_check()
 
         if not health["is_ready"]:
             raise HTTPException(
@@ -70,9 +75,9 @@ def create_warmup_router(warmup_svc: WarmupService) -> APIRouter: # Phương th�
         }
 
     @router.get("/debug")
-    async def debug_info():
+    async def debug_info(warmup_svc: WarmupService = Depends(get_warmup_service)):
         """Debug endpoint: return full warmup service state."""
-        return warmup_service.health_check()
+        return warmup_svc.health_check()
 
     return router
 

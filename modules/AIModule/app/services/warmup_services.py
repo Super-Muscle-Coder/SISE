@@ -18,14 +18,16 @@ class WarmupService:
     Manages:
       1. Model loading from OpenAI weights
       2. Device placement (GPU/CPU)
-      3. Warm-up forward passes
-      4. State persistence
+      3. Tokenizer loading (required by text_embedding workflow)
+      4. Warm-up forward passes
+      5. State persistence
     """
 
     def __init__(self, config: CLIPConfig):
         self.config = config
         self.model = None
         self.preprocess = None
+        self.tokenizer = None
         self.device = None
         self.warmup_result = None
         self.is_ready = False
@@ -33,7 +35,7 @@ class WarmupService:
     def initialize_and_warmup(self) -> WarmupResult:
         """
         Complete initialization pipeline:
-        1. Load CLIP model
+        1. Load CLIP model, preprocess transform, and tokenizer
         2. Validate structure
         3. Execute warm-up
 
@@ -45,10 +47,10 @@ class WarmupService:
         print("=" * 70)
 
         try:
-            # Step 1: Load model
+            # Step 1: Load model (+ tokenizer)
             print("\n[1/3] Loading CLIP model...")
             loader = CLIPModelLoader(self.config)
-            self.model, self.preprocess, self.device = loader.load()
+            self.model, self.preprocess, self.tokenizer, self.device = loader.load()
 
             # Step 2: Validate
             print("\n[2/3] Validating model structure...")
@@ -87,7 +89,8 @@ class WarmupService:
                 device="unknown",
                 model_name=self.config.model_name,
                 warmup_time_ms=0.0,
-                error_message=str(e)
+                error_message=str(e),
+                vector_dimension=self.config.vector_dim,
             )
 
     def get_model(self):
@@ -101,6 +104,12 @@ class WarmupService:
         if not self.is_ready:
             raise RuntimeError("Model not loaded. Call initialize_and_warmup() first.")
         return self.preprocess
+
+    def get_tokenizer(self):
+        """Returns CLIP text tokenizer. Raise error if not ready."""
+        if not self.is_ready:
+            raise RuntimeError("Model not loaded. Call initialize_and_warmup() first.")
+        return self.tokenizer
 
     def get_device(self):
         """Returns device string (cuda/cpu)."""
@@ -117,5 +126,5 @@ class WarmupService:
             "warmup_time_ms": self.warmup_result.warmup_time_ms if self.warmup_result else None
         }
 
-
+# Export 
 __all__ = ["WarmupService"]

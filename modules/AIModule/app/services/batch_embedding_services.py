@@ -33,7 +33,6 @@ class BatchEmbeddingService:
     ERR_BATCH_TOO_LARGE = "ERR_BATCH_TOO_LARGE"
     ERR_PREPROCESSING_FAILED = "ERR_PREPROCESSING_FAILED"
     ERR_VECTOR_DIM_MISMATCH = "ERR_VECTOR_DIM_MISMATCH"
-    ERR_VECTOR_DIM_COUNT_MISMATCH = "ERR_VECTOR_DIM_COUNT_MISMATCH"
 
     def __init__(
         self,
@@ -46,7 +45,9 @@ class BatchEmbeddingService:
 
         Args:
             warmup_service: Reference to warmup service (for model availability checks)
-            image_embedding_service: Reference to image embedding service (for per-image processing)
+            image_embedding_service: Reference to image embedding service (reserved for
+                future per-image delegation; not currently invoked directly — see
+                notes_to_ag00 regarding the removed _get_model() dead code path)
             config: BatchEmbeddingConfig with batch size limits and timeouts
         """
         self.warmup_service = warmup_service
@@ -66,6 +67,7 @@ class BatchEmbeddingService:
         Args:
             file_bytes_list: List of image file binary contents
             filenames_list: List of filenames
+            content_types_list: List of MIME types (one per file)
 
         Returns:
             Tuple of (BatchEmbeddingResult, error_code)
@@ -135,7 +137,7 @@ class BatchEmbeddingService:
                     device = self.warmup_service.get_device()
                     tensor = tensor.to(device)
                     image_features = model.encode_image(tensor)
-                    # image_features shape: (1, 512)
+                    # image_features shape: (1, vector_dim)
 
                 # Normalize to L2 norm = 1.0 (for COSINE similarity)
                 vector_np = image_features.cpu().numpy().astype(np.float32).flatten()
@@ -144,7 +146,7 @@ class BatchEmbeddingService:
                     failed_count += 1
                     continue
 
-                # Validate output dimension
+                # Validate output dimension (data_schema.yaml -> global_configs.vector_dim)
                 if len(vector_normalized) != self.config.vector_dim:
                     return result, self.ERR_VECTOR_DIM_MISMATCH
 
@@ -161,10 +163,5 @@ class BatchEmbeddingService:
 
         return result, None
 
-    def _get_model(self):
-        """
-        Get the CLIP model from warmup service.
-
-        This is a helper for extract_batch_embeddings to access the model.
-        """
-        return self.image_embedding_service._get_model()
+# Export
+__all__ = ["BatchEmbeddingService"]

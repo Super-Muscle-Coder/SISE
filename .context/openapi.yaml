@@ -2,16 +2,14 @@ openapi: 3.0.3
 info:
   title: SISE - Multimodal Retrieval & Privacy-Aware Search API
   description: >
-    Production-ready contract for SISE. v1.0.0 includes:
+    Production-ready contract for SISE. v1.1.1 includes:
     - flexible vector dimensions with server-side validation and explicit error codes,
     - recursive structured filters with canonical examples,
     - presigned upload flow with idempotency semantics,
     - standardized error responses and operation examples,
     - dependency-aware health probes exposing expected vector dimension.
-    v1.1.0: vector store migrated from Milvus to pgvector (PostgreSQL extension `vector`);
-    /vector/index and /vector/search/hybrid now operate on the images.embedding column.
-  version: 1.1.0
-
+    v1.1.1: Added /inference/embed/batch for batch image embedding.
+  version: 1.1.1 # Version updated to 1.1.1 
 servers:
   - url: http://localhost:8000
     description: Local development gateway (FastAPI)
@@ -468,6 +466,42 @@ paths:
         '500': # Status 500: Internal Server Error, có nghĩa là có lỗi nghiêm trọng trong quá trình xử lý yêu cầu, có thể do lỗi code hoặc sự cố môi trường.
                    $ref: '#/components/responses/StandardError'
 
+  # ---------------------------------------------------------------------------------------------------------------
+  # UPDATE 2026-07-05: Batch embedding endpoint for multiple images in a single request. Endpoint này yêu cầu xác thực và cho phép client gửi nhiều tệp hình ảnh trong một yêu cầu để trích xuất đặc trưng trực quan (vector embedding) cho tất cả các ảnh cùng lúc. Client gửi các tệp dưới dạng multipart/form-data, và server trả về một phản hồi tổng hợp bao gồm danh sách kết quả embedding cho từng ảnh, cùng với thông tin về số lượng thành công và thất bại. Lưu ý rằng ngay cả khi phản hồi HTTP là 200 OK, có thể có một số ảnh không được xử lý thành công, vì vậy client nên kiểm tra failed_count và successful_count trong phản hồi.
+  /inference/embed/batch:
+    post:
+      operationId: embedBatch
+      summary: Extract visual features for multiple images in a single request
+      tags: [AIModule]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  items: { type: string, format: binary }
+      responses:
+        '200':
+          description: >
+            Batch processed. May contain partial failures — check failed_count
+            and successful_count. Overall HTTP success does not guarantee every
+            image succeeded (mirrors S3-style batch operations).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchVectorEmbeddingResponse'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/StandardError'
 
   # --- SEARCH (APPLICATION-LEVEL WRAPPERS) -------------------------------------------------------------------------------------------------
   /search/image: # Search by image (app-level wrapper around inference + hybrid search). Endpoint này yêu cầu xác thực và cho phép user tìm kiếm ảnh tương tự bằng cách gửi một tệp ảnh.
@@ -971,6 +1005,26 @@ components:
           type: string
           description: Model identifier (e.g., "clip-vit-b-32")
 
+    # --- BATCH EMBEDDING ---------------------------------
+    # Update 2026-07-05: Batch embedding  
+    BatchVectorEmbeddingResponse:
+      type: object
+      properties:
+        vectors:
+          type: array
+          items:
+            $ref: '#/components/schemas/VectorEmbedding'
+        dim:
+          type: integer
+          description: Dimension of each vector (uniform across the batch)
+        model:
+          type: string
+        successful_count:
+          type: integer
+        failed_count:
+          type: integer
+        processing_time_ms:
+          type: number
     # --- FILTER (RECURSIVE) ---------------------------------
     FilterExpression: # Recursive boolean filter for metadata
       description: Recursive boolean filter for metadata. Use 'and'/'or' arrays or a leaf {field, op, value}.
