@@ -46,7 +46,6 @@ __all__ = [
     "WarmupResult",
     # Entities — Image embedding
     "ImagePreprocessConfig",
-    "ImageEmbeddingRequest",
     "ImageEmbeddingResult",
     # Entities — Text embedding
     "TextEmbeddingRequest",
@@ -71,13 +70,11 @@ __all__ = [
     # Adapters — Batch embedding
     "BatchValidator",
     "BatchPreprocessor",
-
     # Services
     "WarmupService",
     "ImageEmbeddingService",
     "TextEmbeddingService",
     "BatchEmbeddingService",
-
     # Routers
     "create_warmup_router",
     "create_image_embedding_router",

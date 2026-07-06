@@ -42,7 +42,7 @@
     <Content Include="configs\ai.env.example" />
     <Content Include="configs\ai.env.local" />
     <Content Include="configs\ai.env.staging" />
-    <Content Include="docker-compose. yml" />
+    <Content Include="docker-compose.yml" />
     <Content Include="Dockerfile" />
     <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_DEEP_GUIDE.md" />
     <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_QUICK_GUIDE.md" />
