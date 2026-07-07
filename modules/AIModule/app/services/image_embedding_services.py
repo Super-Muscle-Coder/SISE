@@ -11,7 +11,6 @@ import torch
 
 from app.entities import (
     ImagePreprocessConfig,
-    ImageEmbeddingRequest,
     ImageEmbeddingResult,
 )
 from app.adapters import ImageValidator, ImagePreprocessor, VectorNormalizer

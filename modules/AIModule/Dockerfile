@@ -5,13 +5,16 @@
 # Requirements:
 #   1. Python 3.13 slim base image
 #   2. Model weights NOT baked into image (downloaded at runtime)
-#   3. No secrets in image layers
+#   3. NO secrets in image layers (configs/ excluded)
 #   4. Health check endpoint (/health/liveness)
 #   5. ASGI server (uvicorn) ready for orchestration
 #
 # Build stages:
 #   1. builder: Install dependencies and compile wheels
 #   2. runtime: Minimal runtime image with only necessary files
+#
+# Security: Configs & environment variables injected at container run time
+# via docker-compose env_file or Kubernetes secrets, NOT baked in image.
 # =============================================================================
 
 # Stage 1: Builder
@@ -45,6 +48,7 @@ RUN pip install --upgrade pip setuptools wheel && \
 FROM python:3.13-slim AS runtime
 
 LABEL maintainer="SISE Project"
+LABEL module="AIModule"
 LABEL version="1.1.0"
 LABEL description="AI Inference Service for SISE — CLIP-based multimodal embeddings"
 
@@ -71,29 +75,33 @@ RUN pip install --no-cache-dir --no-index --find-links=/build/wheels -r ai_requi
 	rm -rf /build/wheels
 
 # Copy application code (entire app layer structure)
-# FIXED: removed "modules/AIModule/" prefix from all COPY commands
+# NOTE: CONFIGS/ DELIBERATELY EXCLUDED (see .dockerignore)
+# Environment variables injected at runtime via docker-compose env_file or Kubernetes
 COPY app ./app
 COPY ai_main.py .
-COPY configs ./configs
 
 # Create model cache directory with proper permissions
 RUN mkdir -p /app/ai-service/model_cache
 
-# Set environment variables for runtime
-# CRITICAL: All AI_SERVICE_PORT, CLIP_MODEL_NAME, DEVICE, MODEL_CACHE_DIR must be set
-# at container startup via docker-compose or orchestration
-# However, we provide sensible defaults to allow container to start
+# Set environment variables for runtime (DEFAULTS ONLY — overrides at run time)
+# All critical vars (AI_SERVICE_PORT, CLIP_MODEL_NAME, DEVICE, MODEL_CACHE_DIR) 
+# should be injected by orchestration layer (docker-compose env_file, Kubernetes, etc.)
 ENV PYTHONUNBUFFERED=1 \
 	PYTHONDONTWRITEBYTECODE=1 \
 	PYTHONPATH=/app/ai-service \
-	LOG_LEVEL=INFO \
-	AI_SERVICE_PORT=8001 \
-	CLIP_MODEL_NAME=ViT-B/32 \
+	LOG_LEVEL=INFO
+
+# ENV defaults (can be overridden at docker-compose / Kubernetes time)
+# These are fallback values — DO NOT treat as production-ready configuration
+# CLIP_MODEL_NAME updated to ViT-B-32-quickgelu (matches ai.env.local and prevents QuickGELU mismatch warning)
+ENV AI_SERVICE_PORT=8001 \
+	CLIP_MODEL_NAME=ViT-B-32-quickgelu \
 	DEVICE=cpu \
-	MODEL_CACHE_DIR=/app/ai-service/model_cache
+	MODEL_CACHE_DIR=/app/ai-service/model_cache \
+	VECTOR_DIM=512
 
 # Expose port for FastAPI service
-# Port is configurable via AI_SERVICE_PORT env var
+# Port is configurable via AI_SERVICE_PORT env var at runtime
 EXPOSE 8001
 
 # Change ownership to non-root user
@@ -110,9 +118,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 	response = conn.getresponse(); \
 	exit(0 if response.status == 200 else 1)"
 
-# Entry point: ai_main.py is now the single startup path (Fix Group C, Round 3).
-# scripts/entrypoint.py has been deleted — it used to run "uvicorn
-# ai_main:create_app --factory" but was a redundant entry point.
-# Now ai_main.py's "if __name__ == '__main__':" is the ONLY startup path.
+# Entry point: ai_main.py is the only startup path
+# Loads environment variables from:
+#   1. docker-compose env_file (injected via -e or env_file: ./configs/ai.env.local)
+#   2. System environment (if overridden at runtime)
+#   3. Defaults defined above (fallback only)
 ENTRYPOINT ["python", "ai_main.py"]
 

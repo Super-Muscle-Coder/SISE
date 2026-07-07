@@ -3,9 +3,15 @@
 # =============================================================================
 # Purpose: Local development and testing of AI Inference Service in isolation
 # Services: 1 service (ai-service) — CLIP-based embedding extraction
-# 
+#
+# Configuration Strategy:
+#   - NO configs/ baked in image (.dockerignore prevents it)
+#   - Environment variables injected via env_file: ./configs/ai.env.local
+#   - Image is transport layer — all configuration applied at container start time
+#   - env_file points to audited ai.env.local (source of truth for all settings)
+#
 # Usage:
-#   docker-compose up                 # Start service with detach
+#   docker-compose up                 # Start service with environment from ai.env.local
 #   docker-compose logs -f ai-service # Follow logs
 #   docker-compose down               # Stop all services
 #
@@ -13,7 +19,8 @@
 #   - This compose file is for AIModule ONLY (standalone development)
 #   - To integrate with StorageModule/BackendModule, use a separate
 #     docker-compose at the project root that combines all services
-#   - All configuration loaded from configs/ai.env.local (do not hardcode)
+#   - Environment variables loaded from configs/ai.env.local (must exist before docker-compose up)
+#   - For production: mount ai.env.production or use Kubernetes ConfigMap
 # =============================================================================
 
 version: "3.8"
@@ -33,9 +40,9 @@ services:
     ports:
       - "8001:8001"
     
-    # Load environment variables from external file
-    # (matches: AI_SERVICE_PORT, CLIP_MODEL_NAME, DEVICE, MODEL_CACHE_DIR, 
-    #  VECTOR_DIM, WARMUP_ITERATIONS, etc. — all variables defined in ai.env.local)
+    # SECURITY: Load environment from external file (NOT from environment: hardcoding)
+    # env_file points to audited ai.env.local — source of truth for all configuration
+    # This ensures Docker image remains a pure transport layer with NO secrets/config baked in
     env_file:
       - ./configs/ai.env.local
     
@@ -83,7 +90,7 @@ services:
 # Network configuration
 networks:
   default:
-    name: ai-service-network
+    name: ai_net
     driver: bridge
 
 # Volume for persistent model cache
@@ -92,23 +99,68 @@ volumes:
     driver: local
 
 # =============================================================================
+# ENVIRONMENT VARIABLE CONFIGURATION
+# =============================================================================
+#
+# All environment variables are sourced from: ./configs/ai.env.local
+#
+# This file must exist and contain:
+#   - AI_SERVICE_PORT=8001
+#   - CLIP_MODEL_NAME=ViT-B-32-quickgelu
+#   - CLIP_PRETRAINED_TAG=openai
+#   - DEVICE=auto (or cpu/cuda)
+#   - MODEL_CACHE_DIR=./models
+#   - VECTOR_DIM=512 (must match data_schema.yaml global_configs.vector_dim)
+#   - WARMUP_ITERATIONS=5
+#   - WARMUP_TIMEOUT_SEC=30
+#   - IMAGE_TARGET_SIZE=224
+#   - IMAGE_ENABLE_CACHE=False
+#   - TEXT_MAX_TOKENS=77
+#   - TEXT_TOKENIZER_NAME=clip
+#   - TEXT_ENABLE_CACHE=False
+#   - TEXT_TRUNCATE_STRATEGY=truncate
+#   - BATCH_MAX_SIZE=32
+#   - BATCH_ENABLE_CACHE=False
+#   - BATCH_CACHE_TTL_SECONDS=3600
+#   - BATCH_TIMEOUT_MS=10000
+#   - LOG_LEVEL=INFO
+#   - DEBUG=False
+#
+# To override specific values:
+#   Option 1: Edit ./configs/ai.env.local before running docker-compose
+#   Option 2: Export in shell (higher priority than env_file):
+#             export AI_SERVICE_PORT=8002
+#             docker-compose up
+#   Option 3: Pass via -e flag to docker-compose (highest priority):
+#             docker-compose run -e AI_SERVICE_PORT=8002 ai-service
+#
+# =============================================================================
+# 
 # INTEGRATION NOTES (for future combining with other modules)
 # =============================================================================
 # When integrating with BackendModule/StorageModule:
-# 
+#
 # 1. Move this service definition into a root-level docker-compose.yml
 # 2. Add storage services (PostgreSQL, MinIO, Redis, etc.)
-# 3. Update env_file to load from root-level config path
+# 3. Update env_file to point to root-level config file (e.g., ./config/ai.env.production)
 # 4. Add depends_on to ensure storage services start before AI service
 # 5. Update AI_SERVICE_URL in backend config to match the network name
-# 
-# Example (future):
+#
+# Example (future root-level docker-compose.yml):
 #   services:
 #     ai-service:
-#       env_file: ./config/.env.production
+#       build:
+#         context: ./modules/AIModule
+#       env_file:
+#         - ./config/ai.env.production
 #       depends_on:
-#         - postgres
-#         - minio
-#         - redis
+#         postgres:
+#           condition: service_healthy
+#         minio:
+#           condition: service_healthy
+#         redis:
+#           condition: service_healthy
 #       networks:
 #         - sise-network
+#
+# =============================================================================

@@ -13,7 +13,7 @@ import torch
 import numpy as np
 from PIL import Image
 
-from app.entities import ImagePreprocessConfig, ImageEmbeddingRequest, ImageEmbeddingResult
+from app.entities import ImagePreprocessConfig, ImageEmbeddingResult
 
 
 class ImageValidator:

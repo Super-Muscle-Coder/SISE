@@ -1,11 +1,26 @@
 # =============================================================================
 # Docker Ignore — AI Service Container
 # =============================================================================
-# Tránh sao chép những file/thư mục không cần thiết vào Docker image
-# Giúp giảm kích thước image và tăng tốc độ build
+# Reduce Docker build context and prevent secrets from entering image
 # NOTE: Patterns here prevent COPY commands from including these files
 
+# ============================================================
+# SECRETS & ENVIRONMENT (CRITICAL: configs/ must NOT enter image)
+# ============================================================
+configs/
+.env
+.env.local
+.env.*.local
+.env.dev
+.env.staging
+.env.production
+*.pem
+*.key
+*.crt
+
+# ============================================================
 # Python cache and temporary files
+# ============================================================
 __pycache__/
 *.pyc
 *.pyo
@@ -17,7 +32,9 @@ dist/
 build/
 .eggs/
 
+# ============================================================
 # Testing and development
+# ============================================================
 .pytest_cache/
 .tox/
 .coverage
@@ -25,14 +42,17 @@ build/
 htmlcov/
 tests/
 
-# Environment files (local-only configs)
-.env.local
-.env.*.local
-.env.dev
+# ============================================================
+# Virtual Environments
+# ============================================================
 .venv/
+venv/
 env/
+ENV/
 
+# ============================================================
 # IDE and editor files
+# ============================================================
 .vscode/
 .idea/
 *.swp
@@ -42,52 +62,53 @@ env/
 .DS_Store
 Thumbs.db
 
+# ============================================================
 # Git and version control
+# ============================================================
 .git/
 .gitignore
 .gitattributes
 .gitmodules
 
-# Documentation
+# ============================================================
+# Documentation and logs
+# ============================================================
 docs/
+documents/
 README.md
 *.md
 CHANGELOG.md
+*.log
+*.tmp
+*.pid
 
-# Documents, scripts, tests (explicit, comprehensive exclusion for clarity)
-documents/
+# ============================================================
+# Scripts and build helpers (not needed in Linux container)
+# ============================================================
 scripts/
-tests/
+build_ai_container.ps1
+build_ai_container.sh
+Makefile
+makefile
 
+# ============================================================
 # CI/CD pipelines (not needed in runtime image)
+# ============================================================
 .github/
 .gitlab-ci.yml
 .circleci/
 azure-pipelines.yml
 
-# Config templates and examples
-configs/*.example
-configs/*.template
-
-# Logs and temporary runtime files
-*.log
-*.tmp
-*.pid
-
-# Model cache (will be mounted as volume at runtime)
-# Uncomment only if you want to pre-bake models into image:
-# model_cache/
-
+# ============================================================
 # Docker-related
+# ============================================================
 Dockerfile
 .dockerignore
 docker-compose*.yml
 
-# Build helper scripts
-build_ai_container.ps1
-build_ai_container.sh
-
+# ============================================================
 # License and legal
+# ============================================================
 LICENSE
 COPYING
 AUTHORS

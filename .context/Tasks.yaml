@@ -726,7 +726,7 @@ phase_6:
       title: "[AG-01] Structural audit: AIModule"
       assigned_to: AG-01
       priority: P0
-      status: backlog
+      status: done
       description: >
         Kiểm tra toàn diện AIModule (modules/AIModule/) theo checklist tương tự T006-01:
         1. Workflow naming: prefix = action (warmup_, image_embedding_, text_embedding_, batch_embedding_, ai_container_)
