@@ -31,7 +31,6 @@
     <Folder Include="configs\" />
     <Folder Include="documents\" />
     <Folder Include="documents\image_embedding_workflow\" />
-    <Folder Include="documents\ai_container_workflow\" />
     <Folder Include="documents\text_embedding_workflow\" />
     <Folder Include="documents\warmup_workflow\" />
     <Folder Include="scripts\" />

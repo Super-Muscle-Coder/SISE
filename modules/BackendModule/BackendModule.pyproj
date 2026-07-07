@@ -62,15 +62,6 @@
     <Compile Include="app\tasks\__init__.py" />
     <Compile Include="app\__init__.py" />
     <Compile Include="backend_main.py" />
-    <Compile Include="tests\manual_test_search.py" />
-    <Compile Include="tests\test_auth_workflow.py" />
-    <Compile Include="tests\test_evaluation_workflow.py" />
-    <Compile Include="tests\test_health_workflow.py" />
-    <Compile Include="tests\test_media_workflow.py" />
-    <Compile Include="tests\test_scaffold_workflow.py" />
-    <Compile Include="tests\test_search_workflow.py" />
-    <Compile Include="tests\test_upload_workflow.py" />
-    <Compile Include="tests\__init__.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="app\" />
