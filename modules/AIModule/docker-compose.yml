@@ -23,8 +23,6 @@
 #   - For production: mount ai.env.production or use Kubernetes ConfigMap
 # =============================================================================
 
-version: "3.8"
-
 services:
   ai-service:
     # Build from the Dockerfile in this directory
@@ -33,8 +31,8 @@ services:
       dockerfile: Dockerfile
     
     # Service configuration
-    container_name: ai-service-dev
-    image: ai-service:latest
+    container_name: sise-ai
+    image: sise-ai:latest
     
     # Port mapping: container:host
     ports:
@@ -90,7 +88,7 @@ services:
 # Network configuration
 networks:
   default:
-    name: ai_net
+    name: sise_ai_net
     driver: bridge
 
 # Volume for persistent model cache

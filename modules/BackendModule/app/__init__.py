@@ -1,7 +1,44 @@
 """
-FastAPI Backend Application Package.
-Workflow-centric 5-layer architecture: configs → entities → adapters → services → routers.
+Backend FastAPI composition root.
+Builds application instance, registers middleware/lifespan, and includes routers.
 """
 
-__version__ = "1.0.0"
-__all__ = ["create_app", "get_app_config"]
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from .dependencies import get_lifecycle_service
+from .routers import all_routers
+
+
+@asynccontextmanager
+async def app_lifespan(_: FastAPI):
+    lifecycle_service = get_lifecycle_service()
+    await lifecycle_service.startup()
+    try:
+        yield
+    finally:
+        await lifecycle_service.shutdown()
+
+
+app = FastAPI(
+    title="SISE - BackendModule",
+    version="1.2.0",
+    lifespan=app_lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+for router in all_routers:
+    app.include_router(router)
+
+__all__ = ["app"]

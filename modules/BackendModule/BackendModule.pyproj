@@ -46,7 +46,6 @@
     <Compile Include="app\routers\evaluation_routers.py" />
     <Compile Include="app\routers\health_routers.py" />
     <Compile Include="app\routers\media_routers.py" />
-    <Compile Include="app\routers\scaffold_routers.py" />
     <Compile Include="app\routers\search_routers.py" />
     <Compile Include="app\routers\upload_routers.py" />
     <Compile Include="app\routers\__init__.py" />
@@ -83,10 +82,13 @@
     <Folder Include="tests\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include=".dockerignore" />
     <Content Include="configs\backend.env.local" />
     <Content Include="configs\backend.env.example" />
     <Content Include="configs\backend.env.staging" />
     <Content Include="backend_requirements.txt" />
+    <Content Include="docker-compose.yml" />
+    <Content Include="Dockerfile" />
     <Content Include="pytest.ini" />
   </ItemGroup>
   <ItemGroup>

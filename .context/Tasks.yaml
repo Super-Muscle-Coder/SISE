@@ -5,12 +5,38 @@
 #           Mỗi agent đọc file này khi bắt đầu phiên làm việc để biết mình làm gì.
 # Writer  : Project Owner + AG-00
 # Reader  : Tất cả agents
-# Version : 1.1.0
-# Changelog v1.1.0:
-#   - Thay thế toàn bộ tham chiếu Milvus bằng pgvector (PostgreSQL extension `vector`)
-#     trong T001-02, T001-04, T003-07, T005-02, T006-02 theo data_schema.yaml v1.1.0 /
-#     openapi.yaml v1.1.0 / Workflow_Centric_Architecture.md v2.3.0.
-#   - Thêm phase_6: Cross-Module Structural Audit (workflow kiểm tra toàn diện từng module).
+# Version : 1.2.0
+#
+# Changelog v1.2.0 (đồng bộ với data_schema.yaml v1.2.0 / openapi.yaml v1.2.0 /
+# Workflow_Centric_Architecture.md v2.4.0):
+#   - QUYẾT ĐỊNH PROJECT OWNER: BackendModule (AG-03) bị ĐẬP BỎ HOÀN TOÀN và
+#     XÂY LẠI TỪ ĐẦU, thay vì audit-and-patch. Lý do: audit T006-03 (thủ công,
+#     trước khi tách thành task riêng) phát hiện sai lệch có tính HỆ THỐNG,
+#     không phải lỗi cục bộ — router không được đăng ký vào app (chỉ 2/7),
+#     DI trả về None cho dependency quan trọng (db_session), toàn bộ pipeline
+#     S4-S5 là mock data giả lập (AP-6 mới, xem Architecture.md v2.4.0),
+#     Milvus rò rỉ ở 3 nơi độc lập dù đã migrate pgvector từ v1.1.0, thiếu
+#     hoàn toàn Dockerfile/docker-compose/.dockerignore. Vá từng điểm được
+#     đánh giá là rủi ro cao hơn xây lại (dễ sót tàn dư).
+#   - Toàn bộ Phase 3 (T003-*) trong file này là ĐẶC TẢ MỚI cho lần xây lại,
+#     KHÔNG PHẢI lịch sử của lần build trước. Trạng thái mọi task Phase 3
+#     được reset về `backlog`.
+#   - Phase 3 mở rộng từ 7 workflow (v1.1.0) thành 10 workflow, khớp
+#     Workflow_Centric_Architecture.md v2.4.0 §2.3:
+#       scaffold, auth, friends (MỚI), upload, indexing (TÁCH RIÊNG từ
+#       upload), search, media, evaluation, admin (TÁCH RIÊNG từ
+#       evaluation), health.
+#   - Phase 6 (Cross-Module Structural Audit): T006-03 (BackendModule) được
+#     viết lại với checklist mới, bao gồm kiểm tra AP-6 (Mock Data
+#     Impersonation) và verify runtime router registration — 2 bài học rút
+#     ra trực tiếp từ đợt audit thủ công trước khi quyết định đập-xây-lại.
+#   - StorageModule (AG-02) và AIModule (AG-01): KHÔNG CÓ THAY ĐỔI. Cả 2 giữ
+#     nguyên trạng thái `done`/`closed` từ v1.1.0. Không mở lại task nào của
+#     2 module này — đúng quyết định "khóa B/C, chỉ được append DDL mới"
+#     (data_schema.yaml v1.2.0). Việc thêm cột `users.role`/`albums.deleted_at`
+#     được giao lại cho AG-02 dưới dạng 1 task migration bổ sung MỚI
+#     (T006-01b), tách biệt khỏi T006-01 đã CLOSED, để không làm "mở lại"
+#     một task đã đóng — chỉ thêm task nối tiếp.
 #
 # QUYỀN CHỈNH SỬA:
 #   - Tạo / xóa task       : AG-00 + Project Owner
@@ -23,7 +49,8 @@
 #   in_progress → Agent đang thực hiện trong phiên hiện tại
 #   blocked     → Agent không thể tiếp tục, cần AG-00 hoặc agent khác unblock
 #   review      → Agent đã hoàn thành, đang chờ AG-00 review
-#   done        → AG-00 đã xác nhận hoàn thành
+#   done        → AG-00 đã xác nhận hoàn thành (SAU KHI runtime-verify, không
+#                 chỉ dựa vào báo cáo tự khai của worker agent)
 #   cancelled   → Task bị hủy (ghi rõ lý do trong notes)
 #
 # PRIORITY:
@@ -32,17 +59,19 @@
 #   P2 = Medium
 #   P3 = Low / Nice-to-have
 #
-# WORKFLOW REFERENCE (tham chiếu từ mã nguồn & Workflow_Centric_Architecture.md v2.3.0):
+# WORKFLOW REFERENCE (tham chiếu Workflow_Centric_Architecture.md v2.4.0):
 #   - StorageModule (AG-02): schema, pgvector-index, bucket, infra_compose, seed
 #   - AIModule (AG-01): warmup, image_embedding_preprocessing, image_embedding_endpoint,
 #                        text_embedding, batch_embedding, ai_container
-#   - BackendModule (AG-03): scaffold, auth, upload, search, media, evaluation, health
-#   - FrontendWebModule (AG-04): scaffold, auth, media, upload, search, evaluation
+#   - BackendModule (AG-03): scaffold, auth, friends, upload, indexing, search,
+#                             media, evaluation, admin, health
+#   - FrontendWebModule (AG-04): scaffold, auth, media, upload, search, friends, evaluation
 # =============================================================================
 
 # ---------------------------------------------------------------------------
 # PHASE 0 — Khởi tạo Solution & Cấu hình
 # Mục tiêu: Dựng nền tảng để tất cả agents có thể bắt đầu làm việc độc lập
+# KHÔNG THAY ĐỔI so với v1.1.0 — giữ nguyên trạng thái done.
 # ---------------------------------------------------------------------------
 phase_0:
   name: "Solution Bootstrap & Configuration"
@@ -70,14 +99,12 @@ phase_0:
       priority: P0
       status: done
       description: >
-        Commit DOS.md, data_schema.yaml v1.1.0, openapi.yaml v1.1.0, agent_boundaries.yaml,
-        Tasks.yaml v1.1.0 vào .context/. Đây là "luật pháp" của solution, phải có trước
+        Commit DOS.md, data_schema.yaml, openapi.yaml, agent_boundaries.yaml,
+        Tasks.yaml vào .context/. Đây là "luật pháp" của solution, phải có trước
         khi bất kỳ agent nào bắt đầu code.
       depends_on: [T000-01]
       acceptance_criteria:
         - Tất cả contract files tồn tại trong .context/ trên main branch
-        - data_schema.yaml v1.1.0 chứa pgvector spec thay vì Milvus
-        - openapi.yaml v1.1.0 cập nhật mô tả pgvector cho /vector/index và /vector/search/hybrid
         - Không file nào chứa placeholder chưa điền
 
     - id: T000-03
@@ -92,7 +119,6 @@ phase_0:
       depends_on: [T000-02]
       acceptance_criteria:
         - 6 file .agent.md tồn tại trong .github/agents/ với nội dung đầy đủ
-        - StorageModuleAgent.agent.md v1.1.0 không còn tham chiếu MILVUS_HOST/MILVUS_PORT
         - Không file nào còn nội dung template mặc định
 
     - id: T000-04
@@ -101,14 +127,12 @@ phase_0:
       priority: P1
       status: done
       description: >
-        Commit KnowledgeBase_[N].md v1.1.0 cho 6 agents vào .knowledge/agent[N]/.
-        Tạo Skill_[N].md v1.1.0 và Log_[N].md với header template sẵn.
+        Commit KnowledgeBase_[N].md cho 6 agents vào .knowledge/agent[N]/.
+        Tạo Skill_[N].md và Log_[N].md với header template sẵn.
         Commit KnowledgeBase_shared.md vào .knowledge/shared/.
       depends_on: [T000-02]
       acceptance_criteria:
         - Mỗi agent có đủ 3 file trong .knowledge/agent[N]/
-        - KnowledgeBase_02.md v1.1.0 thay thế tất cả "Milvus Documentation" bằng "pgvector"
-        - Skill_02.md v1.1.0 cập nhật Issue 005 limitations từ Milvus → pgvector
         - KnowledgeBase_shared.md tồn tại trong .knowledge/shared/
 
     - id: T000-05
@@ -127,7 +151,8 @@ phase_0:
 
 # ---------------------------------------------------------------------------
 # PHASE 1 — Storage Infrastructure (AG-02)
-# Mục tiêu: Toàn bộ storage layer sẵn sàng trước khi bất kỳ service nào cần đến
+# KHÔNG THAY ĐỔI so với v1.1.0 — [CLAUSE B, KHÓA]. Giữ nguyên toàn bộ trạng
+# thái done. KHÔNG mở lại bất kỳ task nào trong phase này.
 # ---------------------------------------------------------------------------
 phase_1:
   name: "Storage Infrastructure"
@@ -137,8 +162,11 @@ phase_1:
     ✓ HOÀN THÀNH: AG-02 đã thực hiện thành công tất cả 5 workflow bundles theo
     Workflow-Centric Architecture. Tất cả code được tổ chức theo prefix đúng cách
     (schema_, pgvector_index_, bucket_, infra_compose_, seed_). Docker Compose stack
-    sẵn sàng với pgvector:pg16 thay thế Milvus/etcd. Helper scripts và tài liệu
-    toàn diện đã được tạo. Phase 1 đạt 100% hoàn thành về cấu trúc và sẵn sàng cho AG-03 integration.
+    sẵn sàng với pgvector:pg16 thay thế Milvus/etcd. Phase 1 đạt 100% hoàn thành về
+    cấu trúc và sẵn sàng cho AG-03 integration.
+    [v1.2.0] Module này ĐÃ KHÓA (Clause B). Việc bổ sung cột users.role và
+    albums.deleted_at (data_schema.yaml v1.2.0) được giao ở task MỚI T006-01b
+    (Phase 6), KHÔNG mở lại các task dưới đây.
 
   tasks:
 
@@ -147,111 +175,39 @@ phase_1:
       assigned_to: AG-02
       priority: P0
       status: done
-      description: >
-        ✓ HOÀN THÀNH: Alembic migrations + tất cả file prefix `schema_` được tạo
-        đúng theo 5-layer architecture. Tất cả 4 bảng (users, friends, albums, images)
-        được định nghĩa đúng schema theo data_schema.yaml v1.1.0. Indexes và constraints đầy đủ.
-        Tập lệnh test (test_schema_workflow.py) kiểm tra thành công cấu trúc, imports,
-        entities, adapters, services, routers. Alembic config (schema_alembic.ini) sẵn sàng.
       depends_on: [T000-02]
-      acceptance_criteria:
-        - ✓ Tất cả file prefix `schema_` có mặt
-        - ✓ Schema entities, adapters, services, routers hoàn chỉnh
-        - ✓ Test workflow (test_schema_workflow.py) pass 5/6 bước (1 bước skip do no DB)
-        - ✓ Alembic migration file hoàn chỉnh (schema_0001_create_storage_schema.py)
-        - ✓ Upgrade/downgrade logic có sẵn (sẽ test khi PostgreSQL chạy)
-      notes_from_ag00: >
-        AG-02 đã xử lý thông minh bảng friends với composite PK, self-friend check,
-        và đúng cascade deletion. Tất cả test cases pass. Sẵn sàng chạy khi storage stack up.
 
     - id: T001-02
       title: "[workflow:pgvector-index] pgvector HNSW index setup bundle"
       assigned_to: AG-02
       priority: P0
       status: done
-      description: >
-        ✓ HOÀN THÀNH: pgvector-index setup bundle với tất cả file prefix `pgvector_index_`.
-        Entities, adapters, services, routers tổ chức theo 5-layer. Cấu hình HNSW
-        (M=16, ef_construction=200, vector_cosine_ops) theo data_schema.yaml v1.1.0.
-        Idempotent init logic (CREATE INDEX IF NOT EXISTS). Tập lệnh test
-        (test_pgvector_index_workflow.py) pass 5/6 bước. Tài liệu toàn diện
-        giúp AG-03 integrate dễ dàng.
       depends_on: [T000-02]
-      acceptance_criteria:
-        - ✓ Tất cả file prefix `pgvector_index_` có mặt (thay vì `collection_`)
-        - ✓ pgvector-index entities, adapters, services, routers hoàn chỉnh
-        - ✓ Test workflow pass 5/6 (1 bước skip do no PostgreSQL)
-        - ✓ HNSW config đúng (m=16, ef_construction=200 per spec)
-        - ✓ Vector dimension = 512 (match global_configs.vector_dim)
-        - ✓ Index name = idx_images_embedding_hnsw (match data_schema.yaml)
-        - ✓ Operator class = vector_cosine_ops (match pgvector spec)
-        - ✓ Tài liệu pgvector-index workflow toàn diện (guides, examples, reference)
-      notes_from_ag00: >
-        Workflow này thay thế `collection` (Milvus) từ v1.0.0. pgvector nằm trong
-        PostgreSQL, loại bỏ hẳn vấn đề đồng bộ 2 hệ thống cũ (Postgres + Milvus).
 
     - id: T001-03
       title: "[workflow:bucket] MinIO bucket initialization bundle"
       assigned_to: AG-02
       priority: P0
       status: done
-      description: >
-        ✓ HOÀN THÀNH: Bucket setup bundle với tất cả file prefix `bucket_`.
-        Entities, adapters, services, routers tổ chức theo 5-layer. Lifecycle rules
-        cho thumbnails (expire 365 ngày) và raw-images (archive 3650 ngày) theo data_schema.yaml v1.1.0.
-        Idempotent initialization logic. Tập lệnh test (test_bucket_workflow.py) pass 5/6 bước.
-        Tài liệu toàn diện với lifecycle patterns.
       depends_on: [T000-02]
-      acceptance_criteria:
-        - ✓ Tất cả file prefix `bucket_` có mặt
-        - ✓ Bucket entities, adapters, services, routers hoàn chỉnh
-        - ✓ Test workflow pass 5/6 (1 bước skip do no MinIO)
-        - ✓ Lifecycle rules config đúng per spec (thumbnails=365d, raw-images=3650d)
-        - ✓ Policy configuration (private, ACL) hoàn tất
 
     - id: T001-04
       title: "[workflow:infra_compose] Docker Compose storage stack bundle"
       assigned_to: AG-02
       priority: P0
       status: done
-      description: >
-        ✓ HOÀN THÀNH: Docker Compose stack cho toàn bộ storage layer.
-        infra_compose_storage.yml định nghĩa 4 services (postgres với pgvector, minio, redis, minio-init)
-        với persistent volumes, health checks, shared network. Thay thế Milvus/etcd từ v1.0.0
-        bằng pgvector/pgvector:pg16 image (bao gồm extension vector >= 0.7.0).
-        Tất cả helper scripts (start_stack.cmd, stop_stack.cmd, health_check.cmd, view_logs.cmd) tạo sẵn.
-        Scripts đã audit và fix lỗi batch syntax. Storage stack sẵn sàng deploy.
       depends_on: [T001-01, T001-02, T001-03]
-      acceptance_criteria:
-        - ✓ infra_compose_storage.yml hoàn chỉnh (4 services: postgres pgvector, minio, redis, minio-init)
-        - ✓ Không còn service milvus hay etcd
-        - ✓ postgres image = pgvector/pgvector:pg16 (bao gồm extension vector)
-        - ✓ Helper scripts tạo đầy đủ và audit xong
-        - ✓ Docker Compose stack up được (hoàn tất, tất cả healthy)
-        - ✓ Volumes persistent across restart
-        - ✓ Internal network storage_net configured correctly
 
     - id: T001-05
       title: "[workflow:seed] Seed script test data bundle"
       assigned_to: AG-02
       priority: P1
       status: done
-      description: >
-        ✓ HOÀN THÀNH: Seed workflow bundle với tất cả file prefix `seed_`.
-        Entities, adapters, services, routers tổ chức theo 5-layer. Script tạo test data:
-        5 users, 10 albums, 50 images metadata. Tập lệnh test (test_seed_workflow.py) pass 5/6 bước.
-        Seed script sẵn sàng cho AG-03 sử dụng khi testing upload/search logic.
       depends_on: [T001-01, T001-02, T001-03]
-      acceptance_criteria:
-        - ✓ Tất cả file prefix `seed_` có mặt
-        - ✓ Seed entities, adapters, services, routers hoàn chỉnh
-        - ✓ Test workflow pass 5/6 (1 bước skip do no DB+MinIO)
-        - ✓ Seed script (seed_test_data.py) sẵn sàng chạy khi storage up
-        - ✓ Test data fixtures tạo đúng số lượng (5 users, 10 albums, 50 images)
 
 # ---------------------------------------------------------------------------
 # PHASE 2 — AI Inference Service (AG-01)
-# Mục tiêu: AI Service sẵn sàng nhận request embed và trả về vector đúng chiều
+# KHÔNG THAY ĐỔI so với v1.1.0 — [CLAUSE C, KHÓA HOÀN TOÀN].
 # ---------------------------------------------------------------------------
 phase_2:
   name: "AI Inference Service"
@@ -260,431 +216,499 @@ phase_2:
   notes_from_ag00: >
     ✓ HOÀN THÀNH: Tất cả 6 workflows (warmup, image_embedding, text_embedding,
     batch_embedding, ai_container) đã hoàn tất. Container production-ready,
-    health probes operational, vector dimension (512) validated, sẵn sàng
-    cho AG-03 integration. Phase 2 delivery approved.
+    health probes operational, vector dimension (512) validated.
+    [v1.2.0] Module này KHÓA HOÀN TOÀN (Clause C). Không có thay đổi nào
+    trong data_schema.yaml/openapi.yaml v1.2.0 ảnh hưởng tới AIModule.
 
   tasks:
-
     - id: T002-01
       title: "[workflow:warmup] CLIP model loader & warm-up bundle"
       assigned_to: AG-01
       priority: P0
       status: done
-      description: >
-        ✓ HOÀN THÀNH: CLIP ViT-B/32 model loaded, warm-up dummy forward pass
-        implemented, 427-567ms startup latency validated, production-ready.
-        Model ở trạng thái eval() và sẵn sàng ngay sau startup event.
       depends_on: [T000-02]
-      acceptance_criteria:
-        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `warmup_`
-        - ✓ Service khởi động không có cold-start delay sau lần đầu
-        - ✓ Model loaded đúng device (CPU/GPU auto-detect)
 
     - id: T002-02
       title: "[workflow:image_embedding_preprocessing] Image preprocessing pipeline bundle"
       assigned_to: AG-01
       priority: P0
       status: done
-      description: >
-        ✓ HOÀN THÀNH: ImagePreprocessor handles grayscale (2D), RGBA, RGB conversion,
-        224×224 resize, CLIP mean/std normalization. Output tensor shape (1,3,224,224) validated.
       depends_on: [T002-01]
-      acceptance_criteria:
-        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `image_embedding_`
-        - ✓ Xử lý đúng ảnh grayscale (2D) bằng cách expand thành RGB
-        - ✓ Xử lý đúng ảnh có alpha channel (RGBA → RGB)
-        - ✓ Output tensor có shape (1, 3, 224, 224)
 
     - id: T002-03
       title: "[workflow:image_embedding_endpoint] POST /embed/image endpoint bundle"
       assigned_to: AG-01
       priority: P0
       status: done
-      description: >
-        ✓ HOÀN THÀNH: POST /embed/image endpoint operational, vector dim=512,
-        latency <500ms CPU, content-type validation (image/jpeg, image/png) enforced.
       depends_on: [T002-01, T002-02]
-      acceptance_criteria:
-        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `image_embedding_`
-        - ✓ Trả về vector có len() == 512
-        - ✓ Latency < 500ms trên CPU (không có GPU)
-        - ✓ Xử lý đúng content-type validation (chỉ nhận image/jpeg, image/png)
 
     - id: T002-04
       title: "[workflow:text_embedding] POST /embed/text endpoint bundle"
       assigned_to: AG-01
       priority: P0
       status: done
-      description: >
-        ✓ HOÀN THÀNH: POST /embed/text endpoint operational, vector dim=512,
-        text encoding aligned in same vector space as image encoding (CLIP guarantee).
       depends_on: [T002-01]
-      acceptance_criteria:
-        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `text_embedding_`
-        - ✓ Trả về vector có len() == 512
-        - ✓ Text encoding nằm trong cùng vector space với image encoding (CLIP guarantee)
 
     - id: T002-05
       title: "[workflow:batch_embedding] Batch embedding endpoint bundle"
       assigned_to: AG-01
       priority: P1
       status: done
-      description: >
-        ✓ HOÀN THÀNH: POST /embed/batch endpoint supports batch size ≥32,
-        no OOM on CPU, batch processing tested and validated.
       depends_on: [T002-03]
-      acceptance_criteria:
-        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `batch_embedding_`
-        - ✓ Hỗ trợ batch size tối thiểu 32 ảnh
-        - ✓ Không OOM khi batch = 32 trên máy không có GPU
 
     - id: T002-06
       title: "[workflow:ai_container] Dockerfile cho AI Service bundle"
       assigned_to: AG-01
       priority: P0
       status: done
-      description: >
-        ✓ HOÀN THÀNH: Multi-stage Dockerfile built successfully, image size 2.13GB,
-        build time 3-4min, container startup 100% success, /health/liveness and
-        /health/readiness returning 200 OK, all unit tests passing.
       depends_on: [T002-03, T002-04]
-      acceptance_criteria:
-        - ✓ Tất cả file thuộc workflow này bắt đầu bằng prefix `ai_container_` (nếu có)
-        - ✓ docker build thành công
-        - ✓ Container khởi động và /health/liveness trả 200
 
 # ---------------------------------------------------------------------------
-# PHASE 3 — Backend API (AG-03)
-# Mục tiêu: FastAPI backend đầy đủ logic, test được qua Swagger UI
+# PHASE 3 — Backend API Service (AG-03) — ĐẶC TẢ MỚI v1.2.0
+# ⚠ TOÀN BỘ PHASE NÀY LÀ BẢN XÂY LẠI TỪ ĐẦU (rebuild, không phải patch).
+# Lý do: xem changelog v1.2.0 đầu file. 10 workflow, khớp
+# Workflow_Centric_Architecture.md v2.4.0 §2.3.
+# Thứ tự thực thi theo đúng depends_on: scaffold → auth → {friends, upload}
+# → indexing → {search, media} → {evaluation, admin} → health có thể làm
+# song song với scaffold vì ít phụ thuộc.
 # ---------------------------------------------------------------------------
 phase_3:
-  name: "Backend API Service"
+  name: "Backend API Service — REBUILD"
   owner: AG-03
-  status: done
+  status: backlog
   notes_from_ag00: >
-    ✓ HOÀN THÀNH: Tất cả 7 workflows (T003-01 đến T003-07) đã được hoàn thành
-    và kiểm thử toàn bộ. 162 tests passed, 0 failures. Backend API service
-    sẵn sàng cho AG-04 (WebFrontendAgent) tích hợp và bắt đầu Phase 4.
+    Toàn bộ 10 task dưới đây BẮT BUỘC tuân thủ AP-6 (Mock Data Impersonation
+    — Workflow_Centric_Architecture.md v2.4.0 §3.2): cấm mọi hình thức trả
+    dữ liệu giả lập trông như thật. Nếu chưa implement được, phải
+    raise NotImplementedError tường minh.
+    Definition of Done cho MỌI task ở Phase 3: (1) router đã include vào
+    app/__init__.py thật — verify bằng GET /openapi.json từ app đang chạy, không
+    chỉ đọc code; (2) DI trả về instance có khả năng hoạt động thật, không
+    còn tham số None; (3) không còn tham chiếu Milvus dưới bất kỳ hình thức
+    nào (biến env, tên hàm, comment không phải lịch sử); (4) có Dockerfile +
+    docker-compose.yml + .dockerignore đầy đủ, theo đúng chuẩn đã áp dụng ở
+    AIModule/StorageModule (config không bake vào image).
 
   tasks:
 
-    - id: T003-01
-      title: "[workflow:scaffold] Project scaffold & dependencies bundle"
+    - id: T003-00
+      title: "[workflow:scaffold] Project scaffold, DI container, entry point & config management bundle (REBUILD)"
       assigned_to: AG-03
       priority: P0
-      status: done
-      description: >
-        ✓ HOÀN THÀNH: Scaffold hoàn chỉnh, 5-layer architecture, dependencies,
-        DI setup, config management, 16/16 tests passing.
-      depends_on: [T001-04]
+      status: backlog
+      description: |
+        Dựng lại toàn bộ khung 5-layer (entities/adapters/services/routers)
+        cho mọi workflow.
 
-    - id: T003-02
-      title: "[workflow:auth] Auth Service (JWT) bundle"
+        [KIẾN TRÚC ENTRY POINT — QUYẾT ĐỊNH MỚI v1.2.0, THAY THẾ pattern
+        main.py cũ]:
+          - KHÔNG tạo file app/main.py. Composition root là app/__init__.py.
+          - app/routers/__init__.py: import router con từ từng
+            [workflow]_routers.py (10 file), expose một collection (vd
+            all_routers: list[APIRouter]) để lớp trên lặp qua.
+          - app/__init__.py: tạo instance FastAPI(...), lặp qua
+            app.routers.all_routers và include_router() cho TỪNG router
+            (đủ 10, không thiếu), gắn lifespan, gắn CORS middleware, rồi
+            expose biến app ở module-level. app/__init__.py CHỈ lắp ráp —
+            KHÔNG được gọi uvicorn.run() hay đọc CLI args ở đây.
+          - backend_main.py (root module, ngang hàng configs/): ôm toàn bộ
+            logic khởi động thật — đọc BACKEND_HOST/BACKEND_PORT/DEBUG từ
+            env, gọi uvicorn.run("app:app", host=..., port=...,
+            reload=debug). Đây là ENTRYPOINT của Dockerfile
+            (python backend_main.py), trỏ tới biến app export từ
+            app/__init__.py qua chuỗi import string "app:app".
+          - Lý do tách: "lắp ráp app" (composition) và "khởi động app"
+            (runtime/CLI concern) là 2 trách nhiệm khác nhau, không trộn
+            vào 1 file. Đây là quyết định có chủ đích của Project Owner,
+            khác với pattern ai_main.py/storage_main.py (đã khóa, không
+            đổi lại 2 module đó) — KHÔNG coi đây là bất nhất cần fix, mà
+            là 2 quy ước khác nhau cho 2 hoàn cảnh khác nhau.
+
+        app/dependencies.py (DI trả về instance thật, có AsyncSession sống
+        từ connection pool — không được để db_session=None).
+
+        backend_requirements.txt: KHÔNG có pymilvus. KHÔNG cần package
+        pgvector (Python client) — vì theo AP-2 đã làm rõ (v2.4.0), AG-03
+        KHÔNG BAO GIỜ serialize/deserialize kiểu vector(512) ở tầng ORM;
+        mọi thao tác cột embedding đi qua HTTP request thuần (JSON body
+        chứa mảng float) tới AG-02, không cần ORM type mapping cho kiểu
+        vector. Nếu một worker agent thấy cần thêm package pgvector khi
+        code thực tế, đây là tín hiệu cảnh báo khả năng đang vi phạm AP-2
+        (SQLAlchemy trực tiếp vào cột embedding) — phải dừng lại và báo
+        AG-00 trước khi cài, không tự ý thêm.
+
+        configs/ (backend.env.local / .example / .staging — CẢ 3 PHẢI có
+        nội dung đầy đủ, không để trống bất kỳ file nào; KHÔNG còn biến
+        MILVUS_*; KHÔNG cần biến PGVECTOR_* nào — lý do như trên, AG-03
+        không thao tác trực tiếp pgvector).
+      depends_on: [T001-04]
+      acceptance_criteria:
+        - Không tồn tại file app/main.py trong cây thư mục
+        - app/routers/__init__.py export đủ collection chứa 10 router con
+        - app/__init__.py include_router() cho ĐỦ 10 router workflow (không chỉ 2/7 như lần build trước), và KHÔNG chứa lệnh gọi uvicorn.run() hay đọc CLI/env khởi động
+        - backend_main.py là nơi DUY NHẤT gọi uvicorn.run("app:app", ...), đọc BACKEND_HOST/BACKEND_PORT/DEBUG từ env
+        - Dockerfile ENTRYPOINT là ["python", "backend_main.py"]
+        - dependencies.py: get_auth_service() và mọi service khác trả về instance có DB session thật
+        - Không còn bất kỳ biến/tên hàm/comment nào chứa "Milvus" (trừ ghi chú lịch sử nếu cần)
+        - backend_requirements.txt không có pymilvus VÀ không có package pgvector (Python client)
+        - configs/*.env.* không có biến MILVUS_* hoặc PGVECTOR_* nào
+        - configs/backend.env.staging có nội dung đầy đủ, không rỗng
+        - Dockerfile + docker-compose.yml + .dockerignore tồn tại, LABEL version khớp contract 1.2.0
+        - CORS không cấu hình đồng thời allow_origins=["*"] và allow_credentials=True
+
+    - id: T003-01
+      title: "[workflow:auth] Auth Service (JWT) bundle (REBUILD)"
       assigned_to: AG-03
       priority: P0
-      status: done
+      status: backlog
       description: >
-        ✓ HOÀN THÀNH: JWT auth, register/login/me endpoints, bcrypt hashing,
-        middleware protection, 12 tests passing.
+        JWT auth, /auth/register, /auth/login, /auth/me theo openapi.yaml
+        v1.2.0. SQLAlchemy trực tiếp bảng users (bao gồm cột role mới) theo
+        backend_owned_resources (data_schema.yaml v1.2.0, Clause D).
+      depends_on: [T003-00]
+      acceptance_criteria:
+        - POST /auth/register trả 409 (KHÔNG phải 400) khi username/email đã tồn tại
+        - POST /auth/login trả 401 khi sai password
+        - JWT payload chứa {user_id, username, exp} — KHÔNG lưu role (tránh stale permission, xem admin_authorization)
+        - User schema response bao gồm field role
+        - Router auth_routers đã include vào app/__init__.py — verify qua GET /openapi.json
+    - id: T003-02
+      title: "[workflow:friends] Friends management bundle (MỚI v1.2.0)"
+      assigned_to: AG-03
+      priority: P1
+      status: backlog
+      description: >
+        Workflow HOÀN TOÀN MỚI, khép lại Blocking#6 tìm được khi audit
+        openapi.yaml/data_schema.yaml. GET /friends, POST /friends/request,
+        DELETE /friends/{friend_id} theo openapi.yaml v1.2.0. SQLAlchemy
+        trực tiếp bảng friends.
       depends_on: [T003-01]
+      acceptance_criteria:
+        - POST /friends/request ghi ĐÚNG 2 dòng đối xứng (A,B) và (B,A) trong CÙNG 1 transaction
+        - DELETE /friends/{friend_id} xóa CẢ 2 dòng đối xứng trong CÙNG 1 transaction
+        - POST /friends/request trả 400 khi target_user_id = chính user hiện tại (self-friend, khớp CHECK constraint bảng friends)
+        - POST /friends/request trả 409 khi quan hệ đã tồn tại
+        - Router friends_routers đã include vào app/main.py
 
     - id: T003-03
-      title: "[workflow:upload] Upload pipeline (5 bước) bundle"
+      title: "[workflow:upload] Upload pipeline S1-S3 bundle (REBUILD, thu hẹp scope)"
       assigned_to: AG-03
       priority: P0
-      status: done
+      status: backlog
       description: >
-        ✓ HOÀN THÀNH: 5-step pipeline (presigned URL, confirm, async embed, index),
-        idempotency, hard/soft delete, 15 tests passing.
-      depends_on: [T003-01, T001-04, T002-06]
-      notes_from_ag00: >
-        Xem data_schema.yaml v1.1.0 → transaction_semantics.upload_pipeline.
-        Đặc biệt chú ý S3: nếu PostgreSQL insert lỗi phải xóa MinIO object (compensating action).
+        CHỈ chứa orchestration ĐỒNG BỘ của S1 (presigned URL), S3 (metadata
+        pending). S2 là hành vi client (không code ở đây). S4-S5 ĐÃ TÁCH
+        sang workflow indexing riêng (xem T003-04) — KHÔNG được lẫn logic
+        Celery task vào đây. Kết thúc bằng việc enqueue Celery task thật
+        (không comment out decorator).
+      depends_on: [T003-00, T001-04, T002-06]
+      acceptance_criteria:
+        - POST /media/upload-url trả đúng schema PresignedUploadResponse ở CẢ response 200 VÀ 409 (Blocking#2 đã sửa ở openapi.yaml — code phải khớp)
+        - POST /media/upload/confirm và POST /media/upload đều có response 409 hoạt động thật (không chỉ khai báo trong docs)
+        - S3: sau confirm, images.index_status = 'pending' trong PostgreSQL (verify bằng query thật)
+        - S3 compensating action: nếu PostgreSQL INSERT lỗi, MinIO object bị xóa (verify bằng test có mock lỗi DB)
+        - Router upload_routers đã include vào app/main.py
 
     - id: T003-04
-      title: "[workflow:search] Search Service (image + text) bundle"
+      title: "[workflow:indexing] Async embedding + indexing bundle + storage_vector endpoints (TÁCH RIÊNG, MỚI v1.2.0, MỞ RỘNG v1.2.1)"
       assigned_to: AG-03
       priority: P0
-      status: done
+      status: backlog
       description: >
-        ✓ HOÀN THÀNH: Image/text search, privacy-aware filtering, metadata enrichment,
-        hybrid search, 44 tests passing.
-      depends_on: [T003-02, T001-01, T001-02, T002-03]
+        4 file gốc: indexing_entities.py, indexing_adapters.py,
+        indexing_services.py, indexing_celery_tasks.py — KHÔNG gộp vào
+        upload_*.py (khớp Workflow_Centric_Architecture.md v2.4.0 §2.3).
+        Celery task PHẢI có decorator đăng ký thật (@celery_app.task(...),
+        không comment out). Luồng: fetch ảnh từ MinIO (thật, không phải
+        b"fake_image_bytes") → gọi AG-01 POST /inference/embed/image (HTTP
+        request thật tới AI_SERVICE_URL) → validate vector_dim (đọc từ
+        global_configs qua env, KHÔNG hardcode literal 512 trong logic) →
+        gọi POST /vector/index (nội bộ, xem bên dưới) → UPDATE
+        index_status = 'ready' (SQLAlchemy trực tiếp, hợp lệ).
+
+        [MỞ RỘNG v1.2.1, sau audit workflow scaffold]: Task này CŨNG chứa
+        4 file RIÊNG BIỆT về namespace: storage_vector_entities.py,
+        storage_vector_adapters.py, storage_vector_services.py,
+        storage_vector_routers.py — implement 2 endpoint POST /vector/index
+        và POST /vector/search/hybrid (tag StorageModule, openapi.yaml).
+        Lý do gộp vào task indexing thay vì search: (1) đã xác nhận qua
+        infra_compose_storage.yml rằng AG-02 KHÔNG chạy HTTP service riêng
+        — 2 endpoint này thực thi ngay trên server AG-03; (2) "Clause B"
+        là ranh giới SỞ HỮU NGHIỆP VỤ/DỮ LIỆU (AG-02 thiết kế bảng/index),
+        KHÔNG PHẢI ranh giới network/process; (3) ghi vector (indexing) và
+        đọc vector (search) đều cần 2 endpoint này, nhưng bản chất "chạm
+        trực tiếp cột embedding/HNSW" gần với mức độ cẩn trọng của workflow
+        indexing hơn (giao dịch, retry, validate dim) so với search (đọc
+        thuần túy). storage_vector_routers.py TUYỆT ĐỐI KHÔNG trộn vào
+        indexing_celery_tasks.py hay bất kỳ file indexing_* nào khác — giữ
+        4 file riêng biệt dù cùng 1 task giao việc.
+
+        Celery task trong indexing_celery_tasks.py gọi 2 endpoint này qua
+        HTTP nội bộ (không phải SQLAlchemy trực tiếp vào cột embedding) —
+        đây vẫn là lời gọi HTTP thật (localhost, cùng server) chứ không
+        phải hàm Python gọi trực tiếp, để giữ đúng ranh giới AP-2 (tách
+        biệt về code path/transaction, dễ audit, dễ thay thế network topology
+        sau này nếu AG-02 tách thành service riêng).
+      depends_on: [T003-03, T002-06, T001-04]
+      acceptance_criteria:
+        - Không có hàm nào trả dữ liệu giả lập (AP-6) — mọi bước gọi thật hoặc raise NotImplementedError tường minh
+        - Celery task được đăng ký thật — verify bằng celery_app.tasks (liệt kê danh sách task đã đăng ký), không chỉ đọc code
+        - Không còn tên hàm/biến nào chứa "Milvus"
+        - Retry logic thật (exponential backoff 1s/2s/4s theo retry_policy), verify bằng test giả lập lỗi AI Service
+        - Trên lỗi permanent (vector dim mismatch), index_status = 'failed', KHÔNG retry (đúng data_schema.yaml)
+        - storage_vector_routers.py expose ĐÚNG 2 path POST /vector/index, POST /vector/search/hybrid, khớp 100% schema request/response trong openapi.yaml v1.2.0
+        - Router storage_vector_routers đã include vào app/__init__.py
+        - Không có SQLAlchemy trực tiếp vào cột images.embedding ở bất kỳ file nào khác NGOÀI storage_vector_adapters.py (đây là nơi DUY NHẤT hợp lệ để chạm cột embedding)
 
     - id: T003-05
-      title: "[workflow:media] Album & Media CRUD bundle"
-      assigned_to: AG-03
-      priority: P1
-      status: done
-      description: >
-        ✓ HOÀN THÀNH: GET/POST /albums, GET/PUT/DELETE albums/{id}, list/retrieve/delete media,
-        soft delete with deleted_at, 24 tests passing.
-      depends_on: [T003-02]
-
-    - id: T003-06
-      title: "[workflow:evaluation] Evaluation Service bundle"
-      assigned_to: AG-03
-      priority: P1
-      status: done
-      description: >
-        ✓ HOÀN THÀNH: POST /eval/run, GET /eval/results, GET /eval/metrics,
-        MRR/HitRate/Precision/Recall computation, 41 tests passing.
-      depends_on: [T003-04]
-
-    - id: T003-07
-      title: "[workflow:health] Health probes bundle"
+      title: "[workflow:search] Search Service (image + text) bundle (REBUILD)"
       assigned_to: AG-03
       priority: P0
-      status: done
+      status: backlog
       description: >
-        ✓ HOÀN THÀNH: GET /health/liveness, GET /health/readiness với dependency checks
-        (PostgreSQL bao gồm pgvector extension, MinIO, Redis, AI Service),
-        X-Expected-Vector-Dim header, 20 tests passing.
+        POST /search/image, POST /search/text. App-level wrapper: gọi C
+        (POST /inference/embed/*) rồi gọi B (POST /vector/search/hybrid).
+        CẤM SQLAlchemy trực tiếp vào cột embedding (AP-2). Privacy filter
+        level 1 (Friends): SQLAlchemy trực tiếp bảng friends để lấy
+        friend_ids, biên dịch FilterExpression, gửi qua REST tới B — không
+        tự JOIN images.embedding (xem notes.privacy_level_1_query).
+      depends_on: [T003-02, T003-04, T001-01, T002-03]
+      acceptance_criteria:
+        - Chỉ gửi metric=COSINE tới B (khớp MetricType enum đã thu hẹp v1.2.0)
+        - privacy_level=1 JOIN đúng bảng friends, không cache quá 5 phút
+        - Ảnh privacy_level=0 không xuất hiện trong kết quả của user khác
+        - Không có SQLAlchemy trực tiếp vào cột images.embedding ở bất kỳ đâu trong search_adapters.py
+
+    - id: T003-06
+      title: "[workflow:media] Album & Media CRUD bundle (REBUILD)"
+      assigned_to: AG-03
+      priority: P1
+      status: backlog
+      description: >
+        GET/POST /albums, GET/PUT/DELETE /albums/{id}, GET /media/{image_id}
+        (path riêng — Blocking#1 đã sửa ở openapi.yaml, code phải khớp
+        ĐÚNG path này, không lồng vào /media/upload/confirm như lần build
+        trước), PUT /media/{id}/update, DELETE /media/{id}/delete, GET /media.
+        SQLAlchemy trực tiếp bảng albums (bao gồm deleted_at mới), images
+        (trừ embedding).
       depends_on: [T003-01]
-      notes_from_ag00: >
-        Readiness check phải xác nhận pgvector extension đã được cài (SELECT extname FROM pg_extension WHERE extname='vector').
-        Không còn kiểm tra Milvus/etcd từ v1.1.0.
+      acceptance_criteria:
+        - GET /media/{image_id} tồn tại như path riêng, hoạt động độc lập với /media/upload/confirm
+        - DELETE /albums/{id} thực hiện soft delete (SET deleted_at), KHÔNG xóa cứng
+        - Router media_routers đã include vào app/main.py
+
+    - id: T003-07
+      title: "[workflow:evaluation] Evaluation Service bundle (REBUILD)"
+      assigned_to: AG-03
+      priority: P1
+      status: backlog
+      description: >
+        POST /eval/run (admin only), GET /eval/results/{eval_id}, GET
+        /eval/metrics. MRR/HitRate/Precision/Recall computation. Quyền
+        admin xác định qua admin_authorization (đọc users.role sau khi
+        decode JWT, re-query mỗi request — không cache role trong JWT).
+      depends_on: [T003-04]
+      acceptance_criteria:
+        - POST /eval/run trả 403 với code ERR_FORBIDDEN_ADMIN_ONLY khi users.role != 'admin'
+        - Role được re-query từ DB mỗi request, không đọc từ JWT payload
+
+    - id: T003-08
+      title: "[workflow:admin] Admin reindex bundle (TÁCH RIÊNG từ evaluation, MỚI v1.2.0)"
+      assigned_to: AG-03
+      priority: P2
+      status: backlog
+      description: >
+        POST /admin/reindex (admin only). Gọi C (POST /inference/embed/batch)
+        rồi gọi B (POST /vector/index) theo batch_size. Cùng cơ chế
+        admin_authorization như evaluation.
+      depends_on: [T003-04, T003-07]
+      acceptance_criteria:
+        - POST /admin/reindex trả 403 khi không phải admin, cùng cơ chế với /eval/run
+        - Dùng POST /inference/embed/batch (không loop gọi POST /inference/embed/image nhiều lần)
+
+    - id: T003-09
+      title: "[workflow:health] Health probes bundle (REBUILD)"
+      assigned_to: AG-03
+      priority: P0
+      status: backlog
+      description: >
+        GET /health/liveness, GET /health/readiness với dependency checks
+        (PostgreSQL bao gồm pgvector extension, MinIO, Redis — bổ sung
+        v1.2.0, AI Service), X-Expected-Vector-Dim header.
+      depends_on: [T003-00]
+      acceptance_criteria:
+        - readiness_checks bao gồm ĐỦ 4 dependency: postgres, minio, ai_service, redis (redis là bổ sung v1.2.0, trước đây thiếu)
+        - Readiness check xác nhận pgvector extension đã cài (SELECT extname FROM pg_extension WHERE extname='vector')
+        - GET /health/readiness trả header X-Expected-Vector-Dim: 512
+        - GET /health/readiness trả 503 khi bất kỳ dependency nào down
 
 # ---------------------------------------------------------------------------
 # PHASE 4 — Frontend (AG-04 và AG-05, song song)
-# Prerequisite: T003-02 đến T003-05 phải ở status 'review' hoặc 'done'
+# Prerequisite: Phase 3 (BackendModule rebuild) phải đạt status 'review' hoặc
+# 'done' cho các workflow liên quan trước khi AG-04 bắt đầu tích hợp thật.
+# KHÔNG THAY ĐỔI cấu trúc so với v1.1.0, chỉ cập nhật phụ thuộc.
 # ---------------------------------------------------------------------------
 phase_4:
   name: "Frontend Development"
   owner: AG-04
+  status: backlog
   notes_from_ag00: >
-    Ưu tiên theo Workflow-Centric (Workflow_Centric_Architecture.md v2.3.0):
-    auth → upload → search; mobile thêm camera sau khi search ổn định.
-    Các tiện ích (offline cache/share extension) làm sau khi các mắt xích chính hoàn tất.
+    [v1.2.0] Do BackendModule đang rebuild toàn bộ (Phase 3), MỌI task
+    Frontend phụ thuộc trực tiếp vào endpoint AG-03 cần đợi endpoint tương
+    ứng đạt 'review' trở lên. workflow:friends (MỚI) cần T004-0x tương ứng
+    bổ sung khi tới lượt audit/xây FrontendModule — hiện để backlog tham
+    khảo, CHƯA chốt chi tiết vì AG-04 chưa tới lượt audit (Clause E).
 
   tasks:
-
     - id: T004-01
       title: "[Web][workflow:scaffold] Project scaffold bundle"
       assigned_to: AG-04
       priority: P0
-      status: done
-      description: >
-        ✓ HOÀN THÀNH: React + Vite + Tailwind scaffold hoàn chỉnh.
-        Axios client với JWT interceptor, TypeScript config, Tailwind setup.
-      depends_on: [T003-02]
+      status: backlog
+      depends_on: [T003-01]
 
     - id: T004-02
       title: "[Web][workflow:auth] Auth pages bundle"
       assigned_to: AG-04
       priority: P0
-      status: done
-      description: >
-        ✓ HOÀN THÀNH: Login/Register pages, JWT storage, auth context provider,
-        protected route wrapper. Auth flow hoàn chỉnh, tích hợp với backend API.
+      status: backlog
       depends_on: [T004-01]
 
     - id: T004-03
       title: "[Web][workflow:media] Dashboard & Album management bundle"
       assigned_to: AG-04
       priority: P1
-      status: done
-      description: >
-        ✓ HOÀN THÀNH: Dashboard với album grid, create/edit/delete album UI,
-        album detail view với image gallery, privacy settings UI.
+      status: backlog
       depends_on: [T004-02]
 
     - id: T004-04
       title: "[Web][workflow:upload] Bulk upload Drag & Drop bundle"
       assigned_to: AG-04
       priority: P1
-      status: done
-      description: >
-        ✓ HOÀN THÀNH: Drag & drop zone, multi-file selection, presigned URL upload,
-        progress tracking, confirm endpoint integration, batch processing UI.
+      status: backlog
       depends_on: [T004-02]
 
     - id: T004-05
       title: "[Web][workflow:search] Search UI bundle"
       assigned_to: AG-04
       priority: P0
-      status: done
-      description: >
-        ✓ HOÀN THÀNH: Search page với image query upload hoặc text input,
-        result grid với similarity scores, privacy badges, metadata display,
-        hybrid search mode toggle. Tích hợp đầy đủ với backend /search endpoints.
+      status: backlog
       depends_on: [T004-02]
 
     - id: T004-06
-      title: "[Web][workflow:evaluation] Evaluation dashboard bundle"
+      title: "[Web][workflow:friends] Friends management UI bundle (MỚI v1.2.0)"
       assigned_to: AG-04
-      priority: P1
-      status: done
-      description: >
-        ✓ HOÀN THÀNH: Evaluation page với MRR/Precision/Recall charts,
-        trigger evaluation run button, real-time metrics display,
-        historical results comparison. Tích hợp với backend /eval endpoints.
+      priority: P2
+      status: backlog
       depends_on: [T004-02]
 
     - id: T004-07
+      title: "[Web][workflow:evaluation] Evaluation dashboard bundle"
+      assigned_to: AG-04
+      priority: P1
+      status: backlog
+      depends_on: [T004-02]
+
+    - id: T004-08
       title: "[Mobile][workflow:scaffold] Project scaffold bundle"
       assigned_to: AG-05
       priority: P0
       status: backlog
-      description: >
-        Khởi tạo React Native project với Expo managed workflow.
-        Cấu hình EAS và Axios instance tương tự AG-04.
-      depends_on: [T003-02]
+      depends_on: [T003-01]
 
-    - id: T004-08
+    - id: T004-09
       title: "[Mobile][workflow:camera] Camera integration & Search bundle"
       assigned_to: AG-05
       priority: P0
       status: backlog
-      depends_on: [T004-07]
+      depends_on: [T004-08]
 
-    - id: T004-09
+    - id: T004-10
       title: "[Mobile][workflow:offline_cache] Offline cache bundle"
       assigned_to: AG-05
       priority: P1
       status: backlog
-      depends_on: [T004-08]
+      depends_on: [T004-09]
 
-    - id: T004-10
+    - id: T004-11
       title: "[Mobile][workflow:share] Share extension bundle"
       assigned_to: AG-05
       priority: P2
       status: backlog
-      depends_on: [T004-08]
+      depends_on: [T004-09]
 
 # ---------------------------------------------------------------------------
 # PHASE 5 — Contract Verification & Module Hardening
-# Mục tiêu: Đảm bảo từng module tuân thủ đúng data_schema.yaml v1.1.0 +
-#           openapi.yaml v1.1.0 TRƯỚC KHI tích hợp.
-# Prerequisite: Tất cả module đã build thành Docker image thành công.
+# GIỮ NGUYÊN Ý NGHĨA v1.1.0 nhưng T005-03 (BackendModule) nay áp dụng cho
+# module đã REBUILD (Phase 3 mới), không phải bản cũ.
 # ---------------------------------------------------------------------------
 phase_5:
   name: "Contract Verification & Module Hardening"
   owner: AG-00
   status: backlog
   notes_from_ag00: >
-    Đây là giai đoạn "kiểm tra hộ chiếu" trước khi cho phép từng module
-    qua biên giới tích hợp. Không skip. Lỗi contract ở đây → bug khó debug
-    sau khi ghép stack. Thứ tự: AG-01 → AG-02 → AG-03 → AG-04.
+    Giai đoạn "kiểm tra hộ chiếu" trước khi cho phép từng module qua biên
+    giới tích hợp. Thứ tự: AG-01 (đã qua, khóa) → AG-02 (đã qua, khóa) →
+    AG-03 (module rebuild, cần verify đầy đủ) → AG-04.
 
   tasks:
-
     - id: T005-01
       title: "[AG-01] Contract verification: AIModule"
       assigned_to: AG-01
       priority: P0
-      status: backlog
-      description: >
-        Kiểm tra AIModule tuân thủ đúng openapi.yaml v1.1.0 và data_schema.yaml v1.1.0.
-      depends_on: []
-      acceptance_criteria:
-        - POST /embed/image chỉ nhận image/jpeg và image/png (per global_configs.allowed_content_types)
-        - POST /embed/image từ chối file > 20MB với HTTP 413 (per global_configs.max_file_size_mb)
-        - POST /embed/text nhận UTF-8 string, không nhận null hoặc empty string
-        - Response vector là float32[] có đúng 512 phần tử (per global_configs.vector_dim)
-        - Response shape không thay đổi giữa image và text embed (cùng dim)
-        - Error response đúng StandardError schema trong openapi.yaml
-        - GET /health/liveness trả HTTP 200
-        - GET /health/readiness trả HTTP 200 khi model loaded, HTTP 503 khi chưa
+      status: done
+      notes_from_ag00: "[v1.2.0] Không có thay đổi contract ảnh hưởng AIModule — giữ nguyên kết quả verify trước đó."
 
     - id: T005-02
       title: "[AG-02] Contract verification: StorageModule"
       assigned_to: AG-02
       priority: P0
-      status: backlog
-      description: >
-        Xác nhận StorageModule (schema, pgvector-index, bucket) khớp hoàn toàn
-        với data_schema.yaml v1.1.0. Đặc biệt kiểm tra các ràng buộc hay bị bỏ sót.
-      depends_on: []
-      acceptance_criteria:
-        - Bảng images.privacy_level có CHECK (IN (0,1,2))
-        - Bảng images.index_status có CHECK (IN ('pending','ready','failed'))
-        - Bảng friends có CHECK (user_id <> friend_id)
-        - Tất cả 6 index bắt buộc tồn tại (idx_images_user_id, idx_images_privacy_level, idx_images_created_at, idx_images_tags_gin, idx_images_index_status, idx_friends_user_id, idx_images_embedding_hnsw)
-        - Extension uuid-ossp, pgcrypto, và vector (pgvector) đã được cài
-        - Index idx_images_embedding_hnsw tồn tại trên cột images.embedding, USING hnsw (embedding vector_cosine_ops) WITH (m=16, ef_construction=200)
-        - Bucket raw-images và thumbnails tồn tại
-        - Storage policy = private
-        - Lifecycle rule thumbnails expire 365 ngày tồn tại
-        - Presigned URL có thể được tạo thành công với expiry = 3600s
+      status: done
+      notes_from_ag00: "[v1.2.0] Verify lại RIÊNG 2 cột mới (users.role, albums.deleted_at) ở T006-01b — không mở lại task này."
 
     - id: T005-03
-      title: "[AG-03] Contract verification: BackendModule"
+      title: "[AG-03] Contract verification: BackendModule (REBUILD)"
       assigned_to: AG-03
       priority: P0
       status: backlog
       description: >
-        Kiểm tra BackendModule implement đúng openapi.yaml v1.1.0 và
-        transaction_semantics trong data_schema.yaml v1.1.0.
-        Focus vào 3 điểm dễ sai nhất: upload pipeline 5 bước,
-        privacy filter level 1 (Friends), và idempotency.
-      depends_on: []
+        Kiểm tra BackendModule (bản REBUILD, Phase 3 mới) implement đúng
+        openapi.yaml v1.2.0 và data_schema.yaml v1.2.0. Đặc biệt: 10
+        workflow (không phải 7), backend_owned_resources (AP-2 đã làm rõ),
+        admin_authorization, friends_management.
+      depends_on: [T003-00, T003-01, T003-02, T003-03, T003-04, T003-05, T003-06, T003-07, T003-08, T003-09]
       acceptance_criteria:
-        - POST /auth/register trả 409 khi email hoặc username đã tồn tại
-        - POST /auth/login trả 401 khi sai password, không trả 400
-        - JWT payload chứa đúng {user_id, username, exp}
-        - S1 (presigned): POST /media/upload-url trả {upload_url, object_key}
-        - S3 (confirm): Sau confirm, images.index_status = 'pending' trong PostgreSQL
-        - S3 compensating action: nếu PostgreSQL INSERT lỗi, MinIO object phải bị xóa
-        - S4 (async index): Celery task được enqueue sau confirm thành công
-        - S5 (commit): Sau Celery task thành công, index_status = 'ready'
-        - Search với privacy_level = 1 (Friends) JOIN bảng friends đúng cách
-        - Ảnh privacy_level = 0 không xuất hiện trong kết quả của user khác
-        - Ảnh privacy_level = 1 chỉ xuất hiện với bạn bè của chủ ảnh
-        - Request với Idempotency-Key trùng trả cùng job_id, không enqueue lại
-        - TTL của idempotency key = 24 giờ
-        - GET /health/readiness trả header X-Expected-Vector-Dim: 512
-        - GET /health/readiness trả HTTP 503 khi bất kỳ dependency nào down
+        - Toàn bộ acceptance_criteria của T003-00 đến T003-09 đạt PASS
+        - GET /openapi.json từ app đang chạy khớp 100% path với openapi.yaml v1.2.0 (đối chiếu tự động, không đọc code)
+        - Không endpoint nào trong tag StorageModule/AIModule bị AG-03 tự implement lại (chỉ được gọi qua REST)
 
     - id: T005-04
       title: "[AG-04] Contract verification: FrontendWeb"
       assigned_to: AG-04
       priority: P0
       status: backlog
-      description: >
-        Kiểm tra Frontend không để lọt các input sai định dạng trước khi
-        gửi lên Backend. Frontend là tuyến phòng thủ đầu tiên.
-      depends_on: []
-      acceptance_criteria:
-        - Upload component từ chối file không phải image/jpeg hoặc image/png
-        - Upload component từ chối file > 20MB với thông báo rõ ràng cho user
-        - Không gọi /media/upload-url nếu file chưa pass local validation
-        - JWT được lưu đúng nơi (không localStorage nếu lo bảo mật)
-        - Axios interceptor tự động attach Bearer token vào mọi request
-        - Khi JWT hết hạn, redirect về login — không crash silently
-        - Không có hardcoded URL — dùng env var VITE_API_BASE_URL
-        - Không gọi thẳng AI Service hay MinIO — chỉ gọi Backend
+      depends_on: [T005-03]
 
     - id: T005-05
       title: "[AG-00] Rebuild & re-tag Docker images sau contract fix"
       assigned_to: AG-00
       priority: P0
       status: backlog
-      description: >
-        Sau khi T005-01 → T005-04 xác nhận các lỗi contract và agents đã sửa,
-        rebuild tất cả image bị ảnh hưởng, tag với version mới, push lên registry.
-        Ghi lại image digest vào session log.
       depends_on: [T005-01, T005-02, T005-03, T005-04]
-      acceptance_criteria:
-        - Tất cả image được tag dạng {service}:{version}
-        - Image digest được ghi vào .context/Sessions/ log của session này
-        - docker compose pull lấy đúng version mới từ registry
 
 # ---------------------------------------------------------------------------
 # PHASE 6 — Cross-Module Structural Audit
-# Mục tiêu: Kiểm tra toàn diện mỗi module từ .pyproj → app/ → Dockerfile
-#           đảm bảo cấu trúc 5-lớp, dependencies, secrets management thống nhất.
-# Thứ tự: AG-02 (StorageModule) → AG-01 (AIModule) → AG-03 (BackendModule)
 # ---------------------------------------------------------------------------
 phase_6:
   name: "Cross-Module Structural Audit"
   owner: AG-00
-  status: backlog
+  status: in_progress
   notes_from_ag00: >
-    Đây là giai đoạn kiểm tra deep-dive cấu trúc mã nguồn của mỗi module.
-    AG-00 đóng vai trò auditor, không viết code. Nếu phát hiện sai lệch,
-    ghi nhận và yêu cầu agent worker sửa (không bypass, không ignore).
-    Workflow kiểm tra theo thứ tự cố định: .pyproj → .env → app/ → Dockerfile.
+    [v1.2.0] T006-01 (StorageModule) và T006-02 (AIModule) giữ nguyên
+    'done' — KHÔNG mở lại. T006-01b là task NỐI TIẾP (không phải mở lại
+    T006-01) để AG-02 thêm 2 cột DDL mới. T006-03 (BackendModule) được viết
+    lại hoàn toàn cho bản REBUILD, không audit code cũ nữa (code cũ coi như
+    đã bị loại bỏ theo quyết định Project Owner).
 
   tasks:
 
@@ -693,135 +717,116 @@ phase_6:
       assigned_to: AG-02
       priority: P0
       status: done
+      notes_from_ag00: "KHÓA — Clause B. Không mở lại. Xem T006-01b cho việc bổ sung DDL mới."
+
+    - id: T006-01b
+      title: "[AG-02] Append migration: users.role + albums.deleted_at (MỚI v1.2.0)"
+      assigned_to: AG-02
+      priority: P1
+      status: backlog
       description: >
-        Kiểm tra toàn diện StorageModule (modules/StorageModule/) theo checklist:
-        1. StorageModule.pyproj: danh sách file, thư mục đúng cấu trúc
-        2. storage.env.local (configs/): biến môi trường khớp v1.1.0 (pgvector params không Milvus/etcd)
-        3. app/ (5 lớp): entities → adapters → services → routers
-           - schema_*.py (Alembic migrations)
-           - pgvector_index_*.py (thay vì collection_*.py - vốn là tiền tố cũ của Milvus)
-           - bucket_*.py
-           - seed_*.py
-           Workflow naming: prefix = action (schema_, pgvector_index_, bucket_, seed_)
-        4. Dockerfile: từ python:3.13 base, COPY app/ + storage_requirements.txt, không secrets 
-        5. storage_requirements.txt: psycopg, pgvector, minio, redis, alembic (không pymilvus/milvus)
-        6. .dockerignore: loại configs/, tests/, scripts/, *.pyproj, documents/
-        7. infra_compose_storage.yml: pgvector/pgvector:pg16 (không milvus/etcd)
-      depends_on: [T005-02]
+        Task NỐI TIẾP T006-01 (không mở lại task đã đóng). Thêm 1 migration
+        Alembic mới: cột users.role (VARCHAR(20) DEFAULT 'user' CHECK IN
+        ('user','admin')) và albums.deleted_at (TIMESTAMP WITH TIME ZONE
+        NULL), cùng 2 index tương ứng (idx_users_role, idx_albums_deleted_at).
+        KHÔNG sửa/xóa bất kỳ migration cũ nào — chỉ thêm file migration mới,
+        đúng tinh thần append-only (data_schema.yaml v1.2.0, Clause B).
+      depends_on: [T006-01]
       acceptance_criteria:
-        - ✓ Không còn file prefix collection_* (đã đổi → pgvector_index_*)
-        - ✓ Dockerfile LABEL version = v1.1.0 (khớp contract version)
-        - ✓ Dockerfile không copy configs/ vào image
-        - ✓ storage.env.local chứa PGVECTOR_* biến, không MILVUS_* / ETCD_*
-        - ✓ storage_main.py CLI subcommand = pgvector-index (không collection)
-        - ✓ infra_compose_storage.yml không còn service milvus/etcd
-        - ✓ Tất cả workflow file naming tuân thủ Action-oriented Lexicon
-        - ✓ Không còn tham chiếu Milvus trong source code (chỉ comment lịch sử)
-      notes_to_ag02: >
-        Focus: file naming (collection_ → pgvector_index_), Dockerfile version,
-        env var naming, Docker service names. Nếu sai lệch, ghi nhận chi tiết
-        và yêu cầu AG-02 sửa trước khi qua Phase 7.
+        - Migration mới không sửa file migration cũ nào đã tồn tại
+        - Chạy migration trên container hiện có không phá vỡ dữ liệu cũ (idempotent, verify bằng chạy thử trên bản backup)
+        - Cột role có CHECK constraint IN ('user','admin'), default 'user'
+        - Cột deleted_at nullable, không có default
 
     - id: T006-02
       title: "[AG-01] Structural audit: AIModule"
       assigned_to: AG-01
       priority: P0
       status: done
-      description: >
-        Kiểm tra toàn diện AIModule (modules/AIModule/) theo checklist tương tự T006-01:
-        1. Workflow naming: prefix = action (warmup_, image_embedding_, text_embedding_, batch_embedding_, ai_container_)
-        2. app/ (5 lớp): entities → adapters → services → routers
-        3. Dockerfile: multi-stage, model không bake vào image
-        4. requirements.txt: torch, clip, pillow, fastapi (vector_dim dependency)
-      depends_on: [T005-01]
-      acceptance_criteria:
-        - ✓ Tất cả workflow file naming tuân thủ Action-oriented Lexicon
-        - ✓ Dockerfile LABEL version khớp contract
-        - ✓ .dockerignore tuân thủ tối thiểu: không test, scripts, documents
-        - ✓ Không hardcoded vector_dim (tham chiếu từ config)
-      notes_to_ag01: >
-        Focus: workflow prefix (image_embedding_, text_embedding_), não hardcoded magic numbers.
+      notes_from_ag00: "KHÓA — Clause C. Không mở lại, không có thay đổi contract nào ảnh hưởng AIModule ở v1.2.0."
 
     - id: T006-03
-      title: "[AG-03] Structural audit: BackendModule"
+      title: "[AG-03] Structural audit: BackendModule (REBUILD) — ĐẶC TẢ MỚI"
       assigned_to: AG-00
       priority: P0
       status: backlog
       description: >
-        Kiểm tra toàn diện BackendModule (modules/BackendModule/) theo checklist:
-        1. Workflow naming (prefix): scaffold_, auth_, upload_, search_, media_, evaluation_, health_
-        2. app/ (5 lớp): entities → adapters → services → routers
-        3. Dockerfile: import config từ .env, health endpoints expose, không secrets
-        4. requirements.txt: fastapi, sqlalchemy, psycopg, pydantic (pgvector client — tùy tuỳ nếu cần)
-        5. .env cấu hình: DATABASE_URL (PostgreSQL + pgvector), không Milvus
+        Audit toàn diện bản REBUILD của BackendModule, SAU KHI Phase 3 mới
+        hoàn thành. Checklist mở rộng so với v1.1.0, rút kinh nghiệm trực
+        tiếp từ đợt audit thủ công phát hiện sai lệch hệ thống ở bản cũ:
+        1. Router registration: chạy app thật, gọi GET /openapi.json, đối
+           chiếu ĐẦY ĐỦ với openapi.yaml v1.2.0 — không chấp nhận báo cáo
+           "đã include_router" chỉ từ đọc code.
+        2. DI wiring: mọi Depends() factory trả về instance có khả năng
+           hoạt động thật — không còn tham số None nào ở nơi cần kết nối
+           thật (DB session, HTTP client tới AI_SERVICE_URL/StorageModule).
+        3. AP-6 (Mock Data Impersonation): rà toàn bộ indexing_*.py,
+           upload_*.py — không được có hàm nào trả dữ liệu giả lập trông
+           như thật. Tìm theo pattern: literal byte string cố định, vector
+           hardcode đồng nhất, dict metadata không đọc từ DB/request.
+        4. AP-2 (đã làm rõ v2.4.0): xác nhận KHÔNG có SQLAlchemy trực tiếp
+           vào cột images.embedding ở bất kỳ đâu trong search_adapters.py,
+           indexing_adapters.py — mọi thao tác vector phải qua HTTP request
+           thật tới AG-02 (verify bằng cách trace request log / mock AG-02
+           server và xác nhận có request đến).
+        5. Milvus purge: grep toàn bộ source + configs, xác nhận 0 kết quả
+           (trừ comment lịch sử rõ ràng).
+        6. Workflow naming (prefix): scaffold_, auth_, friends_, upload_,
+           indexing_, search_, media_, evaluation_, admin_, health_ — đủ 10
+           bộ, đúng Action-oriented Lexicon.
+        7. Dockerfile: LABEL version khớp 1.2.0, config không bake vào
+           image, .dockerignore loại configs/, tests/, scripts/.
+        8. requirements.txt: không pymilvus, driver DB nhất quán.
       depends_on: [T005-03]
       acceptance_criteria:
-        - ✓ Tất cả workflow file naming tuân thủ Action-oriented Lexicon
-        - ✓ Dockerfile LABEL version khớp contract
-        - ✓ backend_main.py entry point không hardcode config
-        - ✓ /health/readiness kiểm tra pgvector extension (không milvus-client)
-        - ✓ upload pipeline S4 step enqueue Celery (không block)
+        - "✓ router registration verify bằng runtime, không chỉ đọc code"
+        - "✓ 0 tham số None ở DI factory cho dependency cần hoạt động thật"
+        - "✓ 0 phát hiện AP-6 (mock data) trong toàn bộ codebase"
+        - "✓ 0 SQLAlchemy trực tiếp vào cột images.embedding"
+        - "✓ 0 tham chiếu Milvus (ngoại trừ comment lịch sử)"
+        - "✓ Đủ 10 bộ file workflow đúng Action-oriented Lexicon"
+        - "✓ Dockerfile/docker-compose/.dockerignore đầy đủ và đúng chuẩn"
       notes_to_ag00: >
-        Focus: transaction_semantics (5-step upload), privacy filter (Friends level),
-        health check (pgvector extension validate).
+        Đây là task tự audit lại chính công việc rebuild — cần đặc biệt
+        nghiêm khắc vì đã có tiền lệ báo cáo sai lệch ở bản cũ. Ưu tiên
+        bằng chứng runtime (chạy thật, log thật) hơn báo cáo tự khai.
 
     - id: T006-04
       title: "[AG-04] Structural audit: FrontendWebModule"
       assigned_to: AG-00
       priority: P0
       status: backlog
-      description: >
-        Kiểm tra toàn diện FrontendWebModule (modules/FrontendWebModule/) theo checklist:
-        1. Workflow naming (prefix): scaffold_, auth_, media_, upload_, search_, evaluation_
-        2. src/ cấu trúc (React + Vite): entities → adapters → services → (Pages + Components)
-        3. .env.example: VITE_API_BASE_URL, không hardcode backend URL
-        4. Dockerfile (nếu có): build image từ dist/, serve via nginx/http-server
-        5. .dockerignore: loại node_modules, .env.*, src/
       depends_on: [T005-04]
-      acceptance_criteria:
-        - ✓ Tất cả workflow file naming tuân thủ Action-oriented Lexicon
-        - ✓ Axios client sử dụng VITE_API_BASE_URL env var
-        - ✓ JWT được lưu và tự động attach (interceptor)
-        - ✓ Không gọi thẳng AI Service hoặc MinIO
-        - ✓ Dockerfile (nếu có) không chứa secret
+      notes_to_ag00: >
+        Khi tới lượt, cân nhắc đồng thời rà soát Clause E trong
+        data_schema.yaml/openapi.yaml v1.2.0 để hoàn thiện phần "tham
+        khảo" hiện đang để trống — đúng đề xuất của Project Owner về việc
+        làm rõ E cùng lúc với D vì Frontend chỉ giao tiếp Backend.
 
     - id: T006-05
       title: "[AG-00] Consolidate audit findings & issue list"
       assigned_to: AG-00
       priority: P0
       status: backlog
-      description: >
-        Sau T006-01 → T006-04, tập hợp tất cả finding, phân loại Blocking vs Non-blocking,
-        ghi vào AUDIT_REPORT.md trong .context/. Tạo list công việc fix (nếu có)
-        cho từng agent worker. Không qua Phase 7 nếu còn Blocking issues.
-      depends_on: [T006-01, T006-02, T006-03, T006-04]
-      acceptance_criteria:
-        - ✓ AUDIT_REPORT.md tồn tại với đầy đủ finding (2 cột: Module | Finding | Severity | Assignee)
-        - ✓ Blocking issues (nếu có) được ghi rõ action required
-        - ✓ Non-blocking issues liệt kê trong backlog future improvement
+      depends_on: [T006-01b, T006-03, T006-04]
 
 # ---------------------------------------------------------------------------
-# PHASE 7 — Integration & System Test (tương lai, sau audit Phase 6)
-# Mục tiêu: Docker stack up, end-to-end test, demo sẵn sàng
+# PHASE 7 — Integration & System Test
 # ---------------------------------------------------------------------------
 phase_7:
   name: "Integration & System Test"
   owner: AG-00
   status: backlog
   notes_from_ag00: >
-    Chỉ bắt đầu sau khi Phase 6 audit xong (không Blocking issues).
-    Mục tiêu: Docker Compose stack up → e2e test upload/search → demo.
+    Chỉ bắt đầu sau khi Phase 6 audit xong (không Blocking issues), bao gồm
+    cả T006-01b (migration mới ở AG-02) đã chạy thành công trên stack thật.
 
   tasks:
-
     - id: T007-01
       title: "Docker Compose stack integration test"
       assigned_to: AG-00
       priority: P0
       status: backlog
-      description: >
-        Chạy docker-compose -f docker-compose.yml up -d từ root repo.
-        Kiểm tra tất cả 6 service health, network connectivity, data persistence.
       depends_on: [T006-05]
 
     - id: T007-02
@@ -830,8 +835,10 @@ phase_7:
       priority: P0
       status: backlog
       description: >
-        Kiểm tra toàn bộ pipeline: upload ảnh → S4 async embed → S5 index ready
-        → search với image/text → kết quả trả về đúng (với privacy filter).
+        Kiểm tra toàn bộ pipeline thật (không mock): upload ảnh → S4 async
+        embed (gọi AG-01 thật) → S5 index ready (gọi AG-02 thật qua
+        POST /vector/index) → search với image/text → kết quả trả về đúng
+        (với privacy filter, bao gồm cả friends).
       depends_on: [T007-01]
 
     - id: T007-03
@@ -839,9 +846,6 @@ phase_7:
       assigned_to: AG-00
       priority: P1
       status: backlog
-      description: >
-        Measure embedding latency, index latency, search latency (QPS).
-        Ghi lại vào benchmark report.
       depends_on: [T007-02]
 
     - id: T007-04
@@ -849,6 +853,4 @@ phase_7:
       assigned_to: AG-00
       priority: P0
       status: backlog
-      description: >
-        Prepare demo video, document, sample queries. Sẵn sàng cho nộp đồ án.
       depends_on: [T007-03]

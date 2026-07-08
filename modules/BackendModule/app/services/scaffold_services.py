@@ -1,85 +1,95 @@
 """
-Scaffold Services: Core application logic and lifecycle management.
-Depends on: adapters (ScaffoldConfigAdapter)
+Scaffold Services: startup/config orchestration logic.
+Depends on: adapters
 """
 
-from typing import Dict, Any
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Awaitable, Callable
+
 from ..adapters.scaffold_adapters import ScaffoldConfigAdapter
 
 
+@dataclass
+class ConfigValidationResult:
+    """Internal validation payload that can be consumed by workflow health."""
+    config_validated: bool
+    checked_at: str
+    errors: list[str] = field(default_factory=list)
+
+
 class ScaffoldService:
-    """Service to orchestrate scaffold-level setup and validation."""
+    """Orchestrates scaffold initialization and contract-aligned config validation."""
 
     def __init__(self, config_adapter: ScaffoldConfigAdapter):
-        """Initialize with configuration adapter (via dependency injection)."""
         self.config_adapter = config_adapter
-        self._config_cache: Dict[str, Any] = {}
+        self._config_cache: dict[str, Any] = {}
 
-    def initialize(self) -> Dict[str, Any]:
-        """Initialize scaffold by loading and validating all configurations."""
-        try:
-            # Load all configurations
-            configs = self.config_adapter.load_all_configs()
-            self._config_cache = configs
-
-            # Validate all configurations
-            if self.config_adapter.validate_configuration():
-                return {
-                    "status": "success",
-                    "message": "Scaffold initialization successful",
-                    "configs_loaded": list(configs.keys()),
-                }
-        except Exception as e:
-            return {
-                "status": "error",
-                "message": f"Scaffold initialization failed: {str(e)}",
-            }
+    def initialize(self) -> dict[str, Any]:
+        configs = self.config_adapter.load_all_configs()
+        self.config_adapter.validate_configuration()
+        self._config_cache = configs
+        return {
+            "initialized": True,
+            "configs_loaded": list(configs.keys()),
+            "checked_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     def get_config(self, key: str) -> Any:
-        """Retrieve cached configuration by key."""
         if not self._config_cache:
             self.initialize()
         return self._config_cache.get(key)
 
-    def health_check(self) -> Dict[str, Any]:
-        """Perform basic scaffold health check."""
-        return {
-            "status": "healthy",
-            "configs_initialized": len(self._config_cache) > 0,
-            "vector_dim": self.get_config("vector").vector_dim if self.get_config("vector") else None,
-        }
+    def get_validation_result(self) -> ConfigValidationResult:
+        try:
+            self.config_adapter.validate_configuration()
+            return ConfigValidationResult(
+                config_validated=True,
+                checked_at=datetime.now(timezone.utc).isoformat(),
+                errors=[],
+            )
+        except Exception as exc:
+            return ConfigValidationResult(
+                config_validated=False,
+                checked_at=datetime.now(timezone.utc).isoformat(),
+                errors=[str(exc)],
+            )
 
 
 class AppLifecycleService:
-    """Service to manage application startup and shutdown hooks."""
+    """Manages startup/shutdown boundaries for composition root lifespan."""
 
-    def __init__(self, scaffold_service: ScaffoldService):
-        """Initialize with scaffold service."""
+    def __init__(
+        self,
+        scaffold_service: ScaffoldService,
+        shutdown_handler: Callable[[], Awaitable[None]] | None = None,
+    ):
         self.scaffold_service = scaffold_service
+        self.shutdown_handler = shutdown_handler
         self._initialized = False
 
     async def startup(self) -> None:
-        """Execute startup sequence."""
-        print("[APP] Starting up Backend Application...")
-        result = self.scaffold_service.initialize()
-        if result["status"] != "success":
-            raise RuntimeError(f"Startup failed: {result['message']}")
+        self.scaffold_service.initialize()
         self._initialized = True
-        print("[APP] Backend Application startup complete")
 
     async def shutdown(self) -> None:
-        """Execute shutdown sequence."""
-        print("[APP] Shutting down Backend Application...")
-        # TODO: Close database connections, Redis, Milvus clients, etc.
+        if self.shutdown_handler is None:
+            raise NotImplementedError(
+                "T003-00(scaffold): real resource cleanup is not implemented yet. "
+                "Connection/session ownership will be added by later workflows "
+                "(e.g., auth/upload/indexing integration tasks)."
+            )
+        await self.shutdown_handler()
         self._initialized = False
-        print("[APP] Backend Application shutdown complete")
 
     def is_initialized(self) -> bool:
-        """Check if application is initialized."""
         return self._initialized
 
 
 __all__ = [
+    "ConfigValidationResult",
     "ScaffoldService",
     "AppLifecycleService",
 ]

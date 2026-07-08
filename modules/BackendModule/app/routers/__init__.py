@@ -1,23 +1,10 @@
 """
-Routers Layer: HTTP endpoints for all workflows.
-Exported by workflow for registration in main FastAPI app.
+Routers registry for composition root.
+Scaffold phase exports an extendable collection for future workflow routers.
 """
 
-from . import scaffold_routers
-from . import auth_routers
-from . import upload_routers
-from . import search_routers
-from . import media_routers
-from . import evaluation_routers
-from . import health_routers
+from fastapi import APIRouter
 
-__all__ = [
-    "scaffold_routers",
-    "auth_routers",
-    "upload_routers",
-    "search_routers",
-    "media_routers",
-    "evaluation_routers",
-    "health_routers",
-]
+all_routers: list[APIRouter] = []
 
+__all__ = ["all_routers"]

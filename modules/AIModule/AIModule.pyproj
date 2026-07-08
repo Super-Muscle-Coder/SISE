@@ -43,15 +43,6 @@
     <Content Include="configs\ai.env.staging" />
     <Content Include="docker-compose.yml" />
     <Content Include="Dockerfile" />
-    <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_DEEP_GUIDE.md" />
-    <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_QUICK_GUIDE.md" />
-    <Content Include="documents\image_embedding_workflow\IMAGE_EMBEDDING_REFERENCES.md" />
-    <Content Include="documents\text_embedding_workflow\TEXT_EMBEDDING_DEEP_GUIDE.md" />
-    <Content Include="documents\text_embedding_workflow\TEXT_EMBEDDING_QUICK_GUIDE.md" />
-    <Content Include="documents\text_embedding_workflow\TEXT_EMBEDDING_REFERENCES.md" />
-    <Content Include="documents\warmup_workflow\WARMUP_DEEP_GUIDE.md" />
-    <Content Include="documents\warmup_workflow\WARMUP_QUICK_GUIDE.md" />
-    <Content Include="documents\warmup_workflow\WARMUP_REFERENCES.md" />
     <Content Include="scripts\build.cmd" />
     <Content Include="scripts\container.cmd" />
     <Content Include="scripts\health-check.cmd" />

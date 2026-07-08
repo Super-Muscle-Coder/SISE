@@ -1,3 +1,9 @@
+# version: 1.2.1
+# Changelog v1.2.1:
+#           [APPEND v1.2.1] Ép tên cố định, tránh phụ thuộc
+#           COMPOSE_PROJECT_NAME prefix ngẫu nhiên khi
+#           BackendModule join vào bằng external network.
+#           Không đổi driver/subnet/service nào khác.
 services:
   postgres:
     # pgvector/pgvector:pg16 bundles the vector extension (>= 0.7.0) with PostgreSQL 16.
@@ -94,6 +100,7 @@ volumes:
 
 networks:
   storage_net:
+    name : sise_storage_net 
     driver: bridge
     ipam:
       config:

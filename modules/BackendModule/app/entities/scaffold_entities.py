@@ -1,15 +1,14 @@
 """
-Scaffold Entities: Domain models and configuration data classes.
-Depends on: None (pure domain layer)
+Scaffold Entities: pure data models for configuration bundles.
+Depends on: None (domain layer only)
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class AppConfig:
-    """Application-wide configuration."""
+    """Application-wide runtime configuration."""
     host: str
     port: int
     debug: bool
@@ -28,7 +27,7 @@ class DatabaseConfig:
 
 @dataclass
 class StorageConfig:
-    """MinIO object storage configuration."""
+    """Object storage (MinIO) configuration."""
     endpoint: str
     access_key: str
     secret_key: str
@@ -38,11 +37,8 @@ class StorageConfig:
 
 
 @dataclass
-class VectorConfig:
-    """Milvus vector database configuration."""
-    host: str
-    port: int
-    collection_images: str
+class GlobalConfig:
+    """Global shared configuration from contract-level global_configs."""
     vector_dim: int = 512
 
 
@@ -55,15 +51,15 @@ class CacheConfig:
 
 @dataclass
 class AuthConfig:
-    """JWT Authentication configuration."""
+    """JWT authentication configuration."""
     secret: str
     algorithm: str
-    expiration_hours: int
+    expiration_seconds: int
 
 
 @dataclass
 class CeleryConfig:
-    """Celery task queue configuration."""
+    """Celery worker configuration."""
     broker_url: str
     result_backend: str
     worker_concurrency: int
@@ -71,7 +67,7 @@ class CeleryConfig:
 
 @dataclass
 class PresignedURLConfig:
-    """Presigned URL configuration."""
+    """Presigned URL policy configuration."""
     expiry_sec: int = 3600
 
 
@@ -79,7 +75,7 @@ __all__ = [
     "AppConfig",
     "DatabaseConfig",
     "StorageConfig",
-    "VectorConfig",
+    "GlobalConfig",
     "CacheConfig",
     "AuthConfig",
     "CeleryConfig",

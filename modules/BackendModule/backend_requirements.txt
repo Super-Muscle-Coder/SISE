@@ -1,18 +1,11 @@
 ﻿fastapi==0.111.0
 uvicorn[standard]==0.29.0
 pydantic==2.7.0
-pydantic-settings==2.2.0
-pydantic[email]==2.7.0
-sqlalchemy[asyncio]==2.0.25
-asyncpg==0.29.0
-pymilvus==2.4.0
-minio==7.2.0
-aioredis==2.0.1
-celery==5.3.4
-python-jose[cryptography]==3.3.0
-bcrypt==4.1.1
-python-multipart>=0.0.6
-httpx==0.26.0
-aiohttp==3.13.5
-pytest==7.4.3
-pytest-asyncio==0.23.2
+python-dotenv==1.0.1
+
+# Add in later workflow tasks:
+# - sqlalchemy[asyncio], asyncpg          # auth/upload/indexing tasks
+# - minio                                 # upload task
+# - celery, redis client                  # indexing/idempotency tasks
+# - python-jose, bcrypt                   # auth task
+# - httpx                                 # AI/Storage integration tasks

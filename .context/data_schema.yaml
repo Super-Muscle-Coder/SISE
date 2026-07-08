@@ -5,23 +5,76 @@
 #           Đảm bảo Output mà Project A cung cấp đáp ứng Input Project B mong muốn.
 # Writer  : Project Owner + AG-00
 # Reader  : Tất cả agents
-# Version : 1.1.0
+# Version : 1.2.1
+#
+# Changelog v1.2.0 (Cross-Module Contract Clarification Pass):
+#   - CẤU TRÚC MỚI: Toàn bộ tài liệu được gắn tag [CLAUSE A|B|C|D|E] cho từng
+#     mục, nhằm xác định TUYỆT ĐỐI CHÍNH XÁC mục đó thuộc quyền sở hữu của
+#     module nào, tránh vùng xám ngữ nghĩa giữa các module khi tích hợp.
+#       CLAUSE A = Điều khoản CHUNG, mọi module phải tuân theo.
+#       CLAUSE B = StorageModule (AG-02) — ĐÃ ĐÓNG GÓI CONTAINER, KHÓA.
+#                  Chỉ được BỔ SUNG (append: thêm cột/bảng mới), TUYỆT ĐỐI
+#                  không sửa/xóa bất kỳ định nghĩa đã tồn tại từ v1.1.0.
+#       CLAUSE C = AIModule (AG-01) — ĐÃ ĐÓNG GÓI CONTAINER, KHÓA hoàn toàn.
+#       CLAUSE D = BackendModule (AG-03) — vùng được điều chỉnh tự do trong
+#                  đợt sửa v1.2.0 này (module đang được xây dựng lại).
+#       CLAUSE E = FrontendModule (AG-04) — chưa audit; các mục liên quan chỉ
+#                  mang tính tham chiếu/khung sườn, sẽ hoàn thiện khi tới
+#                  lượt audit FrontendModule.
+#   - [CLAUSE B, APPEND] Thêm cột `albums.deleted_at` (soft-delete) — khớp
+#     với hành vi đã cam kết ở openapi.yaml (deleteAlbum). Không sửa cột cũ.
+#   - [CLAUSE B, APPEND] Thêm cột `users.role` (phân quyền admin) — khớp với
+#     cơ chế 403-vì-không-phải-admin đã cam kết ở openapi.yaml (/eval/run,
+#     /admin/reindex). Không sửa cột cũ.
+#   - [CLAUSE B, APPEND-NOTE] Làm rõ ngữ nghĩa quan hệ `friends`: BẤT ĐỐI
+#     XỨNG theo thiết kế (1 dòng = 1 chiều "user_id coi friend_id là bạn").
+#     Client (qua BackendModule) chịu trách nhiệm ghi 2 dòng nếu muốn quan hệ
+#     2 chiều. Đây chỉ là ghi chú làm rõ, không đổi DDL/constraint.
+#   - [CLAUSE A] Sửa lại actor thực thi bước S4 (transaction_semantics) —
+#     trước đây mô tả AG-03 tự "UPDATE images.embedding" trực tiếp (SQLAlchemy
+#     thẳng vào PostgreSQL), MÂU THUẪN với AP-2 (Workflow_Centric_Architecture.md)
+#     vốn quy định cột `embedding` chỉ được ghi qua REST AG-02. Từ v1.2.0,
+#     S4 quy định rõ: AG-03/Celery Worker gọi `POST /vector/index` (AG-02).
+#   - [CLAUSE A] Bổ sung `redis` vào `observability.health_probes.readiness_checks`
+#     — trước đây thiếu dù REDIS_URL là required_env_vars và Celery/idempotency
+#     phụ thuộc trực tiếp vào Redis.
+#   - [CLAUSE D] Bổ sung mục `backend_owned_resources` mô tả rõ AG-03 được
+#     phép SQLAlchemy trực tiếp vào những bảng/cột nào (khép lại mơ hồ AP-2).
+#   - [CLAUSE D] Bổ sung `admin_authorization` mô tả cơ chế xác định quyền
+#     admin dựa trên cột `users.role` mới thêm ở Clause B.
+#   - [CLAUSE D] Bổ sung `friends_management` mô tả nghiệp vụ kết bạn (trước
+#     đây hoàn toàn thiếu — bảng friends tồn tại nhưng không có cách nào để
+#     tạo dữ liệu qua API).
+#   - Không có thay đổi nào trong Clause B (ngoài 2 cột mới + 1 ghi chú nêu
+#     trên) và Clause C so với v1.1.0.
+#
 # Changelog v1.1.0: Thay thế Milvus bằng pgvector (extension `vector` trên PostgreSQL)
 #                   làm vector store. Xem section database_spec.postgresql.pgvector.
+# Changelog v1.2.1 — sửa phát sinh từ audit workflow scaffold
+#                   - [CLAUSE D] XÓA required_env_vars.STORAGE_SERVICE_URL — xác minh qua
+#                     infra_compose_storage.yml rằng AG-02 không chạy HTTP service riêng.
+#                     /vector/index, /vector/search/hybrid chạy trên server AG-03, code
+#                     tách bộ file riêng (storage_vector_*) để giữ ranh giới trách nhiệm.
 # =============================================================================
 
-schema_version: 1.1.0
+schema_version: 1.2.1
 migration_tool: alembic
 
-# ---------------------------------------------------------------------------
-# CẤU HÌNH TOÀN CỤC (Global Configs)
+# =============================================================================
+# [CLAUSE A] CẤU HÌNH TOÀN CỤC (Global Configs)
+# Sở hữu: Chung — mọi module (B, C, D, E) đều đọc từ đây, không module nào
+# được tự định nghĩa lại các giá trị này ở nơi khác.
 # Các giá trị này là nguồn sự thật duy nhất.
 # Khi tham chiếu đến vector_dim ở bất kỳ đâu, PHẢI dùng giá trị này.
-# ---------------------------------------------------------------------------
+# =============================================================================
 global_configs:
   vector_dim: 512                     # ViT-B/32. Đổi thành 768 nếu dùng ViT-L/14.
                                       # ⚠ THAY ĐỔI GIÁ TRỊ NÀY SẼ YÊU CẦU DROP VÀ REBUILD CỘT/INDEX pgvector (images.embedding, idx_images_embedding_hnsw).
-  supported_dims: [512, 768]
+  supported_dims: [512, 768]          # LƯU Ý: 768 là giá trị DỰ PHÒNG cho tương lai
+                                      # (đổi model ViT-L/14). Tại v1.2.0, hệ thống CHỈ
+                                      # vận hành với 512 — cột embedding hard-code
+                                      # vector(512) ở DDL (Clause B). Không được hiểu
+                                      # là hệ thống hỗ trợ song song 2 chiều.
 
   max_file_size_mb: 20
   allowed_content_types:
@@ -38,60 +91,94 @@ global_configs:
   idempotency_ttl_hours: 24
   default_timeout_ms: 10000
 
-# ---------------------------------------------------------------------------
-# NGỮ NGHĨA GIAO DỊCH (Transaction Semantics)
+# =============================================================================
+# [CLAUSE A] NGỮ NGHĨA GIAO DỊCH (Transaction Semantics)
+# Sở hữu: Chung (mô tả luồng liên-module) — nhưng ACTOR thực thi từng bước là
+# CLAUSE D (BackendModule). Mọi thay đổi actor phải khớp với quyết định kiến
+# trúc AP-2 (Workflow_Centric_Architecture.md).
 # Mô tả chính xác luồng upload 5 bước. AG-03 phải implement đúng thứ tự này.
-# ---------------------------------------------------------------------------
+# =============================================================================
 transaction_semantics:
 
   upload_pipeline:
     - step: S1_Presigned
-      actor: AG-03
+      actor: AG-03                              # [D] Backend tự phục vụ
       action: Tạo presigned PUT URL và object_key từ MinIO
       on_success: Trả upload_url và object_key về cho client
       on_failure: Trả StandardError (xem openapi.yaml)
+      communication: >
+        [D→B, gián tiếp] AG-03 gọi thư viện MinIO SDK để tạo presigned URL.
+        MinIO là hạ tầng do AG-02 khởi tạo (bucket/lifecycle) nhưng việc
+        TẠO presigned URL theo yêu cầu người dùng là hành vi runtime của D,
+        không đi qua REST của AG-02 (AG-02 không có endpoint runtime, chỉ có
+        setup/infra scripts). AG-03 kết nối thẳng tới MinIO client bằng
+        credentials từ configs (MINIO_ENDPOINT, MINIO_ACCESS_KEY, ...).
 
     - step: S2_Binary_Upload
-      actor: Client (Browser / Mobile)
+      actor: Client (Browser / Mobile)          # [E]
       action: Client PUT file binary trực tiếp lên MinIO qua presigned URL
       on_success: Client gọi callback xác nhận lên backend
       on_failure: Client retry; presigned URL có thể hết hạn sau presigned_url_expiry_sec
+      communication: "[E→MinIO trực tiếp] Đây là NGOẠI LỆ DUY NHẤT cho phép Frontend chạm hạ tầng lưu trữ trực tiếp — chỉ giới hạn ở việc PUT binary qua presigned URL đã ký sẵn, không phải truy vấn/thao tác MinIO API. Frontend KHÔNG được gọi MinIO SDK/Admin API."
 
     - step: S3_Metadata_Pending
-      actor: AG-03
-      action: INSERT metadata vào PostgreSQL với index_status = 'pending'
+      actor: AG-03                              # [D]
+      action: >
+        INSERT metadata vào PostgreSQL (bảng images) với index_status = 'pending'.
+        Đây là thao tác SQLAlchemy TRỰC TIẾP của AG-03 vào bảng images
+        (không phải cột embedding) — xem `backend_owned_resources` (Clause D)
+        để biết phạm vi bảng AG-03 được phép thao tác trực tiếp.
       on_failure: Xóa MinIO object (compensating action) và trả lỗi về client
+      communication: "[D→PostgreSQL trực tiếp] Hợp lệ theo backend_owned_resources."
 
     - step: S4_Async_Index
-      actor: Celery Worker (AG-03 quản lý)
+      actor: Celery Worker (AG-03 quản lý)      # [D]
       action: >
-        Enqueue Celery task: fetch ảnh từ MinIO → gọi AG-01 (POST /embed/image)
-        → nhận vector → UPDATE images.embedding (cột pgvector) trong PostgreSQL
+        Enqueue Celery task: fetch ảnh từ MinIO → gọi AG-01 (POST /inference/embed/image)
+        → nhận vector 512-dim → gọi AG-02 (POST /vector/index) để ghi vector
+        vào cột images.embedding (pgvector).
+        ĐÃ SỬA so với v1.1.0: Celery Worker KHÔNG được tự UPDATE cột
+        `embedding` bằng SQLAlchemy trực tiếp. Cột embedding là tài nguyên
+        vector-store, bắt buộc đi qua REST AG-02 theo đúng AP-2
+        (Workflow_Centric_Architecture.md §3.2).
       on_failure: Đánh dấu images.index_status = 'failed'; schedule retry theo retry_policy
+      communication: >
+        [D→C] Celery Worker gọi POST /inference/embed/image (AG-01 trả lời).
+        [D→B] Celery Worker gọi POST /vector/index (AG-02 trả lời, ghi vector).
+        [D→PostgreSQL trực tiếp] Celery Worker tự UPDATE cột index_status
+        (KHÔNG phải cột embedding) — hợp lệ theo backend_owned_resources.
 
     - step: S5_Commit_Ready
-      actor: Celery Worker
-      action: Sau khi index thành công, UPDATE images.index_status = 'ready'
+      actor: Celery Worker                      # [D]
+      action: Sau khi index thành công (AG-02 xác nhận), UPDATE images.index_status = 'ready'
       on_failure: >
         Nếu liên tục thất bại sau max_retries lần, giữ index_status = 'failed'
         và ghi nhận để can thiệp thủ công.
+      communication: "[D→PostgreSQL trực tiếp] Cập nhật cột index_status, không phải embedding."
 
   idempotency:
     header: Idempotency-Key
     scope: per-authenticated-user
     ttl_hours: 24
     behavior_on_duplicate: >
-      Trả về cùng job_id/result như lần đầu, hoặc HTTP 409 nếu conflict.
-      KHÔNG enqueue lại task trùng lặp.
+      Trả về CÙNG SCHEMA RESPONSE như lần gọi thành công đầu tiên (200/201),
+      kèm HTTP 409, cho MỌI endpoint có tham số Idempotency-Key. Ví dụ:
+      request trùng key tới POST /media/upload-url phải trả 409 với đúng
+      schema PresignedUploadResponse (không phải schema khác).
+      KHÔNG enqueue lại task trùng lặp (Celery task S4 không được chạy 2 lần
+      cho cùng 1 Idempotency-Key).
 
-# ---------------------------------------------------------------------------
+# =============================================================================
 # ĐẶC TẢ DATABASE
-# ---------------------------------------------------------------------------
+# =============================================================================
 database_spec:
 
-  # -----------------------------------------------------------------------
-  # PostgreSQL
-  # -----------------------------------------------------------------------
+  # ---------------------------------------------------------------------
+  # [CLAUSE B — KHÓA, APPEND-ONLY] StorageModule (AG-02)
+  # ĐÃ ĐÓNG GÓI CONTAINER (T006-01 CLOSED). Toàn bộ định nghĩa cũ giữ
+  # NGUYÊN VĂN so với v1.1.0. Chỉ 2 cột mới được BỔ SUNG (đánh dấu rõ bên
+  # dưới) theo yêu cầu phát sinh từ BackendModule — không sửa/xóa gì khác.
+  # ---------------------------------------------------------------------
   postgresql:
     extensions:
       - uuid-ossp    # Dùng cho gen_random_uuid()
@@ -106,15 +193,26 @@ database_spec:
 
       users:
         description: Thông tin tài khoản người dùng
+        owner: B                          # [CLAUSE B]
         columns:
           id:            SERIAL PRIMARY KEY
           username:      VARCHAR(50) UNIQUE NOT NULL
           email:         VARCHAR(100) UNIQUE NOT NULL
           password_hash: TEXT NOT NULL
           created_at:    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          # ---- [APPEND v1.2.0, CLAUSE B] ----
+          role:          "VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user','admin'))"
+          # Lý do bổ sung: openapi.yaml (POST /eval/run, POST /admin/reindex)
+          # cam kết trả 403 khi "không có quyền admin" nhưng v1.1.0 không có
+          # cột nào lưu quyền. Cột này khép lại khoảng trống đó.
+          # Actor ghi/đọc cột này: AG-03 (Clause D) qua SQLAlchemy trực tiếp,
+          # theo backend_owned_resources.
+        indexes:
+          - CREATE INDEX IF NOT EXISTS idx_users_role ON users (role)   # [APPEND v1.2.0]
 
       friends:
         description: Quan hệ bạn bè giữa người dùng (phục vụ privacy_level = 1)
+        owner: B                          # [CLAUSE B]
         columns:
           user_id:   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
           friend_id: INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
@@ -128,9 +226,21 @@ database_spec:
         note: >
           Khi query với privacy_level = 1 (Friends), AG-03 phải JOIN bảng friends
           để kiểm tra user hiện tại có phải là bạn của chủ ảnh không.
+        # ---- [APPEND-NOTE v1.2.0, CLAUSE B — làm rõ ngữ nghĩa, KHÔNG đổi DDL] ----
+        symmetry_note: >
+          QUAN HỆ BẤT ĐỐI XỨNG theo thiết kế: 1 dòng (user_id=A, friend_id=B)
+          nghĩa là "A coi B là bạn", KHÔNG tự động suy ra "B coi A là bạn".
+          Nếu nghiệp vụ (Clause D) muốn quan hệ 2 chiều (kết bạn kiểu
+          Facebook — cả 2 bên đều thấy nhau là bạn), AG-03 chịu trách nhiệm
+          ghi 2 dòng đối xứng (A→B và B→A) trong CÙNG 1 transaction khi xử lý
+          POST /friends/request (xem openapi.yaml v1.2.0, Clause D). Đây là
+          quyết định nghiệp vụ của D, Clause B chỉ đảm bảo tính toàn vẹn dữ
+          liệu ở mức constraint (PK, self-friend check), không tự suy ra
+          tính đối xứng.
 
       albums:
         description: Album ảnh của người dùng
+        owner: B                          # [CLAUSE B]
         columns:
           id:          SERIAL PRIMARY KEY
           user_id:     INTEGER REFERENCES users(id) ON DELETE CASCADE
@@ -138,9 +248,22 @@ database_spec:
           description: TEXT
           is_public:   BOOLEAN DEFAULT FALSE
           created_at:  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          # ---- [APPEND v1.2.0, CLAUSE B] ----
+          deleted_at:  TIMESTAMP WITH TIME ZONE NULL   # Soft delete
+          # Lý do bổ sung: openapi.yaml Album schema đã cam kết field
+          # `deleted_at` và hành vi "DELETE /albums/{id} = soft delete" từ
+          # v1.1.0, nhưng DDL không có cột này — mâu thuẫn giữa openapi.yaml
+          # và data_schema.yaml. Bổ sung cột để khớp cam kết đã có.
+          # LƯU Ý VẬN HÀNH: user_id có ON DELETE CASCADE (xóa cứng) — nếu
+          # user gốc bị xóa cứng, album bị xóa cứng theo bất kể deleted_at.
+          # Soft-delete ở đây chỉ áp dụng cho hành động xóa album chủ động
+          # của chính chủ, không thay thế cơ chế cascade khi xóa user.
+        indexes:
+          - CREATE INDEX IF NOT EXISTS idx_albums_deleted_at ON albums (deleted_at)   # [APPEND v1.2.0]
 
       images:
         description: Metadata của từng ảnh trong hệ thống
+        owner: B                          # [CLAUSE B] — riêng cột `embedding`: xem ghi chú actor ở transaction_semantics S4 (Clause D chỉ được ghi qua REST AG-02)
         columns:
           id:                UUID PRIMARY KEY DEFAULT gen_random_uuid()
           user_id:           INTEGER NOT NULL REFERENCES users(id)
@@ -151,7 +274,7 @@ database_spec:
           # privacy_level: 0 = Private, 1 = Friends, 2 = Public
           tags:              JSONB                    # Mảng tag tùy chỉnh
           index_status:      "VARCHAR(20) DEFAULT 'pending' CHECK (index_status IN ('pending','ready','failed'))"
-          embedding:         "vector(512)"           # pgvector column. PHẢI bằng global_configs.vector_dim. Nullable cho đến khi S4_Async_Index hoàn tất.
+          embedding:         "vector(512)"           # pgvector column. PHẢI bằng global_configs.vector_dim. Nullable cho đến khi S4_Async_Index hoàn tất. GHI QUA POST /vector/index (AG-02) — xem transaction_semantics S4.
           created_at:        TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           updated_at:        TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           deleted_at:        TIMESTAMP WITH TIME ZONE NULL  # Soft delete
@@ -163,9 +286,10 @@ database_spec:
           - CREATE INDEX IF NOT EXISTS idx_images_index_status ON images (index_status)
           - "CREATE INDEX IF NOT EXISTS idx_images_embedding_hnsw ON images USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 200)"
 
-  # -----------------------------------------------------------------------
+  # ---------------------------------------------------------------------
+  # [CLAUSE B — KHÓA HOÀN TOÀN, KHÔNG THAY ĐỔI GÌ SO VỚI v1.1.0]
   # pgvector (thay thế Milvus — vector store nằm ngay trong PostgreSQL)
-  # -----------------------------------------------------------------------
+  # ---------------------------------------------------------------------
   pgvector:
     replaces: milvus            # Ghi chú lịch sử: trước v1.1.0 dùng Milvus collection `sise_v1`, đã migrate sang pgvector do vấn đề ổn định vận hành.
     table: images                # Vector được lưu trực tiếp trong cột images.embedding, không còn store riêng biệt.
@@ -185,6 +309,9 @@ database_spec:
 
     metric_type: COSINE
     operator_class: vector_cosine_ops   # Dùng <=> operator trong SQL cho cosine distance
+    # [CLAUSE D, tham chiếu] BackendModule/openapi.yaml v1.2.0 CHỈ hỗ trợ
+    # metric COSINE trong mọi request search (xem MetricType, openapi.yaml)
+    # — vì đây là index HNSW DUY NHẤT tồn tại. Không tạo thêm index L2/IP.
 
     notes: >
       Vector nằm chung transaction với metadata (cùng 1 PostgreSQL instance) nên loại bỏ hoàn toàn
@@ -194,9 +321,10 @@ database_spec:
       `REINDEX INDEX CONCURRENTLY idx_images_embedding_hnsw` hoặc rebuild với resume token ở batch job,
       giữ index cũ hoạt động cho đến khi index mới build xong (CONCURRENTLY tránh lock table).
 
-  # -----------------------------------------------------------------------
+  # ---------------------------------------------------------------------
+  # [CLAUSE B — KHÓA HOÀN TOÀN, KHÔNG THAY ĐỔI GÌ SO VỚI v1.1.0]
   # MinIO
-  # -----------------------------------------------------------------------
+  # ---------------------------------------------------------------------
   minio:
     buckets:
       - raw-images     # Ảnh gốc do người dùng upload
@@ -224,36 +352,42 @@ database_spec:
         - image/jpeg
         - image/png
 
-# ---------------------------------------------------------------------------
-# OBSERVABILITY
-# ---------------------------------------------------------------------------
+# =============================================================================
+# [CLAUSE A] OBSERVABILITY
+# Sở hữu: Chung — B, C, D đều emit metrics/logs theo chuẩn này.
+# =============================================================================
 observability:
   metrics:
-    - embedding_latency_ms    # Thời gian AG-01 trả về vector
-    - index_latency_ms        # Thời gian Celery worker UPDATE cột embedding (pgvector) trong PostgreSQL
-    - search_qps              # Query per second của Search Service
-    - mrr_score               # Mean Reciprocal Rank (chạy định kỳ)
-    - hit_rate                # Hit Rate@K (chạy định kỳ)
-    - error_rate              # Tỷ lệ lỗi của các endpoints
+    - embedding_latency_ms    # [C emit] Thời gian AG-01 trả về vector
+    - index_latency_ms        # [B emit] Thời gian Celery worker chờ AG-02 UPDATE cột embedding + build/refresh HNSW index
+    - search_qps              # [D emit] Query per second của Search Service (AG-03)
+    - mrr_score                # [D emit] Mean Reciprocal Rank (chạy định kỳ, AG-03 evaluation workflow)
+    - hit_rate                # [D emit] Hit Rate@K (chạy định kỳ)
+    - error_rate               # [A] Tỷ lệ lỗi của các endpoints — mọi module tự đo
 
   tracing: opentelemetry
   logging: structured_json    # Loguru hoặc ELK Stack
 
   metrics_note: >
     embedding_latency_ms giờ đo cả bước AG-01 trả vector; index_latency_ms đo thời gian
-    UPDATE cột embedding + build/refresh HNSW index trong PostgreSQL (thay vì insert Milvus).
+    UPDATE cột embedding + build/refresh HNSW index trong PostgreSQL (thực thi bởi AG-02
+    khi nhận request POST /vector/index từ AG-03, thay vì insert Milvus).
 
   health_probes:
-    liveness: /health/liveness
-    readiness: /health/readiness
+    liveness: /health/liveness       # [D implement — Clause A path, xem openapi.yaml]
+    readiness: /health/readiness     # [D implement]
     readiness_checks:
       - postgres           # Bao gồm cả pgvector extension check (SELECT extname FROM pg_extension WHERE extname='vector')
       - minio
       - ai_service
+      - redis               # [APPEND v1.2.0, CLAUSE A] — trước đây thiếu dù REDIS_URL
+                             # là required_env_vars và Celery broker/idempotency-key
+                             # store phụ thuộc trực tiếp Redis. AG-03 (D) thực thi check.
 
-# ---------------------------------------------------------------------------
-# BACKUP & DISASTER RECOVERY
-# ---------------------------------------------------------------------------
+# =============================================================================
+# [CLAUSE B — KHÓA HOÀN TOÀN] BACKUP & DISASTER RECOVERY
+# Vận hành hạ tầng thuộc AG-02, không đổi so với v1.1.0.
+# =============================================================================
 backup_and_dr:
 
   postgres:
@@ -275,21 +409,37 @@ backup_and_dr:
     3. Verify MinIO objects khớp với PostgreSQL records.
     4. Test DR procedure mỗi quý (quarterly).
 
-# ---------------------------------------------------------------------------
-# BẢO MẬT & SECRETS
-# ---------------------------------------------------------------------------
+# =============================================================================
+# [CLAUSE A / D] BẢO MẬT & SECRETS
+# Danh sách env var chung (A), nhưng phần lớn required_env_vars thuộc phạm vi
+# vận hành của D (BackendModule tự quản lý configs/backend.env.*).
+# =============================================================================
 security_and_secrets:
   no_secrets_in_repo: true
   secret_management: "Vault hoặc cloud secret manager; tham chiếu qua env vars"
 
   required_env_vars:
-    - DATABASE_URL
+    # ---- [CLAUSE D — BackendModule] ----
+    - DATABASE_URL          # PostgreSQL (bao gồm pgvector) — driver do D tự chọn (vd asyncpg cho web service async)
     - MINIO_ENDPOINT
     - MINIO_ACCESS_KEY
     - MINIO_SECRET_KEY
-    - REDIS_URL
+    - REDIS_URL              # Celery broker + idempotency-key store
     - JWT_SECRET
-    - AI_SERVICE_URL      # URL nội bộ của AG-01 (ví dụ: http://ai-service:8001)
+    - AI_SERVICE_URL         # [D→C] URL nội bộ của AG-01 (ví dụ: http://ai-service:8001)
+    # [SỬA v1.2.1] STORAGE_SERVICE_URL đã bị loại bỏ. Xác minh qua
+    # infra_compose_storage.yml: AG-02 (StorageModule) KHÔNG chạy như 1
+    # HTTP service độc lập — chỉ có postgres/minio/redis container, không
+    # có service Python nào phục vụ REST. Do đó POST /vector/index và
+    # POST /vector/search/hybrid (tag StorageModule, openapi.yaml) THỰC
+    # THI ngay trên server của AG-03 (cùng servers: http://localhost:8000),
+    # không có network hop nào khác. "Clause B" là ranh giới SỞ HỮU
+    # NGHIỆP VỤ/DỮ LIỆU (bảng, index, migration là do AG-02 thiết kế),
+    # không phải ranh giới network. AG-03 implement 2 endpoint này trong
+    # 1 bộ file RIÊNG BIỆT, đặt tên rõ ràng (ví dụ storage_vector_entities.py,
+    # storage_vector_adapters.py, storage_vector_services.py,
+    # storage_vector_routers.py) để giữ tách bạch trách nhiệm dù chạy
+    # chung process — không trộn logic này vào search_*/indexing_*.
 
   network:
     recommended: >
@@ -297,9 +447,9 @@ security_and_secrets:
       Chỉ Backend và Celery Worker mới có quyền kết nối trực tiếp.
       Frontend (Web/Mobile) chỉ giao tiếp với Backend qua HTTPS.
 
-# ---------------------------------------------------------------------------
-# TESTING & CI
-# ---------------------------------------------------------------------------
+# =============================================================================
+# [CLAUSE A] TESTING & CI
+# =============================================================================
 testing_and_ci:
   e2e_smoke: "scripts/tests/e2e_smoke.sh"
   e2e_scenario: "upload → embed → index → search → verify result"
@@ -307,9 +457,10 @@ testing_and_ci:
   contract_tests: "Validate openapi.yaml trong CI; dùng openapi-generator để verify stubs"
   benchmarking: "scripts/bench/mrr_benchmark.py; ghi lại embedding_latency_ms và mrr_score"
 
-# ---------------------------------------------------------------------------
-# OPERATIONAL PLAYBOOKS
-# ---------------------------------------------------------------------------
+# =============================================================================
+# [CLAUSE B — KHÓA HOÀN TOÀN] OPERATIONAL PLAYBOOKS (vận hành hạ tầng AG-02)
+# ngoại trừ mục on_vector_dim_mismatch — có phần thực thi ở Clause D.
+# =============================================================================
 operational_playbooks:
 
   reindex_strategy:
@@ -328,36 +479,116 @@ operational_playbooks:
     on_minio_unreachable: >
       1. Retry với exponential backoff (theo retry_policy).
       2. Từ chối upload gracefully và thông báo user.
-    on_vector_dim_mismatch: >
+    on_vector_dim_mismatch: >                                    # [CLAUSE D thực thi]
       Client gọi GET /health/readiness, đọc header X-Expected-Vector-Dim.
-      Backend trả HTTP 400 với error code ERR_VECTOR_DIM_MISMATCH.
+      Backend (D) trả HTTP 400 với error code ERR_VECTOR_DIM_MISMATCH.
       (Lưu ý: với pgvector, cột embedding được khai báo cứng `vector(512)` ở DDL,
-      nên INSERT/UPDATE với vector sai chiều sẽ tự động bị PostgreSQL từ chối ở tầng DB;
+      nên INSERT/UPDATE với vector sai chiều sẽ tự động bị PostgreSQL từ chối ở tầng DB
+      khi AG-02 nhận request POST /vector/index;
       AG-03 vẫn phải validate trước ở tầng service để trả đúng structured error thay vì để lộ raw DB exception.)
 
-# ---------------------------------------------------------------------------
-# GHI CHÚ KỸ THUẬT
-# ---------------------------------------------------------------------------
+# =============================================================================
+# [CLAUSE D] TÀI NGUYÊN AG-03 ĐƯỢC PHÉP THAO TÁC TRỰC TIẾP (BackendModule)
+# MỚI THÊM v1.2.0 — khép lại mơ hồ AP-2 (Workflow_Centric_Architecture.md)
+# giữa "AG-03 tự SQLAlchemy" và "AG-03 phải qua REST AG-02".
+# =============================================================================
+backend_owned_resources:
+  description: >
+    Mục này định nghĩa TƯỜNG MINH phạm vi AG-03 được phép SQLAlchemy trực
+    tiếp vào PostgreSQL (Clause B tables), dựa trên bằng chứng
+    transaction_semantics.upload_pipeline (S3, S5) vốn đã ghi actor AG-03
+    tự INSERT/UPDATE các bảng metadata. Việc này áp dụng cho v1.2.0 trở đi,
+    thay thế mọi suy diễn rộng hơn từ AP-2.
+
+  direct_sqlalchemy_allowed:
+    - table: users
+      columns: "TẤT CẢ (bao gồm cột role mới)"
+      reason: "Nghiệp vụ Auth (đăng ký/đăng nhập/phân quyền) thuộc AG-03"
+    - table: friends
+      columns: "TẤT CẢ"
+      reason: "Nghiệp vụ kết bạn + privacy filter thuộc AG-03"
+    - table: albums
+      columns: "TẤT CẢ (bao gồm cột deleted_at mới)"
+      reason: "CRUD album thuộc AG-03"
+    - table: images
+      columns: "TẤT CẢ NGOẠI TRỪ embedding"
+      reason: >
+        metadata ảnh (privacy_level, tags, index_status, minio_object_name,
+        v.v.) thuộc nghiệp vụ AG-03 theo đúng S3/S5 upload_pipeline.
+
+  rest_required_no_direct_sql:
+    - column: "images.embedding"
+      required_endpoint_write: "POST /vector/index (AG-02)"
+      required_endpoint_read: "POST /vector/search/hybrid (AG-02)"
+      reason: >
+        Cột vector là tài nguyên đặc thù của pgvector/HNSW index — AG-02 sở
+        hữu logic index/ANN search. Ghi/đọc trực tiếp bằng SQLAlchemy từ
+        AG-03 sẽ tái tạo đúng loại rủi ro "đồng bộ 2 hệ thống" mà migration
+        Milvus→pgvector đã giải quyết. Xem transaction_semantics S4 (đã sửa
+        v1.2.0) và Workflow_Centric_Architecture.md AP-2.
+
+  applies_to_frontend: >
+    AG-04 (Frontend) KHÔNG được áp dụng bảng trên — Frontend TUYỆT ĐỐI không
+    SQLAlchemy trực tiếp vào bất kỳ bảng nào, chỉ gọi REST AG-03.
+
+# =============================================================================
+# [CLAUSE D] CƠ CHẾ PHÂN QUYỀN ADMIN (BackendModule)
+# MỚI THÊM v1.2.0 — dựa trên cột users.role (Clause B, append).
+# =============================================================================
+admin_authorization:
+  mechanism: >
+    AG-03 đọc cột users.role sau khi decode JWT (payload chứa user_id) và
+    JOIN/query bảng users để xác định role = 'admin'. JWT payload KHÔNG lưu
+    role trực tiếp (tránh stale permission nếu role bị đổi giữa phiên) —
+    mỗi request tới endpoint admin-only phải re-query users.role.
+  applies_to_endpoints:
+    - "POST /eval/run"
+    - "POST /admin/reindex"
+  on_denied: "HTTP 403 với Error.code = ERR_FORBIDDEN_ADMIN_ONLY"
+
+# =============================================================================
+# [CLAUSE D] NGHIỆP VỤ KẾT BẠN (BackendModule)
+# MỚI THÊM v1.2.0 — trước đây bảng friends (Clause B) tồn tại nhưng không
+# có bất kỳ API nào để tạo dữ liệu, khiến privacy_level=1 chỉ hoạt động
+# được nhờ seed thủ công. Xem openapi.yaml v1.2.0 path /friends/*.
+# =============================================================================
+friends_management:
+  symmetric_write_policy: >
+    Khi user A gửi POST /friends/request tới user B và được B chấp nhận
+    (hoặc theo mô hình auto-accept nếu PO chọn — xem openapi.yaml), AG-03
+    PHẢI ghi 2 dòng (user_id=A,friend_id=B) VÀ (user_id=B,friend_id=A)
+    trong CÙNG 1 transaction để đảm bảo quan hệ đối xứng ở tầng nghiệp vụ,
+    dù bảng friends (Clause B) không tự enforce điều này ở tầng DB.
+  delete_policy: >
+    DELETE /friends/{friend_id} (unfriend) PHẢI xóa CẢ 2 dòng đối xứng
+    trong cùng 1 transaction.
+
+# =============================================================================
+# [CLAUSE A] GHI CHÚ KỸ THUẬT
+# =============================================================================
 notes:
 
   vector_dim_mismatch_handling: >
     Clients phải gọi GET /health/readiness để đọc header X-Expected-Vector-Dim
-    trước khi gửi vector. Backend trả HTTP 400 với structured error
+    trước khi gửi vector. Backend (D) trả HTTP 400 với structured error
     {code: 'ERR_VECTOR_DIM_MISMATCH'} khi vector length không khớp.
 
   filter_expression_guidance: >
     Dùng structured FilterExpression JSON (and/or/leaf).
     Dùng op 'contains' cho tags (JSONB array membership).
     Dùng op 'in' cho enums/numeric lists.
-    AG-03 phải validate và sanitize filter expression trước khi biên dịch thành mệnh đề SQL WHERE
-    (kết hợp cùng ANN search trên cột images.embedding), tránh SQL injection qua field/value.
+    AG-03 (D) phải validate và sanitize filter expression trước khi biên dịch
+    thành mệnh đề SQL WHERE hoặc trước khi gửi vào request body của
+    POST /vector/search/hybrid (AG-02), tránh SQL injection qua field/value.
 
-  privacy_level_1_query: >
+  privacy_level_1_query: >                                        # [CLAUSE D thực thi]
     Với privacy_level = 1 (Friends), AG-03 phải:
-    1. Query bảng friends để lấy danh sách friend_id của current_user.
-    2. SQL WHERE clause trên bảng images (kết hợp ANN search bằng toán tử <=> của pgvector):
+    1. Query bảng friends (SQLAlchemy trực tiếp, hợp lệ theo backend_owned_resources)
+       để lấy danh sách friend_id của current_user.
+    2. Gửi danh sách friend_id đó như một phần FilterExpression trong request
+       POST /vector/search/hybrid (AG-02), kết hợp:
        (privacy_level = 2) OR (user_id = current_user_id)
        OR (privacy_level = 1 AND user_id IN (friend_ids)).
-       Vì filter và vector search giờ cùng nằm trong 1 câu SQL/1 hệ CSDL,
-       không còn rủi ro lệch pha dữ liệu giữa metadata (Postgres) và vector store (Milvus) như trước.
+       AG-02 thực thi ANN search + filter trong cùng 1 câu SQL nội bộ; AG-03
+       chỉ gửi filter đã biên dịch qua REST, không tự JOIN images.embedding.
     Không cache danh sách friend quá 5 phút để đảm bảo tính nhất quán.

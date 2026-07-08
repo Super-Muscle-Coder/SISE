@@ -1,0 +1,18 @@
+services:
+  backend:
+    container_name: sise-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - configs/backend.env.local
+    ports:
+      - "${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
+    networks:
+      - sise_storage_net
+    restart: unless-stopped
+
+networks:
+  sise_storage_net:
+    external: true
+    name: sise_storage_net
