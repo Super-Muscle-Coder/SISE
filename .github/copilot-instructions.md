@@ -55,5 +55,8 @@
 - Cung cấp thông tin chi tiết về quy trình xác thực: các trường chính xác cho đăng ký/đăng nhập, quy tắc xác thực, định dạng phản hồi và xử lý lỗi.
 - Tham khảo các tệp openapi.yaml, data_schema.yaml, và mã thực tế trong các tệp auth_entities.py, auth_services.py, auth_routers.py để lấy thông tin chi tiết.
 
+## BackendModule Workflow
+- For BackendModule friends workflow tasks, provide full-file code in chat without editing files, keep errors as {code,message}, and follow established DI/AsyncSession + IntegrityError mapping patterns from auth workflow.
+
 
 

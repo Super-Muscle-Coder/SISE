@@ -1,145 +1,158 @@
 """
 Auth workflow services — User registration, login, token validation.
-
-File prefix: auth_services.py
-Layer: services
-Responsibility: Business logic for authentication operations.
 """
 
-from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..adapters.auth_adapters import PasswordHasher, TokenGenerator
-from ..entities.auth_entities import AuthRequest, RegisterRequest, User, AuthResponse
-from ..entities.scaffold_entities import DatabaseConfig
+from ..entities.auth_entities import AuthRequest, AuthResponse, RegisterRequest, User
+
+
+class UserAlreadyExistsError(Exception):
+    """Raised when username or email already exists."""
 
 
 class AuthService:
-    """Authentication service handling user registration and login."""
-
     def __init__(
         self,
-        db_session: Optional[AsyncSession],
+        db_session: AsyncSession,
         token_generator: TokenGenerator,
-        db_config: Optional[DatabaseConfig],
+        expiration_seconds: int,
     ):
-        """
-        Initialize AuthService.
-
-        Args:
-            db_session: SQLAlchemy async session (may be None in scaffold phase)
-            token_generator: TokenGenerator instance for JWT handling
-            db_config: Database configuration
-        """
+        if expiration_seconds <= 0:
+            raise ValueError("expiration_seconds must be positive")
         self.db_session = db_session
         self.token_generator = token_generator
-        self.db_config = db_config
+        self.expiration_seconds = expiration_seconds
         self.password_hasher = PasswordHasher()
 
     async def register_user(self, req: RegisterRequest) -> AuthResponse:
-        """
-        Register a new user.
+        duplicate_stmt = text(
+            """
+            SELECT id, username, email
+            FROM users
+            WHERE username = :username OR email = :email
+            LIMIT 1
+            """
+        )
 
-        Args:
-            req: RegisterRequest with username, email, password
+        insert_stmt = text(
+            """
+            INSERT INTO users (username, email, password_hash)
+            VALUES (:username, :email, :password_hash)
+            RETURNING id, username, email, role, created_at
+            """
+        )
 
-        Returns:
-            AuthResponse with access token
+        try:
+            duplicate_result = await self.db_session.execute(
+                duplicate_stmt,
+                {"username": req.username, "email": req.email},
+            )
+            duplicate_row = duplicate_result.mappings().first()
+            if duplicate_row is not None:
+                raise UserAlreadyExistsError("Username or email already exists")
 
-        Raises:
-            ValueError: If username or email already exists or validation fails
+            password_hash = self.password_hasher.hash_password(req.password)
 
-        Note:
-            MVP Phase: Database integration deferred to later workflow.
-            Currently returns simulated success for testing.
-        """
-        # TODO: Implement actual database insert once ORM models exist
-        # Step 1: Check if username already exists
-        # Step 2: Check if email already exists
-        # Step 3: Hash password
-        # Step 4: Insert user to PostgreSQL
-        # Step 5: Generate JWT token
+            insert_result = await self.db_session.execute(
+                insert_stmt,
+                {
+                    "username": req.username,
+                    "email": req.email,
+                    "password_hash": password_hash,
+                },
+            )
+            inserted = insert_result.mappings().first()
+            if inserted is None:
+                raise RuntimeError("Failed to create user")
 
-        # Simulate user creation with ID=1
-        user_id = 1
-        username = req.username
+            await self.db_session.commit()
 
-        # Generate token
-        token = self.token_generator.generate_token(
-            user_id=user_id, username=username
+        except UserAlreadyExistsError:
+            await self.db_session.rollback()
+            raise
+        except IntegrityError as exc:
+            await self.db_session.rollback()
+            lowered = str(exc).lower()
+            if "unique" in lowered and ("username" in lowered or "email" in lowered):
+                raise UserAlreadyExistsError("Username or email already exists") from exc
+            raise
+        except Exception:
+            await self.db_session.rollback()
+            raise
+
+        access_token = self.token_generator.generate_token(
+            user_id=inserted["id"],
+            username=inserted["username"],
+            expires_in=self.expiration_seconds,
         )
 
         return AuthResponse(
-            access_token=token,
+            access_token=access_token,
             token_type="bearer",
-            expires_in=self.token_generator.__dict__.get("expiry_sec", 86400),
+            expires_in=self.expiration_seconds,
         )
 
     async def login_user(self, req: AuthRequest) -> Optional[AuthResponse]:
-        """
-        Authenticate user and return access token.
+        select_stmt = text(
+            """
+            SELECT id, username, password_hash
+            FROM users
+            WHERE username = :username
+            LIMIT 1
+            """
+        )
 
-        Args:
-            req: AuthRequest with username and password
+        result = await self.db_session.execute(select_stmt, {"username": req.username})
+        row = result.mappings().first()
+        if row is None:
+            return None
 
-        Returns:
-            AuthResponse with access token, or None if credentials invalid
+        if not self.password_hasher.verify_password(req.password, row["password_hash"]):
+            return None
 
-        Raises:
-            ValueError: If credentials are invalid
+        access_token = self.token_generator.generate_token(
+            user_id=row["id"],
+            username=row["username"],
+            expires_in=self.expiration_seconds,
+        )
 
-        Note:
-            MVP Phase: Database lookup deferred to later workflow.
-            Currently returns simulated success for test credentials.
-        """
-        # TODO: Implement actual database query once ORM models exist
-        # Step 1: Query user by username from PostgreSQL
-        # Step 2: Verify password against password_hash
-        # Step 3: Return AuthResponse with JWT token
-
-        # Simulate user lookup (test credentials)
-        if req.username == "testuser" and req.password == "password123":
-            user_id = 1
-            token = self.token_generator.generate_token(
-                user_id=user_id, username=req.username
-            )
-            return AuthResponse(
-                access_token=token,
-                token_type="bearer",
-                expires_in=86400,
-            )
-
-        return None
+        return AuthResponse(
+            access_token=access_token,
+            token_type="bearer",
+            expires_in=self.expiration_seconds,
+        )
 
     async def get_current_user(self, token: str) -> Optional[User]:
-        """
-        Get current authenticated user from token.
-
-        Args:
-            token: JWT access token
-
-        Returns:
-            User model if token valid, None otherwise
-
-        Note:
-            MVP Phase: Database lookup deferred to later workflow.
-            Currently returns minimal User model from token payload.
-        """
         payload = self.token_generator.verify_token(token)
         if not payload:
             return None
 
-        # TODO: Fetch full user details from PostgreSQL once ORM models exist
+        select_stmt = text(
+            """
+            SELECT id, username, email, role, created_at
+            FROM users
+            WHERE id = :user_id
+            LIMIT 1
+            """
+        )
+        result = await self.db_session.execute(select_stmt, {"user_id": payload.user_id})
+        row = result.mappings().first()
+        if row is None:
+            return None
+
         return User(
-            id=payload.user_id,
-            username=payload.username,
-            email=f"{payload.username}@example.com",
-            created_at=datetime.now(timezone.utc),
+            id=row["id"],
+            username=row["username"],
+            email=row["email"],
+            role=row["role"],
+            created_at=row["created_at"],
         )
 
 
-__all__ = [
-    "AuthService",
-]
+__all__ = ["AuthService", "UserAlreadyExistsError"]

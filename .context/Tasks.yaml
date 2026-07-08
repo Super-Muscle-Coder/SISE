@@ -295,7 +295,7 @@ phase_3:
       title: "[workflow:scaffold] Project scaffold, DI container, entry point & config management bundle (REBUILD)"
       assigned_to: AG-03
       priority: P0
-      status: backlog
+      status: done
       description: |
         Dựng lại toàn bộ khung 5-layer (entities/adapters/services/routers)
         cho mọi workflow.
@@ -360,7 +360,7 @@ phase_3:
       title: "[workflow:auth] Auth Service (JWT) bundle (REBUILD)"
       assigned_to: AG-03
       priority: P0
-      status: backlog
+      status: done
       description: >
         JWT auth, /auth/register, /auth/login, /auth/me theo openapi.yaml
         v1.2.0. SQLAlchemy trực tiếp bảng users (bao gồm cột role mới) theo
@@ -372,11 +372,23 @@ phase_3:
         - JWT payload chứa {user_id, username, exp} — KHÔNG lưu role (tránh stale permission, xem admin_authorization)
         - User schema response bao gồm field role
         - Router auth_routers đã include vào app/__init__.py — verify qua GET /openapi.json
+      notes_from_ag00: >
+        [GHI NHẬN NỢ KỸ THUẬT — v1.2.1] Response 401 (Unauthorized) hiện trả
+        detail dạng string thuần ở auth_routers.py, không khớp Error schema
+        {code, message} bắt buộc (openapi.yaml components.responses.Unauthorized
+        → $ref Error). Đây là pattern DÙNG CHUNG cho mọi endpoint có
+        security: [BearerAuth] (gần như toàn bộ 10 workflow), nên KHÔNG vá lẻ
+        từng nơi — chờ đủ 2-3 workflow nữa (ví dụ sau T003-02 friends, T003-06
+        media) để thấy rõ hết các biến thể, rồi tạo 1 task riêng thiết kế
+        helper/dependency dùng chung (ví dụ raise_unauthorized() trong
+        dependencies.py) áp dụng đồng loạt. Không tạo task con lẻ tẻ cho từng
+        workflow.
+
     - id: T003-02
       title: "[workflow:friends] Friends management bundle (MỚI v1.2.0)"
       assigned_to: AG-03
       priority: P1
-      status: backlog
+      status: done
       description: >
         Workflow HOÀN TOÀN MỚI, khép lại Blocking#6 tìm được khi audit
         openapi.yaml/data_schema.yaml. GET /friends, POST /friends/request,
