@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import AsyncGenerator
+from minio import Minio
+from redis.asyncio import Redis
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
@@ -15,7 +17,11 @@ from .adapters.scaffold_adapters import ConfigLoader, ScaffoldConfigAdapter
 from .entities.scaffold_entities import AuthConfig, DatabaseConfig
 from .services.auth_services import AuthService
 from .services.scaffold_services import AppLifecycleService, ScaffoldService
-
+from .adapters.upload_adapters import IdempotencyAdapter, MinIOAdapter, PostgreSQLImageAdapter
+from .entities.scaffold_entities import CacheConfig, StorageConfig
+from .services.upload_services import UploadService
+from .adapters.storage_vector_adapters import StorageVectorAdapter
+from .services.storage_vector_services import StorageVectorService
 
 @lru_cache(maxsize=1)
 def get_config_loader() -> ConfigLoader:
@@ -94,6 +100,71 @@ async def get_auth_service(
         expiration_seconds=auth_config_adapter.get_expiration_seconds(),
     )
 
+@lru_cache(maxsize=1)
+def get_storage_config() -> StorageConfig:
+    return get_scaffold_config_adapter().get_storage_config()
+
+
+@lru_cache(maxsize=1)
+def get_cache_config() -> CacheConfig:
+    return get_scaffold_config_adapter().get_cache_config()
+
+
+@lru_cache(maxsize=1)
+def get_minio_client() -> Minio:
+    storage_config = get_storage_config()
+    endpoint = storage_config.endpoint
+    secure = endpoint.startswith("https://")
+    normalized_endpoint = endpoint.removeprefix("http://").removeprefix("https://")
+    return Minio(
+        endpoint=normalized_endpoint,
+        access_key=storage_config.access_key,
+        secret_key=storage_config.secret_key,
+        secure=secure,
+    )
+
+
+@lru_cache(maxsize=1)
+def get_redis_client() -> Redis:
+    cache_config = get_cache_config()
+    return Redis.from_url(cache_config.url, decode_responses=True)
+
+
+@lru_cache(maxsize=1)
+def get_minio_adapter() -> MinIOAdapter:
+    storage_config = get_storage_config()
+    return MinIOAdapter(
+        minio_client=get_minio_client(),
+        bucket_name="raw-images",
+        endpoint=storage_config.endpoint,
+    )
+
+@lru_cache(maxsize=1)
+def get_idempotency_adapter() -> IdempotencyAdapter:
+    return IdempotencyAdapter(redis_client=get_redis_client(), ttl_hours=24)
+
+async def get_upload_service(
+    db_session: AsyncSession = Depends(get_async_db_session),
+    minio_adapter: MinIOAdapter = Depends(get_minio_adapter),
+    idempotency_adapter: IdempotencyAdapter = Depends(get_idempotency_adapter),
+) -> UploadService:
+    postgres_adapter = PostgreSQLImageAdapter(db_session=db_session)
+    return UploadService(
+        minio_adapter=minio_adapter,
+        idempotency_adapter=idempotency_adapter,
+        postgres_adapter=postgres_adapter,
+    )
+
+async def get_storage_vector_service(
+    db_session: AsyncSession = Depends(get_async_db_session),
+) -> StorageVectorService:
+    adapter = StorageVectorAdapter(db_session=db_session)
+    global_config = get_scaffold_config_adapter().get_global_config()
+    return StorageVectorService(
+        adapter=adapter,
+        expected_vector_dim=global_config.vector_dim,
+    )
+
 
 __all__ = [
     "get_config_loader",
@@ -108,4 +179,12 @@ __all__ = [
     "get_auth_config_adapter",
     "get_token_generator",
     "get_auth_service",
+    "get_storage_config",
+    "get_cache_config",
+    "get_minio_client",
+    "get_redis_client",
+    "get_minio_adapter",
+    "get_idempotency_adapter",
+    "get_upload_service",
+    "get_storage_vector_service",
 ]

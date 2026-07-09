@@ -400,13 +400,13 @@ phase_3:
         - DELETE /friends/{friend_id} xóa CẢ 2 dòng đối xứng trong CÙNG 1 transaction
         - POST /friends/request trả 400 khi target_user_id = chính user hiện tại (self-friend, khớp CHECK constraint bảng friends)
         - POST /friends/request trả 409 khi quan hệ đã tồn tại
-        - Router friends_routers đã include vào app/main.py
+        - Router friends_routers đã include vào app/__init__.py
 
     - id: T003-03
       title: "[workflow:upload] Upload pipeline S1-S3 bundle (REBUILD, thu hẹp scope)"
       assigned_to: AG-03
       priority: P0
-      status: backlog
+      status: done
       description: >
         CHỈ chứa orchestration ĐỒNG BỘ của S1 (presigned URL), S3 (metadata
         pending). S2 là hành vi client (không code ở đây). S4-S5 ĐÃ TÁCH
@@ -419,7 +419,7 @@ phase_3:
         - POST /media/upload/confirm và POST /media/upload đều có response 409 hoạt động thật (không chỉ khai báo trong docs)
         - S3: sau confirm, images.index_status = 'pending' trong PostgreSQL (verify bằng query thật)
         - S3 compensating action: nếu PostgreSQL INSERT lỗi, MinIO object bị xóa (verify bằng test có mock lỗi DB)
-        - Router upload_routers đã include vào app/main.py
+        - Router upload_routers đã include vào app/__init__.py
 
     - id: T003-04
       title: "[workflow:indexing] Async embedding + indexing bundle + storage_vector endpoints (TÁCH RIÊNG, MỚI v1.2.0, MỞ RỘNG v1.2.1)"
@@ -507,7 +507,7 @@ phase_3:
       acceptance_criteria:
         - GET /media/{image_id} tồn tại như path riêng, hoạt động độc lập với /media/upload/confirm
         - DELETE /albums/{id} thực hiện soft delete (SET deleted_at), KHÔNG xóa cứng
-        - Router media_routers đã include vào app/main.py
+        - Router media_routers đã include vào app/__init__.py
 
     - id: T003-07
       title: "[workflow:evaluation] Evaluation Service bundle (REBUILD)"

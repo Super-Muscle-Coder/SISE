@@ -5,7 +5,7 @@
 #           Đảm bảo Output mà Project A cung cấp đáp ứng Input Project B mong muốn.
 # Writer  : Project Owner + AG-00
 # Reader  : Tất cả agents
-# Version : 1.2.1
+# Version : 1.2.2
 #
 # Changelog v1.2.0 (Cross-Module Contract Clarification Pass):
 #   - CẤU TRÚC MỚI: Toàn bộ tài liệu được gắn tag [CLAUSE A|B|C|D|E] cho từng
@@ -55,9 +55,12 @@
 #                     infra_compose_storage.yml rằng AG-02 không chạy HTTP service riêng.
 #                     /vector/index, /vector/search/hybrid chạy trên server AG-03, code
 #                     tách bộ file riêng (storage_vector_*) để giữ ranh giới trách nhiệm.
+# Changelog v1.2.2 — Bổ sung thêm điều khoản mới cho D:làm rõ khoảng trống: mọi hướng dẫn DI trước đây
+#                    (Depends()) chỉ áp dụng cho request-response cycle của FastAPI. Celery
+#                    worker chạy như 1 process độc lập, KHÔNG có request context.
 # =============================================================================
 
-schema_version: 1.2.1
+schema_version: 1.2.2
 migration_tool: alembic
 
 # =============================================================================
@@ -562,6 +565,23 @@ friends_management:
   delete_policy: >
     DELETE /friends/{friend_id} (unfriend) PHẢI xóa CẢ 2 dòng đối xứng
     trong cùng 1 transaction.
+
+# =============================================================================
+# [CLAUSE D] CẤU HÌNH CHO CELERY WORKER PROCESS (ngoài FastAPI request-scope)
+# MỚI THÊM v1.2.2 — làm rõ khoảng trống: mọi hướng dẫn DI trước đây
+# (Depends()) chỉ áp dụng cho request-response cycle của FastAPI. Celery
+# worker chạy như 1 process độc lập, KHÔNG có request context.
+# =============================================================================
+celery_worker_config_pattern:
+  rule: >
+    Trong indexing_celery_tasks.py, KHÔNG dùng fastapi.Depends() (không có
+    tác dụng ngoài request-scope). Được phép gọi trực tiếp
+    ScaffoldConfigAdapter().get_celery_config() /
+    get_ai_service_config() / v.v. tại module-level hoặc trong task
+    function — đây là ngoại lệ hợp lệ cho nguyên tắc DI-qua-constructor
+    (Workflow_Centric_Architecture.md §3.3), áp dụng RIÊNG cho Celery
+    worker process. KHÔNG tự os.getenv() trực tiếp — vẫn phải qua
+    ScaffoldConfigAdapter để giữ 1 nguồn đọc config duy nhất.
 
 # =============================================================================
 # [CLAUSE A] GHI CHÚ KỸ THUẬT

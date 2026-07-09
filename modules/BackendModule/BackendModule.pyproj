@@ -31,6 +31,7 @@
     <Compile Include="app\adapters\media_adapters.py" />
     <Compile Include="app\adapters\scaffold_adapters.py" />
     <Compile Include="app\adapters\search_adapters.py" />
+    <Compile Include="app\adapters\storage_vector_adapters.py" />
     <Compile Include="app\adapters\upload_adapters.py" />
     <Compile Include="app\adapters\__init__.py" />
     <Compile Include="app\dependencies.py" />
@@ -41,6 +42,7 @@
     <Compile Include="app\entities\media_entities.py" />
     <Compile Include="app\entities\scaffold_entities.py" />
     <Compile Include="app\entities\search_entities.py" />
+    <Compile Include="app\entities\storage_vector_entities.py" />
     <Compile Include="app\entities\upload_entities.py" />
     <Compile Include="app\entities\__init__.py" />
     <Compile Include="app\main.py" />
@@ -50,6 +52,7 @@
     <Compile Include="app\routers\health_routers.py" />
     <Compile Include="app\routers\media_routers.py" />
     <Compile Include="app\routers\search_routers.py" />
+    <Compile Include="app\routers\storage_vector_routers.py" />
     <Compile Include="app\routers\upload_routers.py" />
     <Compile Include="app\routers\__init__.py" />
     <Compile Include="app\services\auth_services.py" />
@@ -59,10 +62,9 @@
     <Compile Include="app\services\media_services.py" />
     <Compile Include="app\services\scaffold_services.py" />
     <Compile Include="app\services\search_services.py" />
+    <Compile Include="app\services\storage_vector_services.py" />
     <Compile Include="app\services\upload_services.py" />
     <Compile Include="app\services\__init__.py" />
-    <Compile Include="app\tasks\upload_celery_tasks.py" />
-    <Compile Include="app\tasks\__init__.py" />
     <Compile Include="app\__init__.py" />
     <Compile Include="backend_main.py" />
   </ItemGroup>
@@ -72,7 +74,6 @@
     <Folder Include="app\entities\" />
     <Folder Include="app\routers\" />
     <Folder Include="app\services\" />
-    <Folder Include="app\tasks\" />
     <Folder Include="configs\" />
     <Folder Include="documents\" />
     <Folder Include="documents\auth_workflow\" />

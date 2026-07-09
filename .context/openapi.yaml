@@ -4,7 +4,7 @@ info:
   description: >
     Production-ready contract for SISE.
 
-    v1.2.0 — Cross-Module Contract Clarification Pass:
+    v1.2.2 — Cross-Module Contract Clarification Pass:
     Mỗi path được gắn nhãn kép trong summary/description:
       [implemented_by: X] = module chịu trách nhiệm code/serve endpoint này.
       [called_by: Y]      = module (hoặc "Client") gọi endpoint này.
@@ -14,7 +14,7 @@ info:
     BackendModule (AG-03, vùng sửa chính của v1.2.0), E = FrontendModule
     (AG-04, chưa audit — chỉ đóng vai "called_by" trong tài liệu này).
 
-    Changelog v1.2.0 (so với v1.1.1):
+    Changelog v1.2.2 (so với v1.2.0):
       - [FIX Blocking#1] Tách GET getMediaMetadata (trước đây lồng sai vào
         path /media/upload/confirm, path parameter {image_id} không khớp
         URL template — vi phạm cấu trúc OpenAPI) ra path riêng /media/{image_id}.
@@ -51,7 +51,10 @@ info:
         2 endpoint /scaffold/status, /scaffold/validate-config (không có
         trong hợp đồng ở bản build trước, nay gộp vào readiness check chung
         thay vì tồn tại như path riêng ngoài kiểm soát).
-  version: 1.2.0
+      - Cập nhật điều khoản tại vector/index: response 201 mô tả rõ ràng rằng trong triển khai hiện tại 
+        (v1.2.2) endpoint này xử lý đồng bộ, trả status="completed" và job_id=null, không có cơ chế tra cứu 
+        job_id (dự phòng cho khả năng mở rộng tương lai).
+  version: 1.2.2
 servers:
   - url: http://localhost:8000
     description: "Local development gateway (FastAPI) — [implemented_by: D]"
@@ -847,14 +850,21 @@ paths:
               vector: [0.01, -0.02, 0.5]
       responses:
         '201':
-          description: Vector indexed successfully (may be async)
+          description: >
+            Vector indexed successfully. [LÀM RÕ v1.2.2] Trong phạm vi
+            triển khai hiện tại (đồ án tốt nghiệp, chưa có hạ tầng job
+            queue riêng cho việc tra cứu trạng thái), endpoint này XỬ LÝ
+            ĐỒNG BỘ — response 201 chỉ trả về sau khi UPDATE
+            images.embedding đã hoàn tất. status luôn là "completed",
+            job_id luôn là null (field giữ lại cho khả năng mở rộng
+            tương lai, không có endpoint tra cứu job_id ở v1.2.2).
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  status: { type: string, example: "accepted" }
-                  job_id: { type: string }
+                  status: { type: string, example: "completed", enum: [completed] }
+                  job_id: { type: string, nullable: true, example: null }
         '400':
           $ref: '#/components/responses/StandardError'
         '401':
