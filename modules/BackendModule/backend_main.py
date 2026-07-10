@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import socket
+import subprocess
 import time
 from pathlib import Path
 from urllib.parse import urlparse
@@ -83,20 +84,52 @@ def _wait_for_dependencies() -> None:
     _wait_for_tcp("redis", redis_host, redis_port, timeout_sec, retry_interval_sec)
 
 
+def _start_celery_worker() -> subprocess.Popen:
+    concurrency = os.getenv("CELERY_WORKER_CONCURRENCY", "4")
+    cmd = [
+        "celery",
+        "-A",
+        "app.tasks.indexing_celery_tasks",
+        "worker",
+        "--loglevel=info",
+        f"--concurrency={concurrency}",
+    ]
+    try:
+        process = subprocess.Popen(cmd)
+        print(f"[CELERY] Started worker with PID={process.pid}")
+        return process
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            "Celery CLI not found in PATH. Ensure 'celery' package is installed in the runtime image."
+        ) from exc
+
+
 def main() -> None:
     _load_environment()
     _wait_for_dependencies()
+
+    celery_process = _start_celery_worker()
 
     host = os.getenv("BACKEND_HOST", "0.0.0.0")
     port = int(os.getenv("BACKEND_PORT", "8000"))
     debug = os.getenv("DEBUG", "False").lower() == "true"
 
-    uvicorn.run(
-        "app:app",
-        host=host,
-        port=port,
-        reload=debug,
-    )
+    try:
+        uvicorn.run(
+            "app:app",
+            host=host,
+            port=port,
+            reload=debug,
+        )
+    finally:
+        celery_process.terminate()
+        try:
+            celery_process.wait(timeout=10)
+            print("[CELERY] Worker terminated gracefully")
+        except subprocess.TimeoutExpired:
+            celery_process.kill()
+            celery_process.wait()
+            print("[CELERY] Worker killed after timeout")
 
 
 if __name__ == "__main__":

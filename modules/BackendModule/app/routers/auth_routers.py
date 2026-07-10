@@ -71,7 +71,7 @@ async def login_user(
         if not auth_response:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid username or password",
+                detail={"code": "UNAUTHORIZED", "message": "Invalid username or password"},
             )
         return auth_response
     except HTTPException:
@@ -106,7 +106,7 @@ async def get_current_user(
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired token",
+                detail={"code": "UNAUTHORIZED", "message": "Invalid or expired token"},
             )
         return user
     except HTTPException:

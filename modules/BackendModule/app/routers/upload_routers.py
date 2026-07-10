@@ -72,7 +72,8 @@ async def request_presigned_url(
         return response
 
     except DuplicateIdempotencyKeyError as exc:
-        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content=exc.cached_response)
+        validated = PresignedUploadResponse(**exc.cached_response)
+        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content=validated.model_dump())
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -113,7 +114,8 @@ async def upload_legacy(
         return response
 
     except DuplicateIdempotencyKeyError as exc:
-        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content=exc.cached_response)
+        validated = UploadResponse(**exc.cached_response)
+        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content=validated.model_dump())
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -147,7 +149,8 @@ async def confirm_upload(
         return response
 
     except DuplicateIdempotencyKeyError as exc:
-        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content=exc.cached_response)
+        validated = UploadResponse(**exc.cached_response)
+        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content=validated.model_dump())
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

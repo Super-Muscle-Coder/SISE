@@ -3,7 +3,7 @@ Scaffold Entities: pure data models for configuration bundles.
 Depends on: None (domain layer only)
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -37,9 +37,24 @@ class StorageConfig:
 
 
 @dataclass
+class AIServiceConfig:
+    """AI Service (AG-01) integration configuration."""
+    url: str
+
+
+@dataclass
+class RetryPolicyConfig:
+    """Retry policy for transient failures (Celery tasks, external calls)."""
+    max_retries: int = 3
+    backoff_ms: int = 1000
+    factor: int = 2
+
+
+@dataclass
 class GlobalConfig:
     """Global shared configuration from contract-level global_configs."""
     vector_dim: int = 512
+    retry_policy: RetryPolicyConfig = field(default_factory=RetryPolicyConfig)
 
 
 @dataclass
@@ -80,4 +95,6 @@ __all__ = [
     "AuthConfig",
     "CeleryConfig",
     "PresignedURLConfig",
+    "AIServiceConfig",
+    "RetryPolicyConfig",
 ]

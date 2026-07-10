@@ -1,203 +1,164 @@
 """
-Evaluation Routers
-===================
-HTTP route handlers for evaluation endpoints.
-
-Endpoints:
-- POST /eval/run → Trigger evaluation (admin-only)
-- GET /eval/results/{eval_id} → Get evaluation results
-- GET /eval/metrics → Get aggregated metrics
+Evaluation Workflow Routers (HTTP Endpoints)
 """
 
-from uuid import UUID
+from __future__ import annotations
+
+import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.entities.evaluation_entities import (
-    EvaluationRunRequest,
-    EvaluationRunResponse,
-    EvaluationResultResponse,
-    EvaluationMetricsResponse,
+from app.dependencies import (
+    get_auth_service,
+    get_async_db_session,
+    get_evaluation_service,
 )
+from app.entities.auth_entities import User
+from app.services.auth_services import AuthService
 from app.services.evaluation_services import EvaluationService
 
+logger = logging.getLogger(__name__)
 
-# Placeholder dependency functions (to be replaced with real DI)
-def get_evaluation_service() -> EvaluationService:
-    """Placeholder: Get evaluation service instance."""
-    # TODO: Wire to FastAPI Depends() with real initialization
-    from app.adapters.evaluation_adapters import EvaluationAdapter
-
-    adapter = EvaluationAdapter(db_path="./data/evaluation.db")
-    return EvaluationService(adapter=adapter, eval_max_images=1000, eval_top_k=10)
+evaluation_router = APIRouter(prefix="", tags=["EvaluationService"])
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def get_current_user_id() -> int:
-    """Placeholder: Extract user ID from JWT token."""
-    # TODO: Wire to auth middleware
-    return 1
+async def get_current_authenticated_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> User:
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "UNAUTHORIZED", "message": "Authentication required"},
+        )
+    current_user = await auth_service.get_current_user(credentials.credentials)
+    if current_user is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "UNAUTHORIZED", "message": "Invalid or expired token"},
+        )
+    return current_user
 
 
-def verify_admin_role(user_id: int) -> bool:
-    """Placeholder: Verify user is admin."""
-    # TODO: Check user roles from database
-    return True
+async def verify_admin_role(db_session: AsyncSession, user_id: int) -> bool:
+    stmt = text("SELECT role FROM users WHERE id = :user_id")
+    result = await db_session.execute(stmt, {"user_id": user_id})
+    role = result.scalar_one_or_none()
+    return role == "admin"
 
 
-# Create router
-router = APIRouter(prefix="/eval", tags=["EvaluationService"])
-
-
-@router.post(
-    "/run",
-    response_model=EvaluationRunResponse,
-    status_code=status.HTTP_202_ACCEPTED,
-    summary="Trigger an evaluation run on indexed images",
-    description="Start an asynchronous evaluation job. Admin-only endpoint.",
-)
+@evaluation_router.post("/eval/run", status_code=status.HTTP_202_ACCEPTED)
 async def run_evaluation(
-    request: Optional[EvaluationRunRequest] = None,
-    user_id: int = Depends(get_current_user_id),
-    eval_service: EvaluationService = Depends(get_evaluation_service),
-) -> EvaluationRunResponse:
-    """
-    Trigger an evaluation run on indexed images (HTTP 202 Accepted).
-
-    This endpoint queues an async evaluation job. The actual evaluation
-    runs in a background worker (Celery).
-
-    Args:
-        request: Evaluation parameters (limit, seed)
-        user_id: Authenticated user ID
-        eval_service: Evaluation service instance
-
-    Returns:
-        EvaluationRunResponse with eval_id and status='running'
-
-    Raises:
-        HTTPException(403): If user is not admin
-        HTTPException(500): If job cannot be created
-    """
-    # Verify admin role
-    if not verify_admin_role(user_id):
+    payload: Optional[dict] = Body(default=None),
+    current_user: User = Depends(get_current_authenticated_user),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db_session: AsyncSession = Depends(get_async_db_session),
+    service: EvaluationService = Depends(get_evaluation_service),
+):
+    if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
+            status_code=401,
+            detail={"code": "UNAUTHORIZED", "message": "Authentication required"},
         )
 
-    # Use defaults if no request body provided
-    if request is None:
-        request = EvaluationRunRequest()
+    is_admin = await verify_admin_role(db_session=db_session, user_id=current_user.id)
+    if not is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "ERR_FORBIDDEN_ADMIN_ONLY",
+                "message": "This endpoint requires admin role",
+            },
+        )
+
+    limit = 100
+    seed: Optional[int] = None
+    if payload:
+        if "limit" in payload:
+            try:
+                limit = int(payload["limit"])
+            except Exception:
+                raise HTTPException(
+                    status_code=400,
+                    detail={"code": "BAD_REQUEST", "message": "limit must be integer"},
+                )
+        if "seed" in payload and payload["seed"] is not None:
+            try:
+                seed = int(payload["seed"])
+            except Exception:
+                raise HTTPException(
+                    status_code=400,
+                    detail={"code": "BAD_REQUEST", "message": "seed must be integer"},
+                )
+
+    if limit <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "BAD_REQUEST", "message": "limit must be > 0"},
+        )
 
     try:
-        response = await eval_service.trigger_evaluation(
-            limit=request.limit,
-            seed=request.seed,
-            created_by=user_id,
+        result = await service.trigger_evaluation(
+            created_by=current_user.id,
+            bearer_token=credentials.credentials,
+            limit=limit,
+            seed=seed,
         )
-        return response
-    except Exception as e:
+        return result
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("run_evaluation failed")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to start evaluation: {str(e)}",
+            status_code=500,
+            detail={"code": "INTERNAL_ERROR", "message": "Failed to run evaluation"},
         )
 
 
-@router.get(
-    "/results/{eval_id}",
-    response_model=EvaluationResultResponse,
-    summary="Retrieve results of a completed evaluation run",
-    description="Get detailed evaluation results including MRR, HitRate, Precision, Recall.",
-)
+@evaluation_router.get("/eval/results/{eval_id}")
 async def get_evaluation_results(
-    eval_id: UUID,
-    user_id: int = Depends(get_current_user_id),
-    eval_service: EvaluationService = Depends(get_evaluation_service),
-) -> EvaluationResultResponse:
-    """
-    Retrieve results of a completed evaluation run.
-
-    Args:
-        eval_id: Unique evaluation ID
-        user_id: Authenticated user ID (for audit)
-        eval_service: Evaluation service instance
-
-    Returns:
-        EvaluationResultResponse with metrics and status
-
-    Raises:
-        HTTPException(404): If evaluation not found
-    """
-    result = eval_service.get_evaluation_result(eval_id)
-
-    if not result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Evaluation run {eval_id} not found",
-        )
-
-    return EvaluationResultResponse(
-        eval_id=result.eval_id,
-        status=result.status,
-        mrr=result.metrics.mrr,
-        hit_rate=result.metrics.hit_rate,
-        precision=result.metrics.precision,
-        recall=result.metrics.recall,
-        query_count=result.query_count,
-        completed_at=result.completed_at,
-    )
-
-
-@router.get(
-    "/metrics",
-    response_model=EvaluationMetricsResponse,
-    summary="Retrieve performance benchmarking indices (MRR, HitRate, Precision, Recall)",
-    description="Get aggregated metrics across all completed evaluation runs.",
-)
-async def get_evaluation_metrics(
-    user_id: int = Depends(get_current_user_id),
-    eval_service: EvaluationService = Depends(get_evaluation_service),
-) -> EvaluationMetricsResponse:
-    """
-    Retrieve performance benchmarking indices.
-
-    Returns aggregated metrics (averages) across all completed evaluations.
-
-    Args:
-        user_id: Authenticated user ID
-        eval_service: Evaluation service instance
-
-    Returns:
-        EvaluationMetricsResponse with aggregated metrics
-
-    Raises:
-        HTTPException(500): If metrics cannot be computed
-    """
+    eval_id: str = Path(..., description="Evaluation run ID"),
+    _current_user: User = Depends(get_current_authenticated_user),
+    service: EvaluationService = Depends(get_evaluation_service),
+):
     try:
-        metrics = eval_service.get_aggregated_metrics()
-
-        if metrics is None:
-            # No completed evaluations yet; return zeros
-            metrics = EvaluationMetricsResponse(
-                mrr=0.0,
-                hit_rate=0.0,
-                precision=0.0,
-                recall=0.0,
+        result = await service.get_evaluation_results(eval_id)
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "EVAL_NOT_FOUND", "message": "Evaluation result not found"},
             )
-            return metrics
-
-        return EvaluationMetricsResponse(
-            mrr=metrics.mrr,
-            hit_rate=metrics.hit_rate,
-            precision=metrics.precision,
-            recall=metrics.recall,
-        )
-    except Exception as e:
+        return result
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("get_evaluation_results failed")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve metrics: {str(e)}",
+            status_code=500,
+            detail={"code": "INTERNAL_ERROR", "message": "Failed to get evaluation results"},
         )
 
 
-__all__ = ["router"]
+@evaluation_router.get("/eval/metrics")
+async def get_evaluation_metrics(
+    _current_user: User = Depends(get_current_authenticated_user),
+    service: EvaluationService = Depends(get_evaluation_service),
+):
+    try:
+        return await service.get_latest_metrics()
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("get_evaluation_metrics failed")
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "INTERNAL_ERROR", "message": "Failed to get evaluation metrics"},
+        )
+
+
+__all__ = ["evaluation_router"]

@@ -276,11 +276,7 @@ class PostgreSQLImageAdapter:
         row = result.mappings().first()
         return dict(row) if row else None
 
-    async def update_index_status(
-        self,
-        image_id: str,
-        status: str,
-    ) -> None:
+    async def update_index_status(self, image_id: str, status: str) -> None:
         valid_statuses = {"pending", "ready", "failed"}
         if status not in valid_statuses:
             raise ValueError(f"Invalid index_status: {status}")
@@ -290,6 +286,7 @@ class PostgreSQLImageAdapter:
             UPDATE images
             SET index_status = :status
             WHERE id = :image_id
+              AND deleted_at IS NULL
             """
         )
 

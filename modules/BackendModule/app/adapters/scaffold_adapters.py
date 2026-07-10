@@ -10,6 +10,8 @@ from ..entities.scaffold_entities import (
     AppConfig,
     DatabaseConfig,
     StorageConfig,
+    AIServiceConfig,
+    RetryPolicyConfig,
     GlobalConfig,
     CacheConfig,
     AuthConfig,
@@ -53,8 +55,20 @@ class ConfigLoader:
         )
 
     @staticmethod
+    def get_ai_service_config() -> AIServiceConfig:
+        return AIServiceConfig(url=_read_required_env("AI_SERVICE_URL"))
+
+    @staticmethod
     def get_global_config() -> GlobalConfig:
-        return GlobalConfig(vector_dim=int(os.getenv("VECTOR_DIM", "512")))
+        retry_policy = RetryPolicyConfig(
+            max_retries=int(os.getenv("RETRY_MAX_RETRIES", "3")),
+            backoff_ms=int(os.getenv("RETRY_BACKOFF_MS", "1000")),
+            factor=int(os.getenv("RETRY_FACTOR", "2")),
+        )
+        return GlobalConfig(
+            vector_dim=int(os.getenv("VECTOR_DIM", "512")),
+            retry_policy=retry_policy,
+        )
 
     @staticmethod
     def get_cache_config() -> CacheConfig:
@@ -101,6 +115,7 @@ class ScaffoldConfigAdapter:
             "app": self.loader.get_app_config(),
             "database": self.loader.get_database_config(),
             "storage": self.loader.get_storage_config(),
+            "ai_service": self.loader.get_ai_service_config(),
             "global": self.loader.get_global_config(),
             "cache": self.loader.get_cache_config(),
             "auth": self.loader.get_auth_config(),
@@ -142,8 +157,6 @@ class ScaffoldConfigAdapter:
         if presigned_cfg.expiry_sec <= 0:
             raise ValueError("PRESIGNED_URL_EXPIRY_SEC must be positive")
 
-        # NOTE (finding #1): /vector/index và /vector/search/hybrid sẽ được triển khai
-        # trong namespace riêng storage_vector_* ở task T003-04 (workflow:indexing), không thuộc scaffold.
         return True
 
     def get_app_config(self) -> AppConfig:
@@ -154,6 +167,9 @@ class ScaffoldConfigAdapter:
 
     def get_storage_config(self) -> StorageConfig:
         return self.loader.get_storage_config()
+
+    def get_ai_service_config(self) -> AIServiceConfig:
+        return self.loader.get_ai_service_config()
 
     def get_global_config(self) -> GlobalConfig:
         return self.loader.get_global_config()

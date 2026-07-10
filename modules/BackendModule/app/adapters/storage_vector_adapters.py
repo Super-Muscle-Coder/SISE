@@ -24,8 +24,7 @@ class StorageVectorAdapter:
         stmt = text(
             """
             UPDATE images
-            SET embedding = CAST(:vector_str AS vector),
-                index_status = 'ready'
+            SET embedding = CAST(:vector_str AS vector)
             WHERE id = :image_id
               AND deleted_at IS NULL
             """

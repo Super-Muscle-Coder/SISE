@@ -28,6 +28,7 @@
     <Compile Include="app\adapters\evaluation_adapters.py" />
     <Compile Include="app\adapters\friends_adapters.py" />
     <Compile Include="app\adapters\health_adapters.py" />
+    <Compile Include="app\adapters\indexing_adapters.py" />
     <Compile Include="app\adapters\media_adapters.py" />
     <Compile Include="app\adapters\scaffold_adapters.py" />
     <Compile Include="app\adapters\search_adapters.py" />
@@ -39,17 +40,18 @@
     <Compile Include="app\entities\evaluation_entities.py" />
     <Compile Include="app\entities\friends_entities.py" />
     <Compile Include="app\entities\health_entities.py" />
+    <Compile Include="app\entities\indexing_entities.py" />
     <Compile Include="app\entities\media_entities.py" />
     <Compile Include="app\entities\scaffold_entities.py" />
     <Compile Include="app\entities\search_entities.py" />
     <Compile Include="app\entities\storage_vector_entities.py" />
     <Compile Include="app\entities\upload_entities.py" />
     <Compile Include="app\entities\__init__.py" />
-    <Compile Include="app\main.py" />
     <Compile Include="app\routers\auth_routers.py" />
     <Compile Include="app\routers\evaluation_routers.py" />
     <Compile Include="app\routers\friends_routers.py" />
     <Compile Include="app\routers\health_routers.py" />
+    <Compile Include="app\tasks\indexing_celery_tasks.py" />
     <Compile Include="app\routers\media_routers.py" />
     <Compile Include="app\routers\search_routers.py" />
     <Compile Include="app\routers\storage_vector_routers.py" />
@@ -59,6 +61,7 @@
     <Compile Include="app\services\evaluation_services.py" />
     <Compile Include="app\services\friends_services.py" />
     <Compile Include="app\services\health_services.py" />
+    <Compile Include="app\services\indexing_services.py" />
     <Compile Include="app\services\media_services.py" />
     <Compile Include="app\services\scaffold_services.py" />
     <Compile Include="app\services\search_services.py" />
@@ -72,6 +75,7 @@
     <Folder Include="app\" />
     <Folder Include="app\adapters\" />
     <Folder Include="app\entities\" />
+    <Folder Include="app\tasks\" />
     <Folder Include="app\routers\" />
     <Folder Include="app\services\" />
     <Folder Include="configs\" />

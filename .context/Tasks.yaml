@@ -373,16 +373,10 @@ phase_3:
         - User schema response bao gồm field role
         - Router auth_routers đã include vào app/__init__.py — verify qua GET /openapi.json
       notes_from_ag00: >
-        [GHI NHẬN NỢ KỸ THUẬT — v1.2.1] Response 401 (Unauthorized) hiện trả
-        detail dạng string thuần ở auth_routers.py, không khớp Error schema
-        {code, message} bắt buộc (openapi.yaml components.responses.Unauthorized
-        → $ref Error). Đây là pattern DÙNG CHUNG cho mọi endpoint có
-        security: [BearerAuth] (gần như toàn bộ 10 workflow), nên KHÔNG vá lẻ
-        từng nơi — chờ đủ 2-3 workflow nữa (ví dụ sau T003-02 friends, T003-06
-        media) để thấy rõ hết các biến thể, rồi tạo 1 task riêng thiết kế
-        helper/dependency dùng chung (ví dụ raise_unauthorized() trong
-        dependencies.py) áp dụng đồng loạt. Không tạo task con lẻ tẻ cho từng
-        workflow.
+        [ĐÃ XỬ LÝ — v1.2.2] Response 401 đã được chuẩn hóa {code: "UNAUTHORIZED",
+        message: ...} khớp Error schema, đồng bộ với pattern đã dùng nhất quán ở
+        friends/upload/storage_vector. Không cần task middleware riêng nữa — mọi
+        workflow từ T003-02 trở đi đã tự chuẩn hóa đúng ngay từ đầu.
 
     - id: T003-02
       title: "[workflow:friends] Friends management bundle (MỚI v1.2.0)"
@@ -471,12 +465,24 @@ phase_3:
         - storage_vector_routers.py expose ĐÚNG 2 path POST /vector/index, POST /vector/search/hybrid, khớp 100% schema request/response trong openapi.yaml v1.2.0
         - Router storage_vector_routers đã include vào app/__init__.py
         - Không có SQLAlchemy trực tiếp vào cột images.embedding ở bất kỳ file nào khác NGOÀI storage_vector_adapters.py (đây là nơi DUY NHẤT hợp lệ để chạm cột embedding)
+      notes_from_ag00: >
+        ... (giữ nguyên nội dung cũ) ...
+        [GHI NHẬN — chờ verify build thật] backend_requirements.txt đã được bổ
+        sung đầy đủ dependency (sqlalchemy, asyncpg, minio, celery, redis,
+        python-jose, bcrypt, httpx, email-validator, python-multipart) và
+        backend_main.py đã thêm cơ chế khởi động Celery worker song song
+        (subprocess). CHƯA verify bằng build Docker thật — 3 điểm cần xác nhận:
+        (1) version compatibility với python:3.13-slim, (2) module path
+        app.tasks.indexing_celery_tasks import được (cần app/tasks/__init__.py
+        tồn tại), (3) celery CLI có trong PATH sau pip install. Project Owner
+        sẽ tự build và báo kết quả — CHƯA coi Phase 3 hạ tầng là đóng hoàn toàn
+        cho tới khi có xác nhận build thành công.
 
     - id: T003-05
       title: "[workflow:search] Search Service (image + text) bundle (REBUILD)"
       assigned_to: AG-03
       priority: P0
-      status: backlog
+      status: done
       description: >
         POST /search/image, POST /search/text. App-level wrapper: gọi C
         (POST /inference/embed/*) rồi gọi B (POST /vector/search/hybrid).
@@ -495,7 +501,7 @@ phase_3:
       title: "[workflow:media] Album & Media CRUD bundle (REBUILD)"
       assigned_to: AG-03
       priority: P1
-      status: backlog
+      status: done
       description: >
         GET/POST /albums, GET/PUT/DELETE /albums/{id}, GET /media/{image_id}
         (path riêng — Blocking#1 đã sửa ở openapi.yaml, code phải khớp
@@ -513,7 +519,7 @@ phase_3:
       title: "[workflow:evaluation] Evaluation Service bundle (REBUILD)"
       assigned_to: AG-03
       priority: P1
-      status: backlog
+      status: done
       description: >
         POST /eval/run (admin only), GET /eval/results/{eval_id}, GET
         /eval/metrics. MRR/HitRate/Precision/Recall computation. Quyền

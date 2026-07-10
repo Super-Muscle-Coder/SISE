@@ -9,6 +9,7 @@ from time import perf_counter
 from typing import Any
 
 from ..adapters.storage_vector_adapters import StorageVectorAdapter
+from ..adapters.upload_adapters import MinIOAdapter
 from ..entities.storage_vector_entities import (
     FilterExpression,
     IndexVectorResponse,
@@ -24,9 +25,15 @@ class VectorDimensionMismatchError(ValueError):
 
 
 class StorageVectorService:
-    def __init__(self, adapter: StorageVectorAdapter, expected_vector_dim: int):
+    def __init__(
+        self,
+        adapter: StorageVectorAdapter,
+        expected_vector_dim: int,
+        minio_adapter: MinIOAdapter,
+    ):
         self.adapter = adapter
         self.expected_vector_dim = expected_vector_dim
+        self.minio_adapter = minio_adapter
         self._param_counter = 0
 
     def _new_param_name(self) -> str:
@@ -64,7 +71,10 @@ class StorageVectorService:
 
         items: list[SearchResultItem] = []
         for row in rows:
-            minio_url = f"minio://{row['minio_bucket']}/{row['minio_object_name']}"
+            minio_url = await self.minio_adapter.generate_presigned_get_url(
+                object_key=row["minio_object_name"],
+                expires_in_sec=3600,
+            )
             metadata = ImageMetadata(
                 image_id=row["image_id"],
                 user_id=row["user_id"],

@@ -10,7 +10,7 @@ Constraints:
 - tags: JSONB array of strings
 """
 
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
@@ -90,13 +90,11 @@ class ImageMetadata(BaseModel):
     image_id: str = Field(..., description="Image UUID")
     user_id: int = Field(..., description="Owner user ID")
     album_id: Optional[int] = Field(None, description="Album ID")
-    minio_url: str = Field(..., description="Presigned MinIO URL")
+    minio_url: str = Field(..., description="MinIO URL")
     privacy_level: int = Field(..., ge=0, le=2, description="Privacy level")
     tags: Optional[List[str]] = Field(None, description="Tags array")
     created_at: datetime = Field(..., description="Creation timestamp")
-    updated_at: datetime = Field(..., description="Last update timestamp")
     index_status: str = Field(..., description="Index status: pending/ready/failed")
-    deleted_at: Optional[datetime] = Field(None, description="Soft delete timestamp")
 
 
 class ImageListResponse(BaseModel):

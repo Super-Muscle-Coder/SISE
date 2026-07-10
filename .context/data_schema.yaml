@@ -51,16 +51,29 @@
 # Changelog v1.1.0: Thay thế Milvus bằng pgvector (extension `vector` trên PostgreSQL)
 #                   làm vector store. Xem section database_spec.postgresql.pgvector.
 # Changelog v1.2.1 — sửa phát sinh từ audit workflow scaffold
-#                   - [CLAUSE D] XÓA required_env_vars.STORAGE_SERVICE_URL — xác minh qua
-#                     infra_compose_storage.yml rằng AG-02 không chạy HTTP service riêng.
-#                     /vector/index, /vector/search/hybrid chạy trên server AG-03, code
-#                     tách bộ file riêng (storage_vector_*) để giữ ranh giới trách nhiệm.
+#                  - [CLAUSE D] XÓA required_env_vars.STORAGE_SERVICE_URL — xác minh qua
+#                    infra_compose_storage.yml rằng AG-02 không chạy HTTP service riêng.
+#                    /vector/index, /vector/search/hybrid chạy trên server AG-03, code
+#                    tách bộ file riêng (storage_vector_*) để giữ ranh giới trách nhiệm.
 # Changelog v1.2.2 — Bổ sung thêm điều khoản mới cho D:làm rõ khoảng trống: mọi hướng dẫn DI trước đây
 #                    (Depends()) chỉ áp dụng cho request-response cycle của FastAPI. Celery
 #                    worker chạy như 1 process độc lập, KHÔNG có request context.
+# Changelog v1.2.3 (Evaluation workflow — T003-07):
+#                   - [CLAUSE D] APPEND 2 bảng mới: evaluation_runs, evaluation_metrics.
+#                   Lý do: workflow evaluation (T003-07) trước đây dùng SQLite
+#                   (./data/evaluation.db) — vi phạm kiến trúc vì (1) không nằm trong
+#                   required_env_vars chính thức, (2) container Backend không có volume
+#                   bền vững cho filesystem — dữ liệu mất khi container restart, (3)
+#                   backup_and_dr chỉ bao gồm PostgreSQL/MinIO, (4) không nhất quán với
+#                   mọi workflow khác đều dùng PostgreSQL qua AsyncSession. Chuyển toàn
+#                   bộ sang PostgreSQL để tận dụng hạ tầng đã có, không tạo thêm nguồn
+#                   dữ liệu mới.
+#                   - Đánh giá (POST /eval/run) CHẠY ĐỒNG BỘ trong request — không dùng
+#                   Celery — theo đúng Tasks.yaml T003-07 (vốn không yêu cầu Celery,
+#                   khác biệt rõ với T003-04 indexing).
 # =============================================================================
 
-schema_version: 1.2.2
+schema_version: 1.2.3 
 migration_tool: alembic
 
 # =============================================================================
@@ -288,7 +301,32 @@ database_spec:
           - CREATE INDEX IF NOT EXISTS idx_images_tags_gin ON images USING gin (tags)
           - CREATE INDEX IF NOT EXISTS idx_images_index_status ON images (index_status)
           - "CREATE INDEX IF NOT EXISTS idx_images_embedding_hnsw ON images USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 200)"
+  
+      evaluation_runs:
+        description: Lịch sử các lần chạy đánh giá benchmark (MRR/HitRate/Precision/Recall)
+        owner: D                          # [CLAUSE D] — bảng nghiệp vụ AG-03, không phải Clause B
+        columns:
+          eval_id:       UUID PRIMARY KEY DEFAULT gen_random_uuid()
+          status:        "VARCHAR(20) NOT NULL CHECK (status IN ('pending','running','completed','failed'))"
+          query_count:   INTEGER DEFAULT 0
+          limit_images:  INTEGER
+          seed:          INTEGER
+          created_by:    INTEGER REFERENCES users(id)
+          started_at:    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          completed_at:  TIMESTAMP WITH TIME ZONE NULL
+        indexes:
+          - CREATE INDEX IF NOT EXISTS idx_evaluation_runs_status ON evaluation_runs (status)
 
+      evaluation_metrics:
+        description: Kết quả metrics đã tính cho mỗi evaluation_run
+        owner: D
+        columns:
+          eval_id:      UUID PRIMARY KEY REFERENCES evaluation_runs(eval_id) ON DELETE CASCADE
+          mrr:          REAL NOT NULL
+          hit_rate:     REAL NOT NULL
+          precision:    REAL NOT NULL
+          recall:       REAL NOT NULL
+          computed_at:  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
   # ---------------------------------------------------------------------
   # [CLAUSE B — KHÓA HOÀN TOÀN, KHÔNG THAY ĐỔI GÌ SO VỚI v1.1.0]
   # pgvector (thay thế Milvus — vector store nằm ngay trong PostgreSQL)
@@ -518,6 +556,12 @@ backend_owned_resources:
       reason: >
         metadata ảnh (privacy_level, tags, index_status, minio_object_name,
         v.v.) thuộc nghiệp vụ AG-03 theo đúng S3/S5 upload_pipeline.
+    - table: evaluation_runs
+      columns: "TẤT CẢ"
+      reason: "Nghiệp vụ evaluation (benchmark MRR/HitRate/Precision/Recall) thuộc AG-03"
+    - table: evaluation_metrics
+      columns: "TẤT CẢ"
+      reason: "Kết quả tính toán benchmark, lưu trữ nội bộ AG-03"
 
   rest_required_no_direct_sql:
     - column: "images.embedding"

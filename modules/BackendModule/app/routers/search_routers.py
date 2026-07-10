@@ -1,163 +1,152 @@
 """
-Search workflow routers: HTTP endpoints for search operations.
-Prefix: search_
+Search workflow routers.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Optional
 
-from fastapi import APIRouter, File, Form, UploadFile, Depends, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from ..entities.search_entities import (
-    SearchResponse,
-    SearchByImageRequest,
-    SearchByTextRequest,
-)
+from ..dependencies import get_auth_service, get_search_service
+from ..entities.auth_entities import User
+from ..entities.search_entities import MetricType, SearchByImageRequest, SearchByTextRequest, SearchResponse
+from ..services.auth_services import AuthService
 from ..services.search_services import SearchService
 
 logger = logging.getLogger(__name__)
 
-# Create router with /search prefix
-search_router = APIRouter(prefix="/search", tags=["Search"])
+router = APIRouter(prefix="/search", tags=["Search"])
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
-async def get_search_service() -> SearchService:
-    """
-    Dependency injection placeholder for SearchService.
-    In production, this will be wired with real adapters via DI container.
-    """
-    # Placeholder - real implementation will inject MilvusSearchAdapter, etc.
-    raise NotImplementedError("DI wiring for SearchService not yet implemented")
+async def get_current_authenticated_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> User:
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "UNAUTHORIZED", "message": "Authentication required"},
+        )
+    current_user = await auth_service.get_current_user(credentials.credentials)
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "UNAUTHORIZED", "message": "Invalid or expired token"},
+        )
+    return current_user
 
 
-@search_router.post(
-    "/image",
-    response_model=SearchResponse,
-    summary="Search by image (app-level wrapper around inference + hybrid search)",
-    status_code=status.HTTP_200_OK,
-)
+@router.post("/image", response_model=SearchResponse, status_code=status.HTTP_200_OK)
 async def search_by_image(
-    file: UploadFile = File(..., description="Image file for search"),
-    top_k: int = Form(10, description="Number of top results"),
-    metric: str = Form("COSINE", description="Similarity metric: L2, IP, COSINE"),
-    album_id: Optional[int] = Form(None, description="Optional album filter"),
-    current_user_id: int = Depends(lambda: 1),  # Placeholder - will be from JWT token
+    file: UploadFile = File(...),
+    top_k: int = Form(default=10),
+    metric: MetricType = Form(default=MetricType.COSINE),
+    album_id: int | None = Form(default=None),
+    current_user: User = Depends(get_current_authenticated_user),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     search_service: SearchService = Depends(get_search_service),
 ) -> SearchResponse:
-    """
-    Search for similar images using an uploaded image query.
-
-    Args:
-        file: Image file to search by
-        top_k: Number of results (default 10)
-        metric: Similarity metric (default COSINE)
-        album_id: Optional album filter
-        current_user_id: Authenticated user ID from JWT token
-        search_service: SearchService from DI
-
-    Returns:
-        SearchResponse with top-k similar images, latency, and metadata
-
-    Raises:
-        400: Bad request (invalid image, dimension mismatch, etc.)
-        401: Unauthorized (invalid JWT)
-        500: Internal server error
-    """
-    logger.info(f"POST /search/image called by user {current_user_id}")
-
     try:
-        # Read image file bytes
-        image_bytes = await file.read()
-        if not image_bytes:
+        if credentials is None or credentials.scheme.lower() != "bearer":
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Image file is empty",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"code": "UNAUTHORIZED", "message": "Authentication required"},
             )
 
-        # Parse request parameters
-        search_request = SearchByImageRequest(
+        file_bytes = await file.read()
+        if not file_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "BAD_REQUEST", "message": "Uploaded file is empty"},
+            )
+
+        req = SearchByImageRequest(
             top_k=top_k,
             metric=metric,
             album_id=album_id,
         )
 
-        # Perform search
-        response = await search_service.search_by_image(
-            image_bytes=image_bytes,
-            current_user_id=current_user_id,
-            request=search_request,
+        return await search_service.search_by_image(
+            request=req,
+            image_bytes=file_bytes,
+            filename=file.filename or "query_image.bin",
+            current_user_id=current_user.id,
+            bearer_token=credentials.credentials,
         )
 
-        return response
-
-    except ValueError as e:
-        # Vector dimension mismatch or other validation error
-        logger.warning(f"Validation error in image search: {str(e)}")
+    except HTTPException:
+        raise
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-    except Exception as e:
-        logger.error(f"Error in image search: {str(e)}")
+            detail={"code": "BAD_REQUEST", "message": str(exc)},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "UNAUTHORIZED", "message": str(exc)},
+        ) from exc
+    except RuntimeError as exc:
+        logger.exception("Transient/internal error while searching by image")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during image search",
+            detail={"code": "INTERNAL_ERROR", "message": str(exc)},
+        ) from exc
+    except Exception:
+        logger.exception("Unexpected error while searching by image")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "INTERNAL_ERROR", "message": "Internal server error"},
         )
 
 
-@search_router.post(
-    "/text",
-    response_model=SearchResponse,
-    summary="Search by text query (app-level wrapper around text embedding + hybrid search)",
-    status_code=status.HTTP_200_OK,
-)
+@router.post("/text", response_model=SearchResponse, status_code=status.HTTP_200_OK)
 async def search_by_text(
     request: SearchByTextRequest,
-    current_user_id: int = Depends(lambda: 1),  # Placeholder - will be from JWT token
+    current_user: User = Depends(get_current_authenticated_user),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     search_service: SearchService = Depends(get_search_service),
 ) -> SearchResponse:
-    """
-    Search for images using a text query.
-
-    Args:
-        request: SearchByTextRequest with query_text, top_k, metric, album_id
-        current_user_id: Authenticated user ID from JWT token
-        search_service: SearchService from DI
-
-    Returns:
-        SearchResponse with top-k images matching text query
-
-    Raises:
-        400: Bad request (invalid query, dimension mismatch, etc.)
-        401: Unauthorized (invalid JWT)
-        500: Internal server error
-    """
-    logger.info(f"POST /search/text called by user {current_user_id}, query='{request.query_text[:50]}...'")
-
     try:
-        # Perform search
-        response = await search_service.search_by_text(
-            query_text=request.query_text,
-            current_user_id=current_user_id,
+        if credentials is None or credentials.scheme.lower() != "bearer":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"code": "UNAUTHORIZED", "message": "Authentication required"},
+            )
+
+        return await search_service.search_by_text(
             request=request,
+            current_user_id=current_user.id,
+            bearer_token=credentials.credentials,
         )
 
-        return response
-
-    except ValueError as e:
-        # Vector dimension mismatch or other validation error
-        logger.warning(f"Validation error in text search: {str(e)}")
+    except HTTPException:
+        raise
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-    except Exception as e:
-        logger.error(f"Error in text search: {str(e)}")
+            detail={"code": "BAD_REQUEST", "message": str(exc)},
+        ) from exc
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "UNAUTHORIZED", "message": str(exc)},
+        ) from exc
+    except RuntimeError as exc:
+        logger.exception("Transient/internal error while searching by text")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during text search",
+            detail={"code": "INTERNAL_ERROR", "message": str(exc)},
+        ) from exc
+    except Exception:
+        logger.exception("Unexpected error while searching by text")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "INTERNAL_ERROR", "message": "Internal server error"},
         )
 
 
-__all__ = ["search_router"]
+__all__ = ["router"]

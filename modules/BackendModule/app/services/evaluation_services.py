@@ -1,288 +1,265 @@
 """
-Evaluation Service
-===================
-Business logic for running evaluations, computing metrics, and managing evaluation lifecycle.
-
-Responsibilities:
-- Trigger evaluation jobs
-- Compute MRR, HitRate, Precision, Recall
-- Persist results
-- Provide aggregated metrics
+Evaluation Workflow Service (Business Logic Layer)
 """
 
-import asyncio
-import random
-from uuid import UUID, uuid4
-from typing import Optional, List, Tuple
-from datetime import datetime
+from __future__ import annotations
+
+import logging
+from datetime import timedelta
+from typing import Optional, Any
+
+import httpx
 
 from app.adapters.evaluation_adapters import EvaluationAdapter
-from app.entities.evaluation_entities import (
-    EvaluationStatus,
-    EvaluationMetrics,
-    EvaluationResult,
-    EvaluationRunResponse,
-)
+from app.adapters.upload_adapters import MinIOAdapter
+
+logger = logging.getLogger(__name__)
 
 
 class EvaluationService:
-    """
-    Service for running and managing evaluation jobs.
-    Computes metrics like MRR, HitRate, Precision, and Recall.
-    """
-
     def __init__(
         self,
-        adapter: EvaluationAdapter,
-        eval_max_images: int = 1000,
-        eval_top_k: int = 10,
+        evaluation_adapter: EvaluationAdapter,
+        minio_adapter: MinIOAdapter,
+        ai_service_url: str,
+        vector_service_base_url: str,
+        http_timeout_sec: int = 30,
+        eval_max_images: int = 100,
+        top_k: int = 10,
     ):
-        """
-        Initialize the evaluation service.
-
-        Args:
-            adapter: EvaluationAdapter for persistence
-            eval_max_images: Maximum number of images to evaluate
-            eval_top_k: Top-K results to consider for evaluation metrics
-        """
-        self.adapter = adapter
+        self.evaluation_adapter = evaluation_adapter
+        self.minio_adapter = minio_adapter
+        self.ai_service_url = ai_service_url.rstrip("/")
+        self.vector_service_base_url = vector_service_base_url.rstrip("/")
+        self.http_timeout_sec = http_timeout_sec
         self.eval_max_images = eval_max_images
-        self.eval_top_k = eval_top_k
+        self.top_k = top_k
 
-    async def trigger_evaluation(
-        self,
-        limit: Optional[int] = None,
-        seed: Optional[int] = None,
-        created_by: Optional[int] = None,
-    ) -> EvaluationRunResponse:
-        """
-        Trigger a new evaluation run (async).
-
-        This is a placeholder implementation that:
-        1. Creates an evaluation run record
-        2. Returns immediately with eval_id (job runs in background)
-        3. Actual evaluation would be queued to Celery worker
-
-        Args:
-            limit: Max number of images to evaluate (default: eval_max_images)
-            seed: Random seed for reproducibility
-            created_by: User ID (optional)
-
-        Returns:
-            EvaluationRunResponse with eval_id and status
-        """
-        eval_id = uuid4()
-        limit = limit or self.eval_max_images
-        limit = min(limit, self.eval_max_images)
-
-        # Create run record
-        self.adapter.create_evaluation_run(
-            eval_id=eval_id,
-            limit_images=limit,
-            seed=seed,
-            created_by=created_by,
+    async def _fetch_image_bytes(self, bucket_name: str, object_name: str) -> bytes:
+        response = self.minio_adapter.client.get_object(
+            bucket_name=bucket_name,
+            object_name=object_name,
         )
+        try:
+            return response.read()
+        finally:
+            response.close()
+            response.release_conn()
 
-        # TODO: Queue to Celery worker for async execution
-        # For now, this just accepts the request
-
-        return EvaluationRunResponse(
-            eval_id=eval_id,
-            status=EvaluationStatus.RUNNING,
-        )
-
-    def get_evaluation_result(self, eval_id: UUID) -> Optional[EvaluationResult]:
-        """
-        Retrieve a completed evaluation result.
-
-        Args:
-            eval_id: Unique evaluation ID
-
-        Returns:
-            EvaluationResult if found, None otherwise
-        """
-        return self.adapter.get_evaluation_run(eval_id)
-
-    def get_aggregated_metrics(self) -> Optional[EvaluationMetrics]:
-        """
-        Get aggregated metrics across all completed evaluations.
-
-        Returns:
-            EvaluationMetrics with aggregated values, or None if no completed runs
-        """
-        return self.adapter.get_aggregated_metrics()
-
-    # ==================================================================================
-    # INTERNAL: Metric Computation Functions (used by Celery worker or batch jobs)
-    # ==================================================================================
-
-    def compute_mrr(self, reciprocal_ranks: List[float]) -> float:
-        """
-        Compute Mean Reciprocal Rank (MRR).
-
-        MRR = (1/Q) * Σ(1 / rank_of_first_relevant_result)
-
-        Args:
-            reciprocal_ranks: List of 1/rank for each query
-
-        Returns:
-            MRR score (0.0 to 1.0)
-        """
-        if not reciprocal_ranks:
-            return 0.0
-        return sum(reciprocal_ranks) / len(reciprocal_ranks)
-
-    def compute_hit_rate(self, hits: List[bool]) -> float:
-        """
-        Compute Hit Rate.
-
-        HitRate = (number of queries with at least 1 relevant result) / total queries
-
-        Args:
-            hits: List of booleans (True if at least 1 relevant result found)
-
-        Returns:
-            Hit rate (0.0 to 1.0)
-        """
-        if not hits:
-            return 0.0
-        return sum(hits) / len(hits)
-
-    def compute_precision_at_k(
+    async def _request_embedding(
         self,
-        relevant_per_query: List[int],
-        top_k: int,
-    ) -> float:
-        """
-        Compute Precision@K.
+        image_bytes: bytes,
+        filename: str,
+        bearer_token: str,
+    ) -> list[float]:
+        url = f"{self.ai_service_url}/inference/embed/image"
+        files = {"file": (filename, image_bytes, "application/octet-stream")}
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        async with httpx.AsyncClient(timeout=self.http_timeout_sec) as client:
+            resp = await client.post(url, files=files, headers=headers)
 
-        Precision@K = (sum of relevant results in top K for all queries) / (Q * K)
+        if resp.status_code >= 400:
+            raise RuntimeError(f"Embedding request failed ({resp.status_code})")
 
-        Args:
-            relevant_per_query: List of counts of relevant results in top K for each query
-            top_k: K value (usually 10)
+        data = resp.json()
+        vector = data.get("vector")
+        if not isinstance(vector, list):
+            raise RuntimeError("Invalid embedding response schema")
+        return vector
 
-        Returns:
-            Precision@K score (0.0 to 1.0)
-        """
-        if not relevant_per_query:
-            return 0.0
-        total_relevant = sum(relevant_per_query)
-        total_results = len(relevant_per_query) * top_k
-        if total_results == 0:
-            return 0.0
-        return total_relevant / total_results
-
-    def compute_recall(
+    async def _search_hybrid(
         self,
-        total_relevant_found: int,
-        total_relevant_in_corpus: int,
-    ) -> float:
-        """
-        Compute Recall.
+        vector: list[float],
+        bearer_token: str,
+    ) -> list[str]:
+        url = f"{self.vector_service_base_url}/vector/search/hybrid"
+        payload = {
+            "vector": vector,
+            "top_k": self.top_k,
+            "metric": "COSINE",
+            "filter": None,
+        }
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        async with httpx.AsyncClient(timeout=self.http_timeout_sec) as client:
+            resp = await client.post(url, json=payload, headers=headers)
 
-        Recall = (total relevant results found) / (total relevant results in corpus)
+        if resp.status_code >= 400:
+            raise RuntimeError(f"Vector search failed ({resp.status_code})")
 
-        Args:
-            total_relevant_found: Number of relevant results found across all queries
-            total_relevant_in_corpus: Total number of relevant results available
+        data = resp.json()
+        items = data.get("items", [])
+        ranked_ids: list[str] = []
+        for item in items:
+            image_id = item.get("image_id")
+            if isinstance(image_id, str):
+                ranked_ids.append(image_id)
+        return ranked_ids
 
-        Returns:
-            Recall score (0.0 to 1.0)
-        """
-        if total_relevant_in_corpus == 0:
+    # ===== GIỮ NGUYÊN CÔNG THỨC =====
+    def compute_mrr(self, query_results: list[dict[str, Any]], k: int) -> float:
+        if not query_results:
             return 0.0
-        return total_relevant_found / total_relevant_in_corpus
+        reciprocal_ranks: list[float] = []
+        for result in query_results:
+            ranked_ids = result.get("ranked_ids", [])[:k]
+            relevant_ids = set(result.get("relevant_ids", set()))
+            rr = 0.0
+            for idx, candidate_id in enumerate(ranked_ids, start=1):
+                if candidate_id in relevant_ids:
+                    rr = 1.0 / idx
+                    break
+            reciprocal_ranks.append(rr)
+        return float(sum(reciprocal_ranks) / len(reciprocal_ranks))
+
+    def compute_hit_rate(self, query_results: list[dict[str, Any]], k: int) -> float:
+        if not query_results:
+            return 0.0
+        hits = 0
+        for result in query_results:
+            ranked_ids = result.get("ranked_ids", [])[:k]
+            relevant_ids = set(result.get("relevant_ids", set()))
+            if any(candidate_id in relevant_ids for candidate_id in ranked_ids):
+                hits += 1
+        return float(hits / len(query_results))
+
+    def compute_precision_at_k(self, query_results: list[dict[str, Any]], k: int) -> float:
+        if not query_results or k <= 0:
+            return 0.0
+        precisions: list[float] = []
+        for result in query_results:
+            ranked_ids = result.get("ranked_ids", [])[:k]
+            relevant_ids = set(result.get("relevant_ids", set()))
+            if not ranked_ids:
+                precisions.append(0.0)
+                continue
+            hit_count = sum(1 for candidate_id in ranked_ids if candidate_id in relevant_ids)
+            precisions.append(hit_count / k)
+        return float(sum(precisions) / len(precisions))
+
+    def compute_recall(self, query_results: list[dict[str, Any]], k: int) -> float:
+        if not query_results:
+            return 0.0
+        recalls: list[float] = []
+        for result in query_results:
+            ranked_ids = result.get("ranked_ids", [])[:k]
+            relevant_ids = set(result.get("relevant_ids", set()))
+            if not relevant_ids:
+                recalls.append(0.0)
+                continue
+            hit_count = sum(1 for candidate_id in ranked_ids if candidate_id in relevant_ids)
+            recalls.append(hit_count / len(relevant_ids))
+        return float(sum(recalls) / len(recalls))
 
     def compute_metrics_from_queries(
         self,
-        query_results: List[dict],
-    ) -> Tuple[EvaluationMetrics, int]:
-        """
-        Compute all metrics from query results.
+        query_results: list[dict[str, Any]],
+        k: int,
+    ) -> dict[str, float]:
+        return {
+            "mrr": self.compute_mrr(query_results, k),
+            "hit_rate": self.compute_hit_rate(query_results, k),
+            "precision": self.compute_precision_at_k(query_results, k),
+            "recall": self.compute_recall(query_results, k),
+        }
+    # ===== HẾT PHẦN CÔNG THỨC GIỮ NGUYÊN =====
 
-        Each query_result should have:
-        - first_relevant_rank (int or None): rank where first relevant result appears
-        - relevant_count (int): number of relevant results in top-K
-        - total_relevant_in_corpus (int): total relevant items for this query
+    async def trigger_evaluation(
+        self,
+        created_by: int,
+        bearer_token: str,
+        limit: Optional[int] = None,
+        seed: Optional[int] = None,
+    ) -> dict[str, Any]:
+        effective_limit = self.eval_max_images if limit is None else min(limit, self.eval_max_images)
+        if effective_limit <= 0:
+            effective_limit = 1
 
-        Args:
-            query_results: List of query result dictionaries
+        run = await self.evaluation_adapter.create_evaluation_run(
+            created_by=created_by,
+            limit_images=effective_limit,
+            seed=seed,
+            status="running",
+        )
+        eval_id = run["eval_id"]
+        processed_queries = 0
 
-        Returns:
-            Tuple of (EvaluationMetrics, total_query_count)
-        """
-        if not query_results:
-            return (
-                EvaluationMetrics(mrr=0.0, hit_rate=0.0, precision=0.0, recall=0.0),
-                0,
+        try:
+            sources = await self.evaluation_adapter.fetch_ready_images_for_evaluation(
+                limit=effective_limit,
+                seed=seed,
             )
 
-        reciprocal_ranks = []
-        hits = []
-        relevant_per_query = []
-        total_relevant_found = 0
-        total_relevant_corpus = 0
+            query_results: list[dict[str, Any]] = []
 
-        for qr in query_results:
-            first_rank = qr.get("first_relevant_rank")
-            relevant_count = qr.get("relevant_count", 0)
-            total_relevant_in_corpus = qr.get("total_relevant_in_corpus", 0)
+            for src in sources:
+                image_id = src["image_id"]
+                bucket = src["minio_bucket"]
+                object_name = src["minio_object_name"]
 
-            # MRR: 1/rank if relevant found, else 0
-            if first_rank and first_rank > 0:
-                reciprocal_ranks.append(1.0 / first_rank)
-                hits.append(True)
-            else:
-                reciprocal_ranks.append(0.0)
-                hits.append(False)
+                image_bytes = await self._fetch_image_bytes(bucket_name=bucket, object_name=object_name)
+                vector = await self._request_embedding(
+                    image_bytes=image_bytes,
+                    filename=f"{image_id}.bin",
+                    bearer_token=bearer_token,
+                )
+                ranked_ids = await self._search_hybrid(
+                    vector=vector,
+                    bearer_token=bearer_token,
+                )
 
-            # Precision@K
-            relevant_per_query.append(relevant_count)
+                query_results.append(
+                    {
+                        "ranked_ids": ranked_ids,
+                        "relevant_ids": {image_id},  # self-retrieval relevance
+                    }
+                )
+                processed_queries += 1
 
-            # Recall
-            total_relevant_found += relevant_count
-            total_relevant_corpus += total_relevant_in_corpus
+            metrics = self.compute_metrics_from_queries(query_results=query_results, k=self.top_k)
 
-        mrr = self.compute_mrr(reciprocal_ranks)
-        hit_rate = self.compute_hit_rate(hits)
-        precision = self.compute_precision_at_k(relevant_per_query, self.eval_top_k)
-        recall = self.compute_recall(total_relevant_found, total_relevant_corpus)
+            await self.evaluation_adapter.complete_evaluation_run(
+                eval_id=eval_id,
+                query_count=processed_queries,
+                mrr=metrics["mrr"],
+                hit_rate=metrics["hit_rate"],
+                precision=metrics["precision"],
+                recall=metrics["recall"],
+            )
 
-        metrics = EvaluationMetrics(
-            mrr=round(mrr, 4),
-            hit_rate=round(hit_rate, 4),
-            precision=round(precision, 4),
-            recall=round(recall, 4),
-        )
+            return {
+                "eval_id": eval_id,
+                "status": "completed",
+            }
 
-        return metrics, len(query_results)
+        except Exception:
+            logger.exception("Evaluation run failed: eval_id=%s", eval_id)
+            await self.evaluation_adapter.fail_evaluation_run(
+                eval_id=eval_id,
+                query_count=processed_queries,
+            )
+            raise
 
-    def record_query_for_audit(
-        self,
-        eval_id: UUID,
-        query_index: int,
-        query_type: str,
-        is_relevant_found: bool,
-        first_relevant_rank: Optional[int],
-    ) -> None:
-        """
-        Record individual query result for audit trail.
+    async def get_evaluation_results(self, eval_id: str) -> Optional[dict[str, Any]]:
+        row = await self.evaluation_adapter.get_evaluation_result(eval_id)
+        if row is None:
+            return None
 
-        Args:
-            eval_id: Unique evaluation ID
-            query_index: 0-based query index
-            query_type: "image" or "text"
-            is_relevant_found: Whether at least 1 relevant result found
-            first_relevant_rank: Rank of first relevant result (1-indexed)
-        """
-        self.adapter.record_query_result(
-            eval_id=eval_id,
-            query_index=query_index,
-            query_type=query_type,
-            is_relevant_found=is_relevant_found,
-            first_relevant_rank=first_relevant_rank,
-        )
+        return {
+            "eval_id": row["eval_id"],
+            "status": row["status"],
+            "mrr": float(row["mrr"] or 0.0),
+            "hit_rate": float(row["hit_rate"] or 0.0),
+            "precision": float(row["precision"] or 0.0),
+            "recall": float(row["recall"] or 0.0),
+            "query_count": int(row["query_count"] or 0),
+            "completed_at": row["completed_at"],
+        }
+
+    async def get_latest_metrics(self) -> dict[str, float]:
+        latest = await self.evaluation_adapter.get_latest_metrics()
+        if latest is None:
+            return {"mrr": 0.0, "hit_rate": 0.0, "precision": 0.0, "recall": 0.0}
+        return latest
 
 
 __all__ = ["EvaluationService"]
