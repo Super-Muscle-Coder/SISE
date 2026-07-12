@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 
 from ..adapters.upload_adapters import IdempotencyAdapter, MinIOAdapter, PostgreSQLImageAdapter
 from ..entities.upload_entities import PresignedUploadRequest, PresignedUploadResponse, UploadConfirmRequest, UploadResponse
+from ..tasks.indexing_celery_tasks import process_image_indexing
 
 logger = logging.getLogger(__name__)
 
@@ -106,13 +107,7 @@ class UploadService:
                 logger.exception("[S3] Compensating action failed for object %s", request.object_key)
             raise RuntimeError(f"Failed to commit metadata: {exc}") from exc
 
-        try:
-            await self.enqueue_indexing_task(image_id=image_id)
-        except NotImplementedError as exc:
-            logger.warning(
-                "S4 enqueue not available yet, index_status remains pending until T003-04 is completed: %s",
-                str(exc),
-            )
+        await self.enqueue_indexing_task(image_id=image_id)
 
         try:
             minio_url = await self.minio.generate_presigned_get_url(
@@ -180,13 +175,7 @@ class UploadService:
                 logger.exception("[Legacy Upload] Compensating action failed for object %s", object_key)
             raise RuntimeError(f"Failed to commit metadata: {exc}") from exc
 
-        try:
-            await self.enqueue_indexing_task(image_id=image_id)
-        except NotImplementedError as exc:
-            logger.warning(
-                "S4 enqueue not available yet, index_status remains pending until T003-04 is completed: %s",
-                str(exc),
-            )
+        await self.enqueue_indexing_task(image_id=image_id)
 
         try:
             minio_url = await self.minio.generate_presigned_get_url(object_key=object_key, expires_in_sec=3600)
@@ -207,9 +196,7 @@ class UploadService:
         return response
 
     async def enqueue_indexing_task(self, image_id: str) -> None:
-        raise NotImplementedError(
-            "T003-03(upload): Celery enqueue chờ T003-04(indexing) hoàn thành — indexing_celery_tasks.py chưa tồn tại"
-        )
+        process_image_indexing.delay(image_id)
 
     def _validate_presigned_request(self, request: PresignedUploadRequest) -> None:
         allowed_types = {"image/jpeg", "image/png"}

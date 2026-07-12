@@ -76,9 +76,9 @@ class UploadConfirmRequest(BaseModel):
     Request schema for POST /media/upload/confirm (S3 metadata commit).
     """
     object_key: str = Field(..., description="MinIO object key from presigned upload (S1)")
-    album_id: Optional[int] = Field(None, ge=1, description="Album ID (optional)")
+    album_id: int = Field(..., ge=1, description="Album ID")
     privacy_level: PrivacyLevel = Field(
-        default=PrivacyLevel.PRIVATE,
+        ...,
         description="Privacy level: 0=Private, 1=Friends, 2=Public",
     )
     tags: Optional[List[str]] = Field(

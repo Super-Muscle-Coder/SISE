@@ -1,0 +1,78 @@
+# =============================================================================
+# SISE — Root Project Docker Compose
+# =============================================================================
+# Purpose: Orchestration layer only. This file does NOT define any service
+#          from scratch — it merges (via multiple -f layers) with the
+#          module-level compose files and only ADDS:
+#            1. Ownership of the shared network "sise_network"
+#               (driver, subnet, ipam — the ONLY place this is defined).
+#            2. Cross-module startup ordering via depends_on overrides.
+#          Everything else (image, build, healthcheck, volumes, ports, env_file)
+#          is inherited unchanged from each module's own compose file.
+#
+# Responsibility split:
+#   - This file:            create network + startup order. Nothing else.
+#   - modules/*/*.yml:      define/build/run that module's own services,
+#                           join "sise_network" via external: true.
+#
+# Startup order (per data_schema.yaml transaction_semantics + openapi.yaml
+# cross-module calls): Storage -> AI -> Backend.
+#   Backend calls AIModule (/embed/image, /embed/text) during upload/search,
+#   so backend must wait until ai-service is healthy.
+#
+# Usage (Compose merges files left-to-right, base first):
+#   docker compose \
+#     -f modules/StorageModule/infra_compose_storage.yml \
+#     -f modules/AIModule/infra_compose_ai.yml \
+#     -f modules/BackendModule/docker-compose.yml \
+#     -f docker-compose.yml \
+#     up -d
+#
+#   (Optional) wrap the command above into a start_all.cmd script at root
+#   for convenience, so nobody has to remember the -f order by hand.
+#
+# NOTE: BackendModule's compose currently has NO healthcheck defined on the
+#   "backend" service itself. This file only makes backend WAIT for its
+#   dependencies (postgres/minio/redis/ai-service) to be healthy — it does
+#   NOT yet make anything wait for backend to be healthy, since backend
+#   has no healthcheck to depend on. Must be added before FrontendModule
+#   joins this root compose later — tracked as TODO.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------
+  # Ordering overrides only — service definitions live in module-level
+  # compose files (modules/*/*.yml), merged in via multiple -f layers.
+  # Compose merges by service name: fields not repeated here are inherited
+  # unchanged from the base files (image/build/env_file/healthcheck/...).
+  # We only ADD depends_on here to express cross-module startup order.
+  # ---------------------------------------------------------------------
+
+  ai-service:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  backend:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+
+# Network definition: create a single shared network for all modules to join.
+networks:
+  sise_network:
+    name: sise_network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

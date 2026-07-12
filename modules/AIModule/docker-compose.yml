@@ -1,61 +1,71 @@
 # =============================================================================
 # Docker Compose — AI Module (AIModule)
 # =============================================================================
-# Purpose: Local development and testing of AI Inference Service in isolation
-# Services: 1 service (ai-service) — CLIP-based embedding extraction
+# Purpose: Defines and builds the ai-service. Network ownership has moved
+#          to the root project compose (see Changelog below) — this file
+#          only JOINS the shared network, it does not create it.
 #
 # Configuration Strategy:
 #   - NO configs/ baked in image (.dockerignore prevents it)
-#   - Environment variables injected via env_file: ./configs/ai.env.local
-#   - Image is transport layer — all configuration applied at container start time
-#   - env_file points to audited ai.env.local (source of truth for all settings)
+#   - Environment variables injected via env_file (ai.env.local), NOT
+#     hardcoded in this file, NOT baked into the image.
+#   - Image is transport layer — all configuration applied at container
+#     start time.
+#
+# Changelog v1.1.0 -> v1.1.1:
+#   [APPEND v1.1.1] AIModule is no longer the network owner. Network
+#   "sise_network" is now created and managed EXCLUSIVELY by the root
+#   docker-compose.yml (E:\SISE\docker-compose.yml). This file now only
+#   joins it via external: true. Same rationale as StorageModule v1.2.3:
+#   avoid any single module becoming an implicit "network owner" — if
+#   AIModule were `down`, the network would previously be torn down with
+#   it, breaking StorageModule/BackendModule connectivity even though
+#   they were never stopped themselves.
+#   Standalone use (this file alone, without the root compose) now
+#   requires running first:
+#     docker network create sise_network
 #
 # Usage:
-#   docker-compose up                 # Start service with environment from ai.env.local
-#   docker-compose logs -f ai-service # Follow logs
-#   docker-compose down               # Stop all services
+#   docker-compose -f infra_compose_ai.yml up -d      # Standalone (module only)
+#   docker-compose logs -f ai-service                 # Follow logs
+#   docker-compose down                               # Stop this module only
 #
 # Notes:
-#   - This compose file is for AIModule ONLY (standalone development)
-#   - To integrate with StorageModule/BackendModule, use a separate
-#     docker-compose at the project root that combines all services
-#   - Environment variables loaded from configs/ai.env.local (must exist before docker-compose up)
-#   - For production: mount ai.env.production or use Kubernetes ConfigMap
+#   - To integrate with StorageModule/BackendModule, use the root-level
+#     docker-compose.yml, which merges this file via multiple -f layers
+#     and adds cross-module depends_on ordering (Storage -> AI -> Backend).
+#   - env_file points at configs/ai.env.local — the same file audited and
+#     verified throughout AIModule's structural audit (T006-02).
 # =============================================================================
 
 services:
   ai-service:
     # Build from the Dockerfile in this directory
     build:
-      context: .
+      context: ./modules/AIModule
       dockerfile: Dockerfile
-    
+
     # Service configuration
     container_name: sise-ai
-    image: sise-ai:latest
-    
+    image: sise-ai:v1.1.0
+
     # Port mapping: container:host
     ports:
       - "8001:8001"
-    
-    # SECURITY: Load environment from external file (NOT from environment: hardcoding)
-    # env_file points to audited ai.env.local — source of truth for all configuration
-    # This ensures Docker image remains a pure transport layer with NO secrets/config baked in
+
+    # Environment variables injected via env_file — NOT hardcoded here,
+    # NOT baked into the image (see .dockerignore + Dockerfile: no COPY configs).
     env_file:
       - ./configs/ai.env.local
-    
-    # Volume mounts for development and model caching
+
+    # Volume mounts for model caching
     volumes:
-      # Model cache directory: persist downloaded models across container restarts
       - ./models:/app/ai-service/model_cache
-      
-      # Source code (optional, for development only — uncomment if doing live coding)
-      # - ./app:/app/ai-service/app
-      # - ./ai_main.py:/app/ai-service/ai_main.py
-    
-    # Health check configuration
+
+    # Health check configuration — this is what the root compose's
+    # "condition: service_healthy" (used by backend's depends_on) relies on.
     healthcheck:
-      test: 
+      test:
         - CMD
         - python
         - -c
@@ -64,17 +74,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    
+
     # Restart policy
     restart: unless-stopped
-    
+
     # Logging configuration
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    
+
+    # Join the shared network — created and owned EXCLUSIVELY by the root
+    # docker-compose.yml. This module does NOT define/own it (see Changelog).
+    networks:
+      - sise_network
+
     # Resource limits (optional, adjust based on available CPU/RAM)
     # deploy:
     #   resources:
@@ -85,80 +100,36 @@ services:
     #       cpus: '1'
     #       memory: 2G
 
-# Network configuration
+# Network definition: JOIN ONLY. Do not add driver/subnet/ipam here —
+# that would make this file a second, conflicting "owner" of the same
+# network name. Ownership lives solely in the root docker-compose.yml.
 networks:
-  default:
-    name: sise_ai_net
-    driver: bridge
+  sise_network:
+    external: true
+    name: sise_network
 
-# Volume for persistent model cache
+# Volume for persistent model cache (local to this module only)
 volumes:
   models:
     driver: local
 
 # =============================================================================
-# ENVIRONMENT VARIABLE CONFIGURATION
+# INTEGRATION NOTES
 # =============================================================================
+# Root-level orchestration (recommended for full-stack runs):
+#   docker compose \
+#     -f modules/StorageModule/infra_compose_storage.yml \
+#     -f modules/AIModule/infra_compose_ai.yml \
+#     -f modules/BackendModule/docker-compose.yml \
+#     -f docker-compose.yml \
+#     up -d
 #
-# All environment variables are sourced from: ./configs/ai.env.local
-#
-# This file must exist and contain:
-#   - AI_SERVICE_PORT=8001
-#   - CLIP_MODEL_NAME=ViT-B-32-quickgelu
-#   - CLIP_PRETRAINED_TAG=openai
-#   - DEVICE=auto (or cpu/cuda)
-#   - MODEL_CACHE_DIR=./models
-#   - VECTOR_DIM=512 (must match data_schema.yaml global_configs.vector_dim)
-#   - WARMUP_ITERATIONS=5
-#   - WARMUP_TIMEOUT_SEC=30
-#   - IMAGE_TARGET_SIZE=224
-#   - IMAGE_ENABLE_CACHE=False
-#   - TEXT_MAX_TOKENS=77
-#   - TEXT_TOKENIZER_NAME=clip
-#   - TEXT_ENABLE_CACHE=False
-#   - TEXT_TRUNCATE_STRATEGY=truncate
-#   - BATCH_MAX_SIZE=32
-#   - BATCH_ENABLE_CACHE=False
-#   - BATCH_CACHE_TTL_SECONDS=3600
-#   - BATCH_TIMEOUT_MS=10000
-#   - LOG_LEVEL=INFO
-#   - DEBUG=False
-#
-# To override specific values:
-#   Option 1: Edit ./configs/ai.env.local before running docker-compose
-#   Option 2: Export in shell (higher priority than env_file):
-#             export AI_SERVICE_PORT=8002
-#             docker-compose up
-#   Option 3: Pass via -e flag to docker-compose (highest priority):
-#             docker-compose run -e AI_SERVICE_PORT=8002 ai-service
-#
-# =============================================================================
-# 
-# INTEGRATION NOTES (for future combining with other modules)
-# =============================================================================
-# When integrating with BackendModule/StorageModule:
-#
-# 1. Move this service definition into a root-level docker-compose.yml
-# 2. Add storage services (PostgreSQL, MinIO, Redis, etc.)
-# 3. Update env_file to point to root-level config file (e.g., ./config/ai.env.production)
-# 4. Add depends_on to ensure storage services start before AI service
-# 5. Update AI_SERVICE_URL in backend config to match the network name
-#
-# Example (future root-level docker-compose.yml):
-#   services:
-#     ai-service:
-#       build:
-#         context: ./modules/AIModule
-#       env_file:
-#         - ./config/ai.env.production
-#       depends_on:
-#         postgres:
-#           condition: service_healthy
-#         minio:
-#           condition: service_healthy
-#         redis:
-#           condition: service_healthy
-#       networks:
-#         - sise-network
-#
+# The root docker-compose.yml adds:
+#   ai-service:
+#     depends_on:
+#       postgres:   { condition: service_healthy }
+#       minio:      { condition: service_healthy }
+#       redis:      { condition: service_healthy }
+# on top of this file's own service definition (merged by service name
+# "ai-service" — must match exactly, which it does).
 # =============================================================================

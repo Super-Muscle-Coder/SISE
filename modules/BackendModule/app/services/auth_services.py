@@ -30,7 +30,7 @@ class AuthService:
         self.expiration_seconds = expiration_seconds
         self.password_hasher = PasswordHasher()
 
-    async def register_user(self, req: RegisterRequest) -> AuthResponse:
+    async def register_user(self, req: RegisterRequest) -> User:
         duplicate_stmt = text(
             """
             SELECT id, username, email
@@ -86,16 +86,12 @@ class AuthService:
             await self.db_session.rollback()
             raise
 
-        access_token = self.token_generator.generate_token(
-            user_id=inserted["id"],
+        return User(
+            id=inserted["id"],
             username=inserted["username"],
-            expires_in=self.expiration_seconds,
-        )
-
-        return AuthResponse(
-            access_token=access_token,
-            token_type="bearer",
-            expires_in=self.expiration_seconds,
+            email=inserted["email"],
+            role=inserted["role"],
+            created_at=inserted["created_at"],
         )
 
     async def login_user(self, req: AuthRequest) -> Optional[AuthResponse]:

@@ -1,9 +1,20 @@
-# version: 1.2.1
+# version: 1.2.3
 # Changelog v1.2.1:
 #           [APPEND v1.2.1] Ép tên cố định, tránh phụ thuộc
 #           COMPOSE_PROJECT_NAME prefix ngẫu nhiên khi
 #           BackendModule join vào bằng external network.
 #           Không đổi driver/subnet/service nào khác.
+# Changelog v1.2.2:
+#           [APPEND v1.2.2] Đổi tên network từ storage_net -> sise_network để thống nhất network của toàn bộ module.
+# Changelog v1.2.3:
+#           [APPEND v1.2.3] StorageModule không còn là network owner. Network "sise_network"
+#           giờ được tạo và quản lý duy nhất bởi docker-compose.yml ở root dự án
+#           (E:\SISE\docker-compose.yml). File này chỉ join vào bằng external: true.
+#           Lý do: tránh 1 module bất kỳ (ở đây là StorageModule) trở thành "network owner"
+#           ẩn định — nếu StorageModule bị `down`, network sẽ bị xóa theo, kéo sập
+#           kết nối của AIModule/BackendModule dù bản thân chúng không hề down.
+#           Dùng standalone (chỉ riêng module này, không qua root) yêu cầu chạy trước:
+#           docker network create sise_network
 services:
   postgres:
     # pgvector/pgvector:pg16 bundles the vector extension (>= 0.7.0) with PostgreSQL 16.
@@ -25,7 +36,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - storage_net
+      - sise_network
     restart: unless-stopped
 
   minio:
@@ -47,7 +58,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - storage_net
+      - sise_network
     restart: unless-stopped
 
   minio-init:
@@ -64,7 +75,7 @@ services:
       echo 'MinIO buckets initialized successfully'
       "
     networks:
-      - storage_net
+      - sise_network
     restart: on-failure
 
   redis:
@@ -87,7 +98,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - storage_net
+      - sise_network
     restart: unless-stopped
 
 volumes:
@@ -99,9 +110,6 @@ volumes:
     driver: local
 
 networks:
-  storage_net:
-    name : sise_storage_net 
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.25.0.0/16
+  sise_network:
+    external: true
+    name: sise_network

@@ -5,20 +5,20 @@ Auth workflow routers — HTTP endpoints for authentication.
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ..dependencies import get_auth_service
 from ..entities.auth_entities import AuthRequest, AuthResponse, RegisterRequest, User
 from ..services.auth_services import AuthService, UserAlreadyExistsError
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
-security = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=False)
 logger = logging.getLogger(__name__)
 
 
 @router.post(
     "/register",
-    response_model=AuthResponse,
+    response_model=User,
     status_code=status.HTTP_201_CREATED,
     responses={
         201: {"description": "User created successfully"},
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 async def register_user(
     req: RegisterRequest,
     auth_service: AuthService = Depends(get_auth_service),
-) -> AuthResponse:
+) -> User:
     try:
         return await auth_service.register_user(req)
     except UserAlreadyExistsError as exc:
@@ -97,9 +97,15 @@ async def login_user(
     },
 )
 async def get_current_user(
-    credentials=Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> User:
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "UNAUTHORIZED", "message": "Authentication required"},
+        )
+
     try:
         token = credentials.credentials
         user = await auth_service.get_current_user(token)

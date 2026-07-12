@@ -39,9 +39,16 @@ class HealthStatus(BaseModel):
     timestamp: datetime = Field(
         description="Timestamp when health check was performed"
     )
+    config_validated: bool = Field(
+        default=False,
+        description=(
+            "Kết quả validate cấu hình scaffold. false nghĩa là có ít nhất 1 config sai, "
+            "service không nên coi là sẵn sàng phục vụ."
+        ),
+    )
     dependencies: Optional[Dict[str, str]] = Field(
         default=None,
-        description="Individual dependency statuses (postgres, milvus, minio, ai_service)"
+        description="Individual dependency statuses (postgres, minio, ai_service, redis)"
     )
 
     model_config = ConfigDict(str_strip_whitespace=True)
@@ -49,7 +56,7 @@ class HealthStatus(BaseModel):
 
 class ReadinessCheckResult(BaseModel):
     """Result of a single dependency readiness check."""
-    name: str = Field(description="Dependency name (postgres, milvus, minio, ai_service)")
+    name: str = Field(description="Dependency name (postgres, minio, ai_service, redis)")
     status: DependencyState = Field(description="Current state of the dependency")
     latency_ms: float = Field(description="Milliseconds taken to check this dependency")
     error: Optional[str] = Field(default=None, description="Error message if check failed")

@@ -30,10 +30,19 @@ class BatchEmbeddingRequest:
 
 
 @dataclass
+class BatchEmbeddingItem:
+    """Per-image result item for batch embedding response."""
+    index: int
+    success: bool
+    vector: List[float] | None = None
+    error: str | None = None
+
+
+@dataclass
 class BatchEmbeddingResult:
     """Result of batch embedding extraction."""
-    vectors: List[List[float]] = field(default_factory=list)
-    # List of vector_dim-dim float32 vectors, L2-normalized, COSINE compatible
+    vectors: List[BatchEmbeddingItem] = field(default_factory=list)
+    # List of per-item results, index-aligned with request files
 
     successful_count: int = 0
     # Number of images successfully processed
@@ -45,9 +54,10 @@ class BatchEmbeddingResult:
     # Total processing time in milliseconds
 
 
-# Export 
+# Export
 __all__ = [
     "BatchEmbeddingConfig",
     "BatchEmbeddingRequest",
+    "BatchEmbeddingItem",
     "BatchEmbeddingResult",
 ]

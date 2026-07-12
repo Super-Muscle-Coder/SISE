@@ -24,6 +24,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="app\adapters\admin_adapters.py" />
     <Compile Include="app\adapters\auth_adapters.py" />
     <Compile Include="app\adapters\evaluation_adapters.py" />
     <Compile Include="app\adapters\friends_adapters.py" />
@@ -36,6 +37,7 @@
     <Compile Include="app\adapters\upload_adapters.py" />
     <Compile Include="app\adapters\__init__.py" />
     <Compile Include="app\dependencies.py" />
+    <Compile Include="app\entities\admin_entities.py" />
     <Compile Include="app\entities\auth_entities.py" />
     <Compile Include="app\entities\evaluation_entities.py" />
     <Compile Include="app\entities\friends_entities.py" />
@@ -47,10 +49,12 @@
     <Compile Include="app\entities\storage_vector_entities.py" />
     <Compile Include="app\entities\upload_entities.py" />
     <Compile Include="app\entities\__init__.py" />
+    <Compile Include="app\routers\admin_rounters.py" />
     <Compile Include="app\routers\auth_routers.py" />
     <Compile Include="app\routers\evaluation_routers.py" />
     <Compile Include="app\routers\friends_routers.py" />
     <Compile Include="app\routers\health_routers.py" />
+    <Compile Include="app\services\admin_services.py" />
     <Compile Include="app\tasks\indexing_celery_tasks.py" />
     <Compile Include="app\routers\media_routers.py" />
     <Compile Include="app\routers\search_routers.py" />
@@ -98,7 +102,6 @@
     <Content Include="backend_requirements.txt" />
     <Content Include="docker-compose.yml" />
     <Content Include="Dockerfile" />
-    <Content Include="pytest.ini" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="env1\">

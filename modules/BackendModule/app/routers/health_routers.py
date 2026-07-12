@@ -8,32 +8,16 @@ Routes:
 - GET /health/readiness: Comprehensive dependency readiness check with X-Expected-Vector-Dim header
 """
 
-from typing import Optional
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response
 import logging
 
 from app.entities.health_entities import HealthStatus
 from app.services.health_services import HealthService
+from app.dependencies import get_health_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["System"])
-
-# Placeholder for dependency injection
-_health_service: Optional[HealthService] = None
-
-
-def set_health_service(service: HealthService):
-    """Inject HealthService instance (called during app initialization)."""
-    global _health_service
-    _health_service = service
-
-
-def get_health_service() -> HealthService:
-    """Retrieve injected HealthService."""
-    if _health_service is None:
-        raise RuntimeError("HealthService not initialized. Call set_health_service() during app startup.")
-    return _health_service
 
 
 @router.get(
@@ -42,17 +26,17 @@ def get_health_service() -> HealthService:
     summary="Service liveness probe",
     description="Simple check that the backend process is running. Used by container orchestrators to determine if the container should be restarted.",
 )
-async def get_liveness(health_service: HealthService = Depends(get_health_service)) -> HealthStatus:
-    """
-    GET /health/liveness
-
-    Simple liveness probe. Returns 200 if the backend service process is running.
-    Does NOT check dependencies.
-
-    Returns:
-        HealthStatus with status="alive"
-    """
-    return await health_service.check_liveness()
+async def get_liveness(
+    health_service: HealthService = Depends(get_health_service),
+) -> HealthStatus:
+    try:
+        return await health_service.check_liveness()
+    except Exception as exc:
+        logger.exception("Liveness check failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "INTERNAL_ERROR", "message": "Failed to run liveness check"},
+        )
 
 
 @router.get(
@@ -63,35 +47,24 @@ async def get_liveness(health_service: HealthService = Depends(get_health_servic
 )
 async def get_readiness(
     health_service: HealthService = Depends(get_health_service),
-) -> tuple[HealthStatus, int]:
-    """
-    GET /health/readiness
-
-    Comprehensive readiness probe. Returns 200 if all critical dependencies are ready.
-    Returns 503 if one or more dependencies are unavailable.
-    Includes X-Expected-Vector-Dim header for client validation.
-
-    Dependencies checked:
-    - PostgreSQL (database)
-    - Milvus (vector DB)
-    - MinIO (object storage)
-    - AI Service (embedding service)
-
-    Returns:
-        HealthStatus with status="ready" or "degraded"
-        Also includes X-Expected-Vector-Dim header in HTTP response
-    """
-    health_status, http_code = await health_service.check_readiness()
-
-    # Prepare response with custom header
-    response = Response(
-        content=health_status.model_dump_json(),
-        status_code=http_code,
-        media_type="application/json",
-    )
-    response.headers["X-Expected-Vector-Dim"] = str(health_service.vector_dim)
-
-    return response
+) -> Response:
+    try:
+        health_status, http_code = await health_service.check_readiness()
+        response = Response(
+            content=health_status.model_dump_json(),
+            status_code=http_code,
+            media_type="application/json",
+        )
+        response.headers["X-Expected-Vector-Dim"] = str(health_service.vector_dim)
+        return response
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Readiness check failed: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "INTERNAL_ERROR", "message": "Failed to run readiness check"},
+        )
 
 
-__all__ = ["router", "set_health_service", "get_health_service"]
+__all__ = ["router"]

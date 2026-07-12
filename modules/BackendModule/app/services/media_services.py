@@ -27,7 +27,51 @@ class MediaService:
         self.image_adapter = image_adapter
         self.minio_adapter = minio_adapter
 
-    # ... (toàn bộ Album methods giữ nguyên, không thay đổi) ...
+    async def list_albums(self, user_id: int, offset: int = 0, limit: int = 20) -> Dict[str, Any]:
+        items, total = await self.album_adapter.list_albums(user_id=user_id, offset=offset, limit=limit)
+        return {"items": items, "total": total, "offset": offset, "limit": limit}
+
+    async def create_album(self, user_id: int, req: AlbumCreateRequest) -> Dict[str, Any]:
+        return await self.album_adapter.create_album(
+            user_id=user_id,
+            title=req.title,
+            description=req.description,
+            is_public=req.is_public,
+        )
+
+    async def get_album(self, album_id: int, user_id: int) -> Optional[Dict[str, Any]]:
+        album = await self.album_adapter.get_album(album_id, user_id)
+        if album is None:
+            return None
+        if album["user_id"] != user_id:
+            return None
+        return album
+
+    async def update_album(
+        self, album_id: int, user_id: int, req: AlbumUpdateRequest,
+    ) -> Optional[Dict[str, Any]]:
+        existing = await self.album_adapter.get_album(album_id, user_id)
+        if existing is None or existing["user_id"] != user_id:
+            return None
+
+        update_kwargs: Dict[str, Any] = {}
+        if req.title is not None:
+            update_kwargs["title"] = req.title
+        if req.description is not None:
+            update_kwargs["description"] = req.description
+        if req.is_public is not None:
+            update_kwargs["is_public"] = req.is_public
+
+        if not update_kwargs:
+            return existing
+
+        return await self.album_adapter.update_album(album_id, user_id, **update_kwargs)
+
+    async def delete_album(self, album_id: int, user_id: int) -> bool:
+        existing = await self.album_adapter.get_album(album_id, user_id)
+        if existing is None or existing["user_id"] != user_id:
+            return False
+        return await self.album_adapter.soft_delete_album(album_id, user_id)
 
     async def create_image_metadata(
         self, image_id: str, user_id: int, minio_object_name: str, minio_bucket: str,

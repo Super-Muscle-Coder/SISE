@@ -1,18 +1,109 @@
+# =============================================================================
+# Docker Compose — Backend Module (BackendModule)
+# =============================================================================
+# Purpose: Defines and builds the backend service. Network ownership belongs
+#          to the root project compose (E:\SISE\docker-compose.yml) — this
+#          file only JOINS the shared network, it does not create it.
+#
+# Changelog v1.2.0 -> v1.2.1:
+#   [APPEND v1.2.1] BackendModule is no longer the network owner. Network
+#   "sise_network" is now created and managed EXCLUSIVELY by the root
+#   docker-compose.yml. This file now only joins it via external: true.
+#   Same rationale as StorageModule v1.2.3 / AIModule v1.1.1: avoid any
+#   single module becoming an implicit "network owner" — if BackendModule
+#   were `down`, the network would previously be torn down with it,
+#   breaking StorageModule/AIModule connectivity even though they were
+#   never stopped themselves.
+#   Standalone use (this file alone, without the root compose) now
+#   requires running first:
+#     docker network create sise_network
+#
+#   [APPEND v1.2.1] Added healthcheck on the "backend" service itself,
+#   resolving the TODO tracked in the root docker-compose.yml
+#   ("Must be added before FrontendModule joins this root compose").
+#   Uses GET /health/liveness (audited, no external dependency checks —
+#   suitable for a liveness probe, unlike /health/readiness which checks
+#   postgres/minio/redis/ai_service and would cause healthcheck flapping
+#   whenever any downstream dependency has a transient blip).
+#
+# Usage:
+#   docker-compose up -d --build      # Standalone (module only, requires
+#                                       manual "docker network create
+#                                       sise_network" first)
+#   docker-compose logs -f backend    # Follow logs
+#   docker-compose down               # Stop this module only
+#
+# Notes:
+#   - To integrate with StorageModule/AIModule, use the root-level
+#     docker-compose.yml, which merges this file via multiple -f layers
+#     and adds cross-module depends_on ordering (Storage -> AI -> Backend).
+#   - env_file points at configs/backend.env.local — audited throughout
+#     BackendModule's structural audit (Phase 3, Nhóm 1-5 + Vòng 6).
+# =============================================================================
+
 services:
   backend:
     container_name: sise-backend
+    image: sise-backend:v1.1.0
     build:
       context: .
       dockerfile: Dockerfile
+
     env_file:
       - configs/backend.env.local
+
     ports:
       - "${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
+
+    # Health check configuration — this is what the root compose's
+    # future "condition: service_healthy" (for FrontendModule's
+    # depends_on: backend) will rely on. Uses liveness (process alive),
+    # NOT readiness (external dependencies) — readiness failures should
+    # surface via monitoring, not flap the container's health state.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import http.client; conn = http.client.HTTPConnection('localhost', 8000); conn.request('GET', '/health/liveness'); exit(0 if conn.getresponse().status == 200 else 1)"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    # Join the shared network — created and owned EXCLUSIVELY by the root
+    # docker-compose.yml. This module does NOT define/own it.
     networks:
-      - sise_storage_net
+      - sise_network
+
     restart: unless-stopped
 
+# Network definition: JOIN ONLY. Do not add driver/subnet/ipam here —
+# that would make this file a second, conflicting "owner" of the same
+# network name. Ownership lives solely in the root docker-compose.yml.
 networks:
-  sise_storage_net:
+  sise_network:
     external: true
-    name: sise_storage_net
+    name: sise_network
+
+# =============================================================================
+# INTEGRATION NOTES
+# =============================================================================
+# Root-level orchestration (recommended for full-stack runs):
+#   docker compose \
+#     -f modules/StorageModule/infra_compose_storage.yml \
+#     -f modules/AIModule/infra_compose_ai.yml \
+#     -f modules/BackendModule/docker-compose.yml \
+#     -f docker-compose.yml \
+#     up -d
+#
+# The root docker-compose.yml adds:
+#   backend:
+#     depends_on:
+#       postgres:   { condition: service_healthy }
+#       minio:      { condition: service_healthy }
+#       redis:      { condition: service_healthy }
+#       ai-service: { condition: service_healthy }
+# on top of this file's own service definition (merged by service name
+# "backend" — must match exactly, which it does).
+# =============================================================================

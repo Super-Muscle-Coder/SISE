@@ -38,6 +38,7 @@ class ConfigLoader:
             debug=os.getenv("DEBUG", "False").lower() == "true",
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             metrics_enabled=os.getenv("METRICS_ENABLED", "True").lower() == "true",
+            health_check_timeout_sec=int(os.getenv("HEALTH_CHECK_TIMEOUT_SEC", "5")),
         )
 
     @staticmethod

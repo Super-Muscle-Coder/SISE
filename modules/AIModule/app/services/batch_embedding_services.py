@@ -12,7 +12,11 @@ from typing import List, Tuple
 import torch
 import numpy as np
 
-from ..entities.batch_embedding_entities import BatchEmbeddingConfig, BatchEmbeddingResult
+from ..entities.batch_embedding_entities import (
+    BatchEmbeddingConfig,
+    BatchEmbeddingItem,
+    BatchEmbeddingResult,
+)
 from .image_embedding_services import ImageEmbeddingService
 from ..adapters.image_embedding_adapters import VectorNormalizer
 from ..adapters.batch_embedding_adapters import BatchValidator, BatchPreprocessor
@@ -109,28 +113,38 @@ class BatchEmbeddingService:
             target_size=224,
         )
 
-        # Count preprocessing failures
-        failed_preprocessing = sum(1 for e in preprocess_errors if e != "")
-        if failed_preprocessing > 0:
-            # Log but continue if some passed
-            pass
-
-        # Extract embeddings for successful preprocessed images
-        vectors = []
+        # Extract embeddings for all indices — always emit one item per input index
+        vectors: List[BatchEmbeddingItem] = []
         successful_count = 0
         failed_count = 0
 
         for i, (tensor, error) in enumerate(zip(preprocessed_tensors, preprocess_errors)):
-            if error:  # Preprocessing failed for this image
+            # 1) Preprocessing failed
+            if error:
+                vectors.append(
+                    BatchEmbeddingItem(
+                        index=i,
+                        success=False,
+                        error="Preprocessing failed",
+                    )
+                )
                 failed_count += 1
                 continue
 
+            # 2) Tensor missing after preprocessing
             if tensor is None:
+                vectors.append(
+                    BatchEmbeddingItem(
+                        index=i,
+                        success=False,
+                        error="Preprocessing failed",
+                    )
+                )
                 failed_count += 1
                 continue
 
+            # 3) Encode + normalize
             try:
-                # Use CLIP model directly for batch (avoid per-image service overhead)
                 with torch.no_grad():
                     # tensor shape: (1, 3, 224, 224)
                     model = self.warmup_service.get_model()
@@ -142,26 +156,53 @@ class BatchEmbeddingService:
                 # Normalize to L2 norm = 1.0 (for COSINE similarity)
                 vector_np = image_features.cpu().numpy().astype(np.float32).flatten()
                 vector_normalized, is_normalized = self.normalizer.normalize_vector(vector_np)
+
+                # 4) Normalization failed
                 if not is_normalized:
+                    vectors.append(
+                        BatchEmbeddingItem(
+                            index=i,
+                            success=False,
+                            error="Vector normalization failed",
+                        )
+                    )
                     failed_count += 1
                     continue
 
                 # Validate output dimension (data_schema.yaml -> global_configs.vector_dim)
+                # IMPORTANT: keep system-level fatal behavior (stop whole batch)
                 if len(vector_normalized) != self.config.vector_dim:
                     return result, self.ERR_VECTOR_DIM_MISMATCH
 
-                vectors.append(vector_normalized.tolist())
+                # Success
+                vectors.append(
+                    BatchEmbeddingItem(
+                        index=i,
+                        success=True,
+                        vector=vector_normalized.tolist(),
+                        error=None,
+                    )
+                )
                 successful_count += 1
+
+            # 5) Generic CLIP encoding/runtime failure
             except Exception:
-                # Log and continue
+                vectors.append(
+                    BatchEmbeddingItem(
+                        index=i,
+                        success=False,
+                        error="CLIP encoding failed",
+                    )
+                )
                 failed_count += 1
 
         result.vectors = vectors
         result.successful_count = successful_count
-        result.failed_count = failed_count + failed_preprocessing
+        result.failed_count = failed_count
         result.processing_time_ms = (time.time() - start_time) * 1000
 
         return result, None
+
 
 # Export
 __all__ = ["BatchEmbeddingService"]

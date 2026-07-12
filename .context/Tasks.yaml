@@ -255,6 +255,15 @@ phase_2:
       priority: P1
       status: done
       depends_on: [T002-03]
+      notes_from_ag00: >
+        [v1.2.3, phát sinh từ audit workflow admin của BackendModule] Đã vá
+        batch_embedding_services.py/entities.py/routers.py để response
+        BatchVectorEmbeddingResponse.vectors index-aligned tường minh (mỗi ảnh
+        luôn có 1 item {index, success, vector, error}, kể cả lỗi) — khép lại
+        lỗ hổng mapping âm thầm khi batch có ảnh lỗi ở giữa. Không đổi logic
+        preprocessing/CLIP encoding/validate — chỉ đổi cách gói kết quả cuối.
+        ERR_VECTOR_DIM_MISMATCH vẫn dừng toàn batch (hành vi hệ thống, không
+        đổi thành lỗi per-item).
 
     - id: T002-06
       title: "[workflow:ai_container] Dockerfile cho AI Service bundle"
@@ -534,7 +543,7 @@ phase_3:
       title: "[workflow:admin] Admin reindex bundle (TÁCH RIÊNG từ evaluation, MỚI v1.2.0)"
       assigned_to: AG-03
       priority: P2
-      status: backlog
+      status: done
       description: >
         POST /admin/reindex (admin only). Gọi C (POST /inference/embed/batch)
         rồi gọi B (POST /vector/index) theo batch_size. Cùng cơ chế
@@ -548,7 +557,7 @@ phase_3:
       title: "[workflow:health] Health probes bundle (REBUILD)"
       assigned_to: AG-03
       priority: P0
-      status: backlog
+      status: done
       description: >
         GET /health/liveness, GET /health/readiness với dependency checks
         (PostgreSQL bao gồm pgvector extension, MinIO, Redis — bổ sung

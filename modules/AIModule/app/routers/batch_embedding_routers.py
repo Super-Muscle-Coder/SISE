@@ -13,9 +13,17 @@ from pydantic import BaseModel
 from ..services.batch_embedding_services import BatchEmbeddingService
 
 
+class BatchEmbedItemResponse(BaseModel):
+    """Per-image response item for batch embedding endpoint."""
+    index: int
+    success: bool
+    vector: List[float] | None = None
+    error: str | None = None
+
+
 class BatchEmbedResponse(BaseModel):
     """Response payload for batch embedding endpoint."""
-    vectors: List[List[float]]
+    vectors: List[BatchEmbedItemResponse]
     successful_count: int
     failed_count: int
     processing_time_ms: float
@@ -120,7 +128,15 @@ def create_batch_embedding_router() -> APIRouter:
 
             # Success
             return BatchEmbedResponse(
-                vectors=result.vectors,
+                vectors=[
+                    BatchEmbedItemResponse(
+                        index=item.index,
+                        success=item.success,
+                        vector=item.vector,
+                        error=item.error,
+                    )
+                    for item in result.vectors
+                ],
                 successful_count=result.successful_count,
                 failed_count=result.failed_count,
                 processing_time_ms=result.processing_time_ms,

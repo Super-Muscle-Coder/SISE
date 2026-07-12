@@ -29,6 +29,10 @@ from .services.media_services import MediaService
 from .adapters.upload_adapters import MinIOAdapter
 from .adapters.evaluation_adapters import EvaluationAdapter
 from .services.evaluation_services import EvaluationService
+from .adapters.admin_adapters import AdminAdapter
+from .services.admin_services import AdminService
+from app.services.health_services import HealthService
+from app.services.scaffold_services import ScaffoldService
 
 @lru_cache(maxsize=1)
 def get_config_loader() -> ConfigLoader:
@@ -228,6 +232,47 @@ async def get_evaluation_service(
         top_k=10,
     )
 
+async def get_admin_service(
+    db_session: AsyncSession = Depends(get_async_db_session),
+    minio_adapter: MinIOAdapter = Depends(get_minio_adapter),
+) -> AdminService:
+    scaffold_adapter = get_scaffold_config_adapter()
+    app_config = scaffold_adapter.get_app_config()
+    ai_config = scaffold_adapter.get_ai_service_config()
+
+    ai_service_url = ai_config.url
+    vector_service_base_url = f"http://{app_config.host}:{app_config.port}"
+
+    adapter = AdminAdapter(
+        db_session=db_session,
+        minio_adapter=minio_adapter,
+        ai_service_url=ai_service_url,
+        vector_service_base_url=vector_service_base_url,
+    )
+    return AdminService(adapter=adapter)
+
+async def get_health_service() -> HealthService:
+    scaffold_adapter = get_scaffold_config_adapter()
+    app_config = scaffold_adapter.get_app_config()
+    database_config = scaffold_adapter.get_database_config()
+    storage_config = scaffold_adapter.get_storage_config()
+    cache_config = scaffold_adapter.get_cache_config()
+    ai_config = scaffold_adapter.get_ai_service_config()
+    global_config = scaffold_adapter.get_global_config()
+    scaffold_service = get_scaffold_service()
+
+    return HealthService(
+        database_url=database_config.url,
+        minio_endpoint=storage_config.endpoint,
+        minio_access_key=storage_config.access_key,
+        minio_secret_key=storage_config.secret_key,
+        redis_url=cache_config.url,
+        ai_service_url=ai_config.url,
+        vector_dim=global_config.vector_dim,
+        check_timeout_sec=app_config.health_check_timeout_sec,
+        scaffold_service=scaffold_service,
+    )
+
 __all__ = [
     "get_config_loader",
     "get_scaffold_config_adapter",
@@ -252,4 +297,6 @@ __all__ = [
     "get_search_service",
     "get_media_service",
     "get_evaluation_service",
+    "get_admin_service",
+    "get_health_service",
 ]

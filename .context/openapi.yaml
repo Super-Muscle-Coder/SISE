@@ -4,7 +4,7 @@ info:
   description: >
     Production-ready contract for SISE.
 
-    v1.2.2 — Cross-Module Contract Clarification Pass:
+    v1.2.3 — Cross-Module Contract Clarification Pass:
     Mỗi path được gắn nhãn kép trong summary/description:
       [implemented_by: X] = module chịu trách nhiệm code/serve endpoint này.
       [called_by: Y]      = module (hoặc "Client") gọi endpoint này.
@@ -14,7 +14,7 @@ info:
     BackendModule (AG-03, vùng sửa chính của v1.2.0), E = FrontendModule
     (AG-04, chưa audit — chỉ đóng vai "called_by" trong tài liệu này).
 
-    Changelog v1.2.2 (so với v1.2.0):
+    Changelog v1.2.3 (so với v1.2.2):
       - [FIX Blocking#1] Tách GET getMediaMetadata (trước đây lồng sai vào
         path /media/upload/confirm, path parameter {image_id} không khớp
         URL template — vi phạm cấu trúc OpenAPI) ra path riêng /media/{image_id}.
@@ -54,7 +54,16 @@ info:
       - Cập nhật điều khoản tại vector/index: response 201 mô tả rõ ràng rằng trong triển khai hiện tại 
         (v1.2.2) endpoint này xử lý đồng bộ, trả status="completed" và job_id=null, không có cơ chế tra cứu 
         job_id (dự phòng cho khả năng mở rộng tương lai).
-  version: 1.2.2
+#   [v1.2.3 — sửa phát sinh từ audit workflow admin]
+#   - [CLAUSE C] Làm rõ BatchVectorEmbeddingResponse.vectors: đổi kiểu
+#     phần tử từ VectorEmbedding phẳng sang object {index, success, vector,
+#     error} — khép lại mơ hồ mapping khi batch có partial failure (không
+#     rõ mảng có giữ chỗ null cho ảnh lỗi hay loại hẳn khỏi mảng). Tên
+#     field "vectors" giữ nguyên (minimal diff, giảm ảnh hưởng tới
+#     AIModule đã đóng — chỉ đổi nội dung phần tử, không đổi field name).
+#     AIModule (Clause C, đã khóa) cần 1 vòng vá nhỏ để trả đúng shape mới.
+
+  version: 1.2.3
 servers:
   - url: http://localhost:8000
     description: "Local development gateway (FastAPI) — [implemented_by: D]"
@@ -1319,10 +1328,33 @@ components:
     BatchVectorEmbeddingResponse:
       type: object
       properties:
-        vectors:
+        vectors:                              # [SỬA v1.2.3] Giữ nguyên tên field,
+                                               # đổi kiểu phần tử từ VectorEmbedding
+                                               # phẳng sang object tự mô tả mapping —
+                                               # trước đây không rõ mảng này có giữ
+                                               # chỗ (null) cho ảnh lỗi hay bị loại
+                                               # hẳn khỏi mảng khi failed_count > 0,
+                                               # gây mơ hồ khi AG-03 (admin/reindex)
+                                               # cần biết chính xác ảnh nào lỗi.
           type: array
           items:
-            $ref: '#/components/schemas/VectorEmbedding'
+            type: object
+            required: [index, success]
+            properties:
+              index:
+                type: integer
+                description: "Vị trí (0-based) của file tương ứng trong mảng 'files' đã gửi lên — LUÔN khớp thứ tự request, kể cả khi item này thất bại."
+              success:
+                type: boolean
+                description: "true nếu embedding thành công cho ảnh này."
+              vector:
+                $ref: '#/components/schemas/VectorEmbedding'
+                nullable: true
+                description: "null nếu success=false."
+              error:
+                type: string
+                nullable: true
+                description: "Thông báo lỗi ngắn nếu success=false, null nếu thành công."
         dim:
           type: integer
           description: Dimension of each vector (uniform across the batch)

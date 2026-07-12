@@ -55,7 +55,7 @@ celery_app = Celery(
     broker=_broker_url,
     backend=_result_backend,
 )
-
+celery_app.conf.broker_connection_retry_on_startup = True
 
 def _build_minio_client() -> Minio:
     endpoint = _storage_config.endpoint

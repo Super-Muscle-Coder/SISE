@@ -9,16 +9,9 @@ import os
 import socket
 import subprocess
 import time
-from pathlib import Path
 from urllib.parse import urlparse
 
 import uvicorn
-from dotenv import load_dotenv
-
-
-def _load_environment() -> None:
-    env_file = os.getenv("BACKEND_ENV_FILE", str(Path(__file__).parent / "configs" / "backend.env.local"))
-    load_dotenv(env_file)
 
 
 def _parse_host_port_from_url(raw_url: str, default_port: int) -> tuple[str, int]:
@@ -105,7 +98,6 @@ def _start_celery_worker() -> subprocess.Popen:
 
 
 def main() -> None:
-    _load_environment()
     _wait_for_dependencies()
 
     celery_process = _start_celery_worker()

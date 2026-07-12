@@ -9,7 +9,7 @@ Services:
 
 import asyncio
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Dict
 import logging
 
 from app.entities.health_entities import (
@@ -20,10 +20,11 @@ from app.entities.health_entities import (
 )
 from app.adapters.health_adapters import (
     PostgreSQLHealthChecker,
-    MilvusHealthChecker,
     MinIOHealthChecker,
     AIServiceHealthChecker,
+    RedisHealthChecker,
 )
+from app.services.scaffold_services import ScaffoldService
 
 logger = logging.getLogger(__name__)
 
@@ -31,114 +32,71 @@ logger = logging.getLogger(__name__)
 class HealthService:
     """
     Orchestrates health checks for backend service.
-
-    Responsibilities:
-    - Liveness: Simple check that the service process is running
-    - Readiness: Comprehensive check that all critical dependencies are available
     """
 
     def __init__(
         self,
         database_url: str,
-        milvus_host: str,
-        milvus_port: int,
         minio_endpoint: str,
         minio_access_key: str,
         minio_secret_key: str,
         ai_service_url: str,
+        redis_url: str,
+        scaffold_service: ScaffoldService,
         vector_dim: int = 512,
         check_timeout_sec: float = 5.0,
         retry_attempts: int = 2,
         postgres_enabled: bool = True,
-        milvus_enabled: bool = True,
         minio_enabled: bool = True,
         ai_service_enabled: bool = True,
+        redis_enabled: bool = True,
     ):
-        """
-        Initialize HealthService with dependency checkers.
-
-        Args:
-            database_url: PostgreSQL connection string
-            milvus_host: Milvus host address
-            milvus_port: Milvus port number
-            minio_endpoint: MinIO endpoint (host:port)
-            minio_access_key: MinIO access key
-            minio_secret_key: MinIO secret key
-            ai_service_url: AI Service base URL
-            vector_dim: Expected vector dimension for this deployment
-            check_timeout_sec: Timeout for individual dependency checks
-            retry_attempts: Number of retry attempts for failed checks
-            postgres_enabled: Enable PostgreSQL readiness check
-            milvus_enabled: Enable Milvus readiness check
-            minio_enabled: Enable MinIO readiness check
-            ai_service_enabled: Enable AI Service readiness check
-        """
         self.vector_dim = vector_dim
         self.check_timeout_sec = check_timeout_sec
         self.retry_attempts = retry_attempts
+        self.scaffold_service = scaffold_service
 
-        # Initialize checkers
         self.postgres_checker = PostgreSQLHealthChecker(database_url)
-        self.milvus_checker = MilvusHealthChecker(milvus_host, milvus_port)
         self.minio_checker = MinIOHealthChecker(
             minio_endpoint, minio_access_key, minio_secret_key
         )
         self.ai_service_checker = AIServiceHealthChecker(ai_service_url)
+        self.redis_checker = RedisHealthChecker(redis_url)
 
-        # Feature flags for each checker
         self.enabled_checks = {
             "postgres": postgres_enabled,
-            "milvus": milvus_enabled,
             "minio": minio_enabled,
             "ai_service": ai_service_enabled,
+            "redis": redis_enabled,
         }
 
     async def check_liveness(self) -> HealthStatus:
-        """
-        Perform liveness check.
-
-        Liveness is a simple check that the service process is running.
-        It does NOT check dependencies.
-
-        Returns:
-            HealthStatus with status="alive"
-
-        Raises:
-            No exceptions; liveness always succeeds if this code runs
-        """
         return HealthStatus(
             status="alive",
             timestamp=datetime.now(timezone.utc),
+            config_validated=True,
             dependencies=None,
         )
 
     async def check_readiness(self) -> tuple[HealthStatus, int]:
-        """
-        Perform comprehensive readiness check.
-
-        Checks all enabled dependencies in parallel.
-
-        Returns:
-            Tuple of (HealthStatus, http_status_code)
-            - HealthStatus: Overall status and per-dependency info
-            - http_status_code: 200 if all ready, 503 if any failed, 500 if error
-        """
         try:
+            config_result = self.scaffold_service.get_validation_result()
             results = await self._run_all_checks()
 
-            # Determine overall status
-            all_ready = all(
-                result.status == DependencyState.CONNECTED
-                or result.status == DependencyState.READY
-                or result.status == DependencyState.REACHABLE
-                or result.status == DependencyState.WARM
+            deps_ready = all(
+                result.status in {
+                    DependencyState.CONNECTED,
+                    DependencyState.READY,
+                    DependencyState.REACHABLE,
+                    DependencyState.WARM,
+                }
                 for result in results.results.values()
             )
 
+            all_ready = deps_ready and config_result.config_validated
             status_str = "ready" if all_ready else "degraded"
             http_code = 200 if all_ready else 503
 
-            # Build dependencies dict for response
             dependencies_dict = {
                 name: result.status.value
                 for name, result in results.results.items()
@@ -147,69 +105,105 @@ class HealthService:
             health_status = HealthStatus(
                 status=status_str,
                 timestamp=results.timestamp,
+                config_validated=config_result.config_validated,
                 dependencies=dependencies_dict,
             )
 
             logger.info(
-                f"Readiness check completed: {status_str} "
-                f"({sum(1 for r in results.results.values() if r.status in [DependencyState.CONNECTED, DependencyState.READY, DependencyState.REACHABLE, DependencyState.WARM])}/{len(results.results)} ready)"
+                "Readiness check completed: status=%s config_validated=%s deps_ready=%s",
+                status_str,
+                config_result.config_validated,
+                deps_ready,
             )
-
             return health_status, http_code
 
-        except Exception as e:
-            logger.error(f"Readiness check failed with error: {e}")
+        except Exception as exc:
+            logger.exception("Readiness check failed: %s", exc)
             return (
                 HealthStatus(
                     status="error",
                     timestamp=datetime.now(timezone.utc),
+                    config_validated=False,
                     dependencies=None,
                 ),
                 500,
             )
 
     async def _run_all_checks(self) -> ReadinessCheckResults:
-        """
-        Run all enabled dependency checks in parallel.
-
-        Returns:
-            ReadinessCheckResults with per-dependency results
-        """
         tasks = {}
 
         if self.enabled_checks["postgres"]:
-            tasks["postgres"] = self.postgres_checker.check(self.check_timeout_sec)
-
-        if self.enabled_checks["milvus"]:
-            tasks["milvus"] = self.milvus_checker.check(self.check_timeout_sec)
+            tasks["postgres"] = self._check_with_retry(
+                self.postgres_checker.check, self.check_timeout_sec, self.retry_attempts
+            )
 
         if self.enabled_checks["minio"]:
-            tasks["minio"] = self.minio_checker.check(self.check_timeout_sec)
+            tasks["minio"] = self._check_with_retry(
+                self.minio_checker.check, self.check_timeout_sec, self.retry_attempts
+            )
 
         if self.enabled_checks["ai_service"]:
-            tasks["ai_service"] = self.ai_service_checker.check(self.check_timeout_sec)
+            tasks["ai_service"] = self._check_with_retry(
+                self.ai_service_checker.check, self.check_timeout_sec, self.retry_attempts
+            )
 
-        # Run all checks concurrently
-        results = {}
+        if self.enabled_checks["redis"]:
+            tasks["redis"] = self._check_with_retry(
+                self.redis_checker.check, self.check_timeout_sec, self.retry_attempts
+            )
+
+        results: Dict[str, ReadinessCheckResult] = {}
         if tasks:
-            check_results = await asyncio.gather(*tasks.values(), return_exceptions=False)
-            for (name, _), result in zip(tasks.items(), check_results):
-                results[name] = result
+            names = list(tasks.keys())
+            values = await asyncio.gather(*tasks.values(), return_exceptions=False)
+            for idx, item in enumerate(values):
+                results[names[idx]] = item
+
+        all_ready = all(
+            r.status in {
+                DependencyState.CONNECTED,
+                DependencyState.READY,
+                DependencyState.REACHABLE,
+                DependencyState.WARM,
+            }
+            for r in results.values()
+        )
 
         return ReadinessCheckResults(
             timestamp=datetime.now(timezone.utc),
-            all_ready=all(
-                result.status in [
-                    DependencyState.CONNECTED,
-                    DependencyState.READY,
-                    DependencyState.REACHABLE,
-                    DependencyState.WARM,
-                ]
-                for result in results.values()
-            ),
+            all_ready=all_ready,
             results=results,
             vector_dim=self.vector_dim,
         )
+
+    async def _check_with_retry(
+        self,
+        check_func,
+        timeout_sec: float,
+        retry_attempts: int,
+    ) -> ReadinessCheckResult:
+        last_result: ReadinessCheckResult | None = None
+        for attempt in range(retry_attempts + 1):
+            result = await check_func(timeout_sec)
+            last_result = result
+            if result.status in {
+                DependencyState.CONNECTED,
+                DependencyState.READY,
+                DependencyState.REACHABLE,
+                DependencyState.WARM,
+            }:
+                return result
+            if attempt < retry_attempts:
+                await asyncio.sleep(0.2)
+
+        if last_result is None:
+            return ReadinessCheckResult(
+                name="unknown",
+                status=DependencyState.UNAVAILABLE,
+                latency_ms=0.0,
+                error="No check result produced",
+            )
+        return last_result
 
 
 __all__ = ["HealthService"]

@@ -87,7 +87,7 @@ class EvaluationService:
             raise RuntimeError(f"Vector search failed ({resp.status_code})")
 
         data = resp.json()
-        items = data.get("items", [])
+        items = data.get("results", [])
         ranked_ids: list[str] = []
         for item in items:
             image_id = item.get("image_id")

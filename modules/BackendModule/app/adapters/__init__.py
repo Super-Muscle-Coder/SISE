@@ -4,8 +4,8 @@ Exported by workflow for use in services.
 """
 
 from .scaffold_adapters import (
-    ScaffoldConfigAdapter,
     ConfigLoader,
+    ScaffoldConfigAdapter,
 )
 from .auth_adapters import (
     PasswordHasher,
@@ -18,42 +18,53 @@ from .upload_adapters import (
     PostgreSQLImageAdapter,
 )
 from .search_adapters import (
-    MilvusSearchAdapter,
-    PostgreSQLSearchAdapter,
     AIServiceSearchAdapter,
+    StorageVectorSearchAdapter,
+    FriendsQueryAdapter,
 )
 from .media_adapters import (
     AlbumAdapter,
     ImageAdapter,
 )
+from .storage_vector_adapters import (
+    StorageVectorAdapter,
+)
+from .indexing_adapters import (
+    IndexingAdapter,
+)
 from .evaluation_adapters import (
     EvaluationAdapter,
 )
+from .admin_adapters import (
+    AdminAdapter,
+)
 from .health_adapters import (
     PostgreSQLHealthChecker,
-    MilvusHealthChecker,
     MinIOHealthChecker,
     AIServiceHealthChecker,
+    RedisHealthChecker,
 )
 
 __all__ = [
-    "ScaffoldConfigAdapter",
     "ConfigLoader",
+    "ScaffoldConfigAdapter",
     "PasswordHasher",
     "TokenGenerator",
     "AuthConfigAdapter",
     "MinIOAdapter",
     "IdempotencyAdapter",
     "PostgreSQLImageAdapter",
-    "MilvusSearchAdapter",
-    "PostgreSQLSearchAdapter",
     "AIServiceSearchAdapter",
+    "StorageVectorSearchAdapter",
+    "FriendsQueryAdapter",
     "AlbumAdapter",
     "ImageAdapter",
+    "StorageVectorAdapter",
+    "IndexingAdapter",
     "EvaluationAdapter",
+    "AdminAdapter",
     "PostgreSQLHealthChecker",
-    "MilvusHealthChecker",
     "MinIOHealthChecker",
     "AIServiceHealthChecker",
+    "RedisHealthChecker",
 ]
-
