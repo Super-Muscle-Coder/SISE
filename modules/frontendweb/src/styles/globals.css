@@ -1,9 +1,14 @@
 /**
  * @file globals.css
  * @layer styles (Layer 1 - Base Styles)
- * @description Global CSS setup and CSS custom properties (variables)
- * This is the main aggregator that imports all style layers
- * Applied to entire application via main.tsx import
+ * @description Global CSS setup và CSS custom properties (variables).
+ *              BẢN XUẤT (không phải nguồn) — mọi giá trị --* bên dưới PHẢI
+ *              khớp CHÍNH XÁC giá trị tương ứng trong design-system/*.ts.
+ *              Nguồn sự thật duy nhất là design-system/, file này chỉ dịch
+ *              sang CSS variable để CSS thuần (.css) đọc được vì không thể
+ *              import file .ts trực tiếp.
+ *              KHÔNG tự ý gõ tay giá trị khác ở đây — nếu cần đổi giá trị,
+ *              sửa design-system/*.ts trước, rồi đồng bộ lại file này.
  * @owner AG-04
  */
 
@@ -22,78 +27,112 @@
 
 :root {
     /* ====================================================================
-       COLOR TOKENS
+       COLOR TOKENS — nguồn: design-system/colors.ts
        ==================================================================== */
-    /* Background Colors */
     --color-bg-primary: #ffffff;
     --color-bg-secondary: #f9f9f9;
     --color-bg-tertiary: #f4f4f5;
     --color-bg-neutral: #fafafa;
-    /* Text Colors */
     --color-text-primary: #000000;
     --color-text-secondary: #71717a;
     --color-text-tertiary: #a1a1aa;
     --color-text-inverted: #ffffff;
-    /* Brand Colors - UPDATED: Now BLUE instead of RED */
+    /* Brand — khớp COLORS.brand (colors.ts). ĐÃ đổi từ đỏ Pinterest gốc
+       (#e60023) sang xanh (#0078D7) — mọi nơi trong dự án PHẢI dùng biến
+       này, KHÔNG hardcode #e60023 làm fallback (lỗi đã sửa ở v2 các file
+       form-base.css/typography-base.css/reset.css). */
     --color-brand-primary: #0078D7;
     --color-brand-primary-hover: #106ebe;
     --color-brand-primary-dark: #005a9e;
     --color-brand-secondary: #000000;
-    /* Semantic Colors */
     --color-semantic-success: #10b981;
     --color-semantic-warning: #f59e0b;
     --color-semantic-error: #ef4444;
     --color-semantic-info: #3b82f6;
-    /* Border Colors */
     --color-border-light: #e4e4e7;
     --color-border-medium: #d4d4d8;
     --color-border-dark: #71717a;
-    /* Overlay Colors */
     --color-overlay-black: rgba(0, 0, 0, 0.6);
     --color-overlay-white: rgba(255, 255, 255, 0.1);
-    /* Utility Colors */
     --color-gray-light: #f5f5f5;
+    /* Footer — dark theme riêng, khớp COLORS.footer (colors.ts) */
+    --color-footer-background: #1a1a1a;
+    --color-footer-text: #ffffff;
+    --color-footer-text-muted: #b3b3b3;
+    --color-footer-text-faint: #808080;
     /* ====================================================================
-       TYPOGRAPHY TOKENS
+       TYPOGRAPHY TOKENS — nguồn: design-system/typography.ts
+       Đặt tên theo VAI TRÒ (heading/body/ui), khớp 1-1 cấu trúc TS, thay vì
+       thang trừu tượng --font-size-xs..5xl trước đây (2 hệ song song không
+       map rõ ràng — đã gộp thành 1 hệ duy nhất).
        ==================================================================== */
     --typography-family-base: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --typography-family-mono: 'Fira Code', 'Courier New', monospace;
-    /* Font Sizes */
-    --font-size-xs: 0.75rem;
-    --font-size-sm: 0.875rem;
-    --font-size-base: 1rem;
-    --font-size-lg: 1.125rem;
-    --font-size-xl: 1.25rem;
-    --font-size-2xl: 1.5rem;
-    --font-size-3xl: 1.975rem;
-    --font-size-4xl: 2.25rem;
-    --font-size-5xl: 3rem;
-    /* Font Weights */
-    --font-weight-thin: 100;
-    --font-weight-extralight: 200;
-    --font-weight-light: 300;
+    /* Heading — khớp TYPOGRAPHY.heading.h1-h6 */
+    --text-heading-h1-size: 2.25rem;
+    --text-heading-h1-weight: 800;
+    --text-heading-h1-line: 1.1;
+    --text-heading-h1-tracking: -0.02em;
+    --text-heading-h2-size: 1.875rem;
+    --text-heading-h2-weight: 700;
+    --text-heading-h2-line: 1.2;
+    --text-heading-h2-tracking: -0.01em;
+    --text-heading-h3-size: 1.5rem;
+    --text-heading-h3-weight: 700;
+    --text-heading-h3-line: 1.3;
+    --text-heading-h4-size: 1.25rem;
+    --text-heading-h4-weight: 600;
+    --text-heading-h4-line: 1.4;
+    --text-heading-h5-size: 1rem;
+    --text-heading-h5-weight: 600;
+    --text-heading-h5-line: 1.5;
+    --text-heading-h6-size: 0.875rem;
+    --text-heading-h6-weight: 600;
+    --text-heading-h6-line: 1.5;
+    /* Body — khớp TYPOGRAPHY.body.base/lg/sm/xs */
+    --text-body-base-size: 1rem;
+    --text-body-base-weight: 400;
+    --text-body-base-line: 1.6;
+    --text-body-lg-size: 1.125rem;
+    --text-body-lg-line: 1.7;
+    --text-body-sm-size: 0.875rem;
+    --text-body-sm-line: 1.5;
+    --text-body-xs-size: 0.75rem;
+    --text-body-xs-line: 1.4;
+    --text-body-xs-tracking: 0.01em;
+    /* UI — khớp TYPOGRAPHY.ui.button/label/badge */
+    --text-ui-button-size: 1rem;
+    --text-ui-button-weight: 600;
+    --text-ui-label-size: 0.875rem;
+    --text-ui-label-weight: 500;
+    --text-ui-badge-size: 0.75rem;
+    --text-ui-badge-weight: 600;
+    --text-ui-badge-tracking: 0.5px;
+    /* Font Weight — thang chung, khớp mọi giá trị weight dùng ở trên */
     --font-weight-normal: 400;
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
     --font-weight-bold: 700;
     --font-weight-extrabold: 800;
-    --font-weight-black: 900;
     /* ====================================================================
-       SPACING TOKENS
+       SPACING TOKENS — nguồn: design-system/spacing.ts
        ==================================================================== */
-    --spacing-xs: 0.25rem; /* 4px */
-    --spacing-sm: 0.5rem; /* 8px */
-    --spacing-md: 0.75rem; /* 12px */
-    --spacing-base: 1rem; /* 16px */
-    --spacing-lg: 1.5rem; /* 24px */
-    --spacing-xl: 2rem; /* 32px */
-    --spacing-2xl: 2.5rem; /* 40px */
-    --spacing-3xl: 3rem; /* 48px */
-    --spacing-4xl: 3.5rem; /* 56px */
-    --spacing-5xl: 4rem; /* 64px */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 0.75rem;
+    --spacing-base: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 2.5rem;
+    --spacing-3xl: 3rem;
+    --spacing-4xl: 3.5rem;
+    --spacing-5xl: 4rem;
+    --spacing-6xl: 8.75rem;
     /* ====================================================================
-        BORDER RADIUS TOKENS
-        ==================================================================== */
+       BORDER RADIUS TOKENS — không có trong design-system/*.ts hiện tại,
+       giữ nguyên tại đây (radius chưa được token hóa phía TS — cân nhắc
+       bổ sung design-system/radius.ts nếu cần dùng nhiều từ component)
+       ==================================================================== */
     --radius-sm: 3px;
     --radius-base: 6px;
     --radius-md: 8px;
@@ -102,7 +141,7 @@
     --radius-2xl: 45px;
     --radius-full: 9999px;
     /* ====================================================================
-       SHADOW TOKENS
+       SHADOW TOKENS — nguồn: design-system/shadows.ts
        ==================================================================== */
     --shadow-none: none;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -112,7 +151,7 @@
     --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
     /* ====================================================================
-       ANIMATION / TRANSITION TOKENS
+       ANIMATION / TRANSITION TOKENS — nguồn: design-system/animations.ts
        ==================================================================== */
     --duration-fast: 150ms;
     --duration-normal: 300ms;
@@ -122,7 +161,7 @@
     --easing-out: cubic-bezier(0, 0, 0.2, 1);
     --easing-in-out: cubic-bezier(0.4, 0, 0.2, 1);
     /* ====================================================================
-       Z-INDEX TOKENS
+       Z-INDEX TOKENS — không có trong design-system/*.ts hiện tại
        ==================================================================== */
     --z-base: 0;
     --z-floating: 10;
@@ -130,7 +169,7 @@
     --z-modal: 30;
     --z-toast: 50;
     /* ====================================================================
-       BREAKPOINTS (FOR RESPONSIVE DESIGN)
+       BREAKPOINTS — không có trong design-system/*.ts hiện tại
        ==================================================================== */
     --breakpoint-sm: 640px;
     --breakpoint-md: 768px;
@@ -143,34 +182,28 @@
    2. GLOBAL STYLES
    ============================================================================ */
 
-/**
- * Ensure all elements can access CSS variables
- */
 * {
     --tw-text-opacity: 1;
     --tw-border-opacity: 1;
     --tw-bg-opacity: 1;
 }
 
-/**
- * Scrollbar styling (optional, modern browsers)
- */
 ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-    background-color: var(--color-bg-secondary, #f9f9f9);
+    background-color: var(--color-bg-secondary);
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: var(--color-border-medium, #d4d4d8);
+    background-color: var(--color-border-medium);
     border-radius: 5px;
 }
 
     ::-webkit-scrollbar-thumb:hover {
-        background-color: var(--color-border-dark, #71717a);
+        background-color: var(--color-border-dark);
     }
 
 /* ============================================================================

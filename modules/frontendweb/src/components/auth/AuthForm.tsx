@@ -1,7 +1,10 @@
 /**
  * @file AuthForm.tsx
  * @layer components (Layer 3)
- * @description Reusable authentication form wrapper component
+ * @description Reusable authentication form wrapper component.
+ *              Mọi giá trị thiết kế (spacing, typography, màu) đọc qua
+ *              var(--token) từ globals.css — khớp design-system/*.ts.
+ *              Tailwind class CHỈ dùng cho layout thuần (không token hóa).
  * @owner AG-04
  */
 
@@ -16,12 +19,6 @@ interface AuthFormProps {
 
 /**
  * AuthForm: Wrapper for authentication forms
- * 
- * Features:
- * - Consistent form styling
- * - Error message area
- * - Submit button area
- * - Loading state management
  */
 export function AuthForm({
     title,
@@ -30,9 +27,23 @@ export function AuthForm({
     isLoading = false,
 }: AuthFormProps): React.ReactElement {
     return (
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form
+            onSubmit={onSubmit}
+            className="flex flex-col"
+            style={{ gap: 'var(--spacing-base)' }}
+            aria-busy={isLoading}
+        >
             {title && (
-                <h2 className="text-2xl font-bold text-zinc-900 mb-6">
+                <h2
+                    style={{
+                        fontSize: 'var(--text-heading-h2-size)',
+                        fontWeight: 'var(--text-heading-h2-weight)',
+                        lineHeight: 'var(--text-heading-h2-line)',
+                        letterSpacing: 'var(--text-heading-h2-tracking)',
+                        color: 'var(--color-text-primary)',
+                        marginBottom: 'var(--spacing-lg)',
+                    }}
+                >
                     {title}
                 </h2>
             )}

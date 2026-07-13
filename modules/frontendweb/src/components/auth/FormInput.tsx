@@ -1,7 +1,13 @@
 /**
  * @file FormInput.tsx
  * @layer components (Layer 3)
- * @description Reusable form input component with label and validation
+ * @description Reusable form input component with label and validation.
+ *              SỬA: trước đây dùng Tailwind red-500/red-600 hardcode cho CẢ
+ *              2 trạng thái (focus bình thường VÀ có lỗi) — không phân biệt
+ *              được "đang gõ bình thường" với "đang báo lỗi", đồng thời
+ *              không khớp brand color hiện tại (đã đổi sang xanh #0078D7).
+ *              Nay: focus bình thường → --color-brand-primary (xanh); có
+ *              lỗi → --color-semantic-error (đỏ, đúng ngữ nghĩa "error").
  * @owner AG-04
  */
 
@@ -22,13 +28,6 @@ interface FormInputProps {
 
 /**
  * FormInput: Styled input field with label
- * 
- * Features:
- * - Label
- * - Input with focus states
- * - Error message display
- * - Loading/disabled state
- * - Auto-complete support
  */
 export function FormInput({
     label,
@@ -42,14 +41,35 @@ export function FormInput({
     required = false,
     autoComplete,
 }: FormInputProps): React.ReactElement {
+    const [isFocused, setIsFocused] = React.useState(false);
+
+    const borderColor = error
+        ? 'var(--color-semantic-error)'
+        : isFocused
+            ? 'var(--color-brand-primary)'
+            : 'var(--color-border-light)';
+
+    const ringColor = error
+        ? 'rgba(239, 68, 68, 0.1)'  // --color-semantic-error (#ef4444) ở alpha 0.1
+        : 'rgba(0, 120, 215, 0.1)'; // --color-brand-primary (#0078D7) ở alpha 0.1
+
     return (
-        <div className="space-y-2">
+        <div className="flex flex-col" style={{ gap: 'var(--spacing-sm)' }}>
             <label
                 htmlFor={name}
-                className="block text-sm font-medium text-zinc-900"
+                style={{
+                    display: 'block',
+                    fontSize: 'var(--text-ui-label-size)',
+                    fontWeight: 'var(--text-ui-label-weight)',
+                    color: 'var(--color-text-primary)',
+                }}
             >
                 {label}
-                {required && <span className="text-red-600 ml-1">*</span>}
+                {required && (
+                    <span style={{ color: 'var(--color-semantic-error)', marginLeft: 'var(--spacing-xs)' }}>
+                        *
+                    </span>
+                )}
             </label>
 
             <input
@@ -58,24 +78,38 @@ export function FormInput({
                 name={name}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
                 placeholder={placeholder}
                 disabled={disabled}
                 required={required}
                 autoComplete={autoComplete}
-                className={`
-                    w-full px-4 py-3 border rounded-md text-base font-normal
-                    placeholder-zinc-500
-                    focus:outline-none focus:ring-1 transition-smooth
-                    disabled:bg-zinc-100 disabled:cursor-not-allowed
-                    ${error
-                        ? 'border-red-500 focus:border-red-600 focus:ring-red-600'
-                        : 'border-zinc-200 focus:border-red-600 focus:ring-red-600'
-                    }
-                `}
+                className="w-full"
+                style={{
+                    padding: 'var(--spacing-md) var(--spacing-base)',
+                    fontSize: 'var(--text-body-base-size)',
+                    fontWeight: 'var(--font-weight-normal)',
+                    borderRadius: 'var(--radius-base)',
+                    border: `1px solid ${borderColor}`,
+                    outline: 'none',
+                    boxShadow: isFocused || error ? `0 0 0 3px ${ringColor}` : 'none',
+                    color: 'var(--color-text-primary)',
+                    backgroundColor: disabled ? 'var(--color-bg-tertiary)' : 'var(--color-bg-primary)',
+                    cursor: disabled ? 'not-allowed' : 'text',
+                    transition: `border-color var(--duration-normal) var(--easing-in-out), box-shadow var(--duration-normal) var(--easing-in-out)`,
+                }}
             />
 
             {error && (
-                <p className="text-sm font-medium text-red-600">{error}</p>
+                <p
+                    style={{
+                        fontSize: 'var(--text-body-sm-size)',
+                        fontWeight: 'var(--font-weight-medium)',
+                        color: 'var(--color-semantic-error)',
+                    }}
+                >
+                    {error}
+                </p>
             )}
         </div>
     );

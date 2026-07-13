@@ -1,10 +1,10 @@
-# 🎨 Hướng Dẫn Styling Thống Nhất - Frontend Web
+# Hướng Dẫn Styling Thống Nhất - Frontend Web
 
 > **Tài liệu này là Single Source of Truth (SSoT) cho tất cả quyết định styling**
 
 ---
 
-## 📋 Tóm Tắt Nhanh
+## Tóm Tắt Nhanh
 
 | Quyết Định | Giá Trị |
 |-----------|--------|
@@ -19,7 +19,7 @@
 
 ---
 
-## 🏗️ Kiến Trúc Styling (3 Tầng)
+## Kiến Trúc Styling (3 Tầng)
 
 ```
 Layer 1: Design Tokens (globals.css + design_tokens.ts)
@@ -34,10 +34,10 @@ Layer 3: Component Variants (Tailwind responsive + state modifiers)
 **File:** `src/styles/globals.css` + `src/configs/design_tokens.ts`
 
 **Nội dung:**
-- 🎨 CSS custom properties (--color-*, --spacing-*, --font-*, etc.)
-- 📝 TypeScript constant objects (COLORS, TYPOGRAPHY, SPACING, SHADOWS)
-- 🔄 Base element styles (h1, h2, p, input, button, a)
-- ⚙️ Reusable utility classes (.masonry-container, .transition-smooth, etc.)
+- CSS custom properties (--color-*, --spacing-*, --font-*, etc.)
+- TypeScript constant objects (COLORS, TYPOGRAPHY, SPACING, SHADOWS)
+- Base element styles (h1, h2, p, input, button, a)
+- Reusable utility classes (.masonry-container, .transition-smooth, etc.)
 
 **Ví dụ:**
 ```css
@@ -75,10 +75,10 @@ export const TYPOGRAPHY = {
 ```
 
 **Khi nào sử dụng Layer 1:**
-- ✅ Màu sắc, kích thước, font, shadow cho toàn app
-- ✅ Base styles cho HTML elements (h1, input, button, etc.)
-- ✅ Reusable patterns (masonry grid, transitions)
-- ✅ Dark mode, responsive breakpoints
+- Màu sắc, kích thước, font, shadow cho toàn app
+- Base styles cho HTML elements (h1, input, button, etc.)
+- Reusable patterns (masonry grid, transitions)
+- Dark mode, responsive breakpoints
 
 ---
 
@@ -113,10 +113,10 @@ export function LoginForm() {
 ```
 
 **Khi nào sử dụng Layer 2:**
-- ✅ Layout structure (flex, grid, absolute)
-- ✅ Sizing (w-*, h-*, max-w-*)
-- ✅ Spacing that's consistent with design tokens (px-4 = spacing-base, py-8 = spacing-2xl)
-- ✅ Display properties (block, hidden, inline-flex)
+- Layout structure (flex, grid, absolute)
+- Sizing (w-*, h-*, max-w-*)
+- Spacing that's consistent with design tokens (px-4 = spacing-base, py-8 = spacing-2xl)
+- Display properties (block, hidden, inline-flex)
 
 ---
 
@@ -161,9 +161,9 @@ export function Button({ isLoading, disabled }) {
 ```
 
 **Khi nào sử dụng Layer 3:**
-- ✅ Responsive variants (sm:, md:, lg:)
-- ✅ State styles (hover:, focus:, active:, disabled:)
-- ✅ Conditional classes (dynamic states based on props)
+- Responsive variants (sm:, md:, lg:)
+- State styles (hover:, focus:, active:, disabled:)
+- Conditional classes (dynamic states based on props)
 
 ---
 
@@ -186,7 +186,7 @@ Tailwind spacing map directly to design tokens:
 
 ---
 
-## 🎨 Màu Sắc (Tailwind → Design Tokens)
+## Màu Sắc (Tailwind → Design Tokens)
 
 ### Color Mapping
 
@@ -204,21 +204,21 @@ Tailwind spacing map directly to design tokens:
 
 **Rule:** Không sử dụng arbitrary Tailwind colors (ví dụ: `bg-blue-700`). Chỉ dùng colors được define trong design tokens.
 
-**❌ Sai:**
+**Sai:**
 ```tsx
 <button className="bg-blue-700 text-white">Sign In</button> {/* undefined color */}
 ```
 
-**✅ Đúng:**
+**Đúng:**
 ```tsx
 <button className="bg-red-600 text-white">Sign In</button> {/* from COLORS.brand.primary */}
 ```
 
 ---
 
-## 📝 Khi Nào Dùng CSS vs Tailwind
+## Khi Nào Dùng CSS vs Tailwind
 
-### ✅ Dùng CSS (globals.css)
+### Dùng CSS (globals.css)
 
 ```css
 /* 1. Base element styles */
@@ -252,7 +252,7 @@ button {
 }
 ```
 
-### ✅ Dùng Tailwind
+### Dùng Tailwind
 
 ```tsx
 // 1. Component-specific layout
@@ -268,22 +268,22 @@ button {
 <div className={`p-4 ${isLoading ? 'animate-pulse' : ''}`}>
 ```
 
-### ❌ KHÔNG dùng những cách này
+### KHÔNG dùng những cách này
 
 ```tsx
-// ❌ Inline styles
+// Inline styles
 <div style={{ color: 'red', padding: '1rem' }}>
 
-// ❌ CSS Modules
+// CSS Modules
 import styles from './Button.module.css';
 <button className={styles.primary}>
 
-// ❌ Styled Components
+// Styled Components
 const StyledButton = styled.button`
 	background-color: red;
 `;
 
-// ❌ Arbitrary values (trong hầu hết cases)
+// Arbitrary values (trong hầu hết cases)
 <div className="p-[17px] text-[#e60023]">
 ```
 

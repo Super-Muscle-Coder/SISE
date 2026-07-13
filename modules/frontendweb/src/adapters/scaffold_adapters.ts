@@ -18,6 +18,7 @@ import axios, {
 } from 'axios'
 import { v4 as uuidv4 } from 'uuid'
 import { SCAFFOLD_CONFIG } from '../configs/scaffold_configs'
+import { AUTH_CONFIG } from '../configs/auth_configs'
 import type { StandardError } from '../entities/scaffold_entities'
 
 /**
@@ -58,7 +59,7 @@ export class ScaffoldAdapter {
                 // ============================================================
                 // 1. JWT Bearer Token Injection (per openapi.yaml BearerAuth)
                 // ============================================================
-                const token = SCAFFOLD_CONFIG.AUTH.getStoredToken()
+                const token = AUTH_CONFIG.getStoredToken()
                 if (token) {
                     config.headers.Authorization = `Bearer ${token}`
                 }
@@ -124,11 +125,11 @@ export class ScaffoldAdapter {
                     SCAFFOLD_CONFIG.DEBUG.log('warn', '[Auth] 401 Unauthorized detected. Auto-logging out.')
 
                     // Clear all auth data from localStorage
-                    SCAFFOLD_CONFIG.AUTH.clearStoredAuth()
+                    AUTH_CONFIG.clearStoredAuth()
 
                     // Dispatch session ended event (cross-tab sync + UI update)
                     window.dispatchEvent(
-                        new CustomEvent(SCAFFOLD_CONFIG.AUTH.events.sessionEnded, {
+                        new CustomEvent(AUTH_CONFIG.events.sessionEnded, {
                             detail: { reason: 'unauthorized_401_intercepted', timestamp: Date.now() },
                         })
                     )
@@ -407,3 +408,10 @@ export class ScaffoldAdapter {
         return response.data
     }
 }
+
+/**
+ * Global Axios Adapter Instance
+ * Used by all services, components, and hooks for HTTP communication.
+ * Configuration sourced from SCAFFOLD_CONFIG (env-driven, no hardcoding).
+ */
+export const scaffoldAdapter = new ScaffoldAdapter(SCAFFOLD_CONFIG.API.baseUrl)

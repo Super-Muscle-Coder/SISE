@@ -1,7 +1,13 @@
 /**
  * @file animations.css
  * @layer styles (Layer 1 - Base Styles)
- * @description Keyframe animations and related animation definitions
+ * @description Keyframe animations. Danh sách tên khớp 1-1
+ *              design-system/animations.ts ANIMATIONS.keyframes.
+ *              SỬA: `slideInUp` trước đây bị định nghĩa 2 lần với 2 giá trị
+ *              khác nhau (10px dùng chung vs 250px cho Footer AOS) — CSS
+ *              âm thầm lấy bản sau cùng, khiến .animate-slide-in-up chạy
+ *              sai hiệu ứng. Đã tách: slideInUp (10px, dùng chung) và
+ *              footerRevealUp (250px, riêng .animate-footer-reveal).
  * @owner AG-04
  * @reference design-system/animations.ts
  */
@@ -10,31 +16,21 @@
  * FADE Animations
  */
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 @keyframes fadeOut {
-    from {
-        opacity: 1;
-    }
-
-    to {
-        opacity: 0;
-    }
+    from { opacity: 1; }
+    to { opacity: 0; }
 }
 
 .animate-fade-in {
-    animation: fadeIn 300ms ease-out;
+    animation: fadeIn var(--duration-normal) var(--easing-out);
 }
 
 .animate-fade-out {
-    animation: fadeOut 300ms ease-in;
+    animation: fadeOut var(--duration-normal) var(--easing-in);
 }
 
 /**
@@ -89,20 +85,45 @@
 }
 
 .animate-slide-in-up {
-    animation: slideInUp 300ms ease-out;
+    animation: slideInUp var(--duration-normal) var(--easing-out);
 }
 
 .animate-slide-in-down {
-    animation: slideInDown 300ms ease-out;
+    animation: slideInDown var(--duration-normal) var(--easing-out);
 }
 
 .animate-slide-in-left {
-    animation: slideInLeft 300ms ease-out;
+    animation: slideInLeft var(--duration-normal) var(--easing-out);
 }
 
 .animate-slide-in-right {
-    animation: slideInRight 300ms ease-out;
+    animation: slideInRight var(--duration-normal) var(--easing-out);
 }
+
+/**
+ * FOOTER AOS-LIKE REVEAL — riêng biệt, KHÔNG dùng chung tên với
+ * slideInUp ở trên (xem lý do sửa ở đầu file).
+ */
+@keyframes footerRevealUp {
+    from {
+        opacity: 0;
+        transform: translateY(250px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-footer-reveal {
+    animation: footerRevealUp 600ms var(--easing-out) forwards;
+    visibility: hidden;
+}
+
+    .animate-footer-reveal.is-visible {
+        visibility: visible;
+    }
 
 /**
  * SCALE Animations
@@ -132,11 +153,11 @@
 }
 
 .animate-scale-in {
-    animation: scaleIn 300ms ease-out;
+    animation: scaleIn var(--duration-normal) var(--easing-out);
 }
 
 .animate-scale-out {
-    animation: scaleOut 300ms ease-in;
+    animation: scaleOut var(--duration-normal) var(--easing-in);
 }
 
 /**
@@ -175,6 +196,9 @@
 
 /**
  * PULSE Animations
+ * DUY NHẤT — trước đây bị định nghĩa trùng ở utilities.css, đã xóa bản
+ * trùng bên đó, giữ 1 bản duy nhất tại đây (animations.css sở hữu mọi
+ * @keyframes, utilities.css chỉ chứa utility class không phải animation).
  */
 @keyframes pulse {
     0%, 100% {
@@ -204,26 +228,7 @@
 }
 
 .animate-shimmer {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background: linear-gradient(90deg, var(--color-bg-tertiary) 25%, var(--color-border-light) 50%, var(--color-bg-tertiary) 75%);
     background-size: 1000px 100%;
     animation: shimmer 2s infinite;
 }
-
-
-/**
- * Slide In Up Animation (cho Footer AOS effect)
- */
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(250px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* ===== IMPROVED SLIDE IN UP ANIMATION ===== */
-/* Triệt tiêu hoàn toàn "bóng ma" bằng visibility explicit */

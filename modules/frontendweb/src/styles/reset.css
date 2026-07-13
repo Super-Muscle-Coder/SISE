@@ -1,16 +1,15 @@
 /**
- * @file reset.css
- * @layer styles (Layer 1 - Base Styles)
- * @description Browser reset and normalization
- * Removes default browser styles for consistent baseline
- * @owner AG-04
+ @file reset.css
+ @layer styles (Layer 1 - Base Styles)
+ @description Browser reset and normalization.
+               Dùng thẳng var(--token), KHÔNG kèm fallback hardcode —
+               globals.css luôn @import file này SAU khi :root đã định
+               nghĩa toàn bộ biến, nên fallback là thừa và là nguồn gây
+               phân mảnh giá trị (đã xác nhận qua vụ --color-brand-primary
+               bị đổi #e60023 → #0078D7 nhưng 13 fallback quên đồng bộ).
+ @owner AG-04
  */
 
-/**
- * 1. Remove default margins and padding
- * 2. Apply universal box-sizing
- * 3. Prevent unwanted font inflation on iOS
- */
 * {
     margin: 0;
     padding: 0;
@@ -19,9 +18,6 @@
     -moz-osx-font-smoothing: grayscale;
 }
 
-/**
- * HTML & Body Resets
- */
 html,
 body {
     width: 100%;
@@ -31,21 +27,15 @@ body {
 body {
     margin: 0;
     padding: 0;
-    background-color: var(--color-bg-primary, #ffffff);
-    color: var(--color-text-primary, #000000);
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
 }
 
-/**
- * Root Element
- */
 #root {
     width: 100%;
     height: 100%;
 }
 
-/**
- * Ensure images and media don't overflow
- */
 img,
 picture,
 video,
@@ -56,9 +46,6 @@ svg {
     height: auto;
 }
 
-/**
- * Remove default input/button styles
- */
 button,
 input,
 textarea,
@@ -66,9 +53,6 @@ select {
     all: unset;
 }
 
-/**
- * Forms should inherit font
- */
 input,
 button,
 textarea,
@@ -77,25 +61,16 @@ select {
     font-size: inherit;
 }
 
-/**
- * Links don't need underline by default
- */
 a {
     color: inherit;
     text-decoration: none;
 }
 
-/**
- * Lists don't need bullets
- */
 ul,
 ol {
     list-style: none;
 }
 
-/**
- * Blockquote & quotes
- */
 blockquote,
 q {
     quotes: none;
@@ -109,17 +84,11 @@ q {
         content: none;
     }
 
-/**
- * Tables
- */
 table {
     border-collapse: collapse;
     border-spacing: 0;
 }
 
-/**
- * Fieldset & legend
- */
 fieldset {
     border: none;
     margin: 0;
@@ -134,6 +103,6 @@ legend {
  * Ensure focus-visible works for accessibility
  */
 :focus-visible {
-    outline: 2px solid var(--color-brand-primary, #e60023);
+    outline: 2px solid var(--color-brand-primary);
     outline-offset: 2px;
 }

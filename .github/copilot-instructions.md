@@ -1,64 +1,136 @@
-# Copilot Instructions
+# Copilot Instructions — SISE Project
 
-## General Guidelines
-- Sử dụng tiếng Việt cho tất cả các phản hồi hướng tới người dùng (người dùng thích tiếng Việt).
-- Lưu ý vai trò nhóm: Giám đốc dự án (PM).
+## 0. Bắt buộc đọc đầu mỗi phiên (mọi module, không ngoại lệ)
 
-## Project Guidelines
-- Viết tất cả các tệp .github hoàn toàn bằng tiếng Anh chuyên nghiệp (không có văn bản tiếng Việt).
-- Workflow files must exist per schema/collection/bucket across entities/adapters/services/routers.
-- Configs must declare required env vars.
-- Env files cho StorageModule phải được đặt trong modules/StorageModule/configs/ folder, gồm storage.env.example (template) và storage.env.local (local config, không commit). Cấu hình phải bao gồm Docker Compose vars, Connection URLs, và workflow-specific configs cho Schema, Collection, Bucket, Seed.
-- StorageModule Phase 1 workflow-centric architecture: Separate workflow chains (schema, collection, bucket, infra_compose, seed) with prefix-based entity/adapter/service/router organization. Always use Python 3.13.12 via 'py -3.13'. Test scripts use Path(__file__).parent for absolute path resolution. Helper scripts (start_storage_stack.cmd, run_storage_tests.cmd) for service management and test automation. Storage stack defined in infra_compose_storage.yml. Per-workflow testing validates structural correctness independently before end-to-end execution.
-- StorageModule Docker stack chỉ cần có 5 services: PostgreSQL (16), etcd (v3.5.14), MinIO (RELEASE.2024-12-18), Milvus (v2.4.12), Redis (7). Các image tags phải luôn dùng phiên bản mới nhất hoặc tối đa lùi lại 1 phiên bản để đảm bảo ổn định và support. Không được dùng phiên bản quá cũ.
-- Khi vá các thành phần scaffold đã đóng, áp dụng các thay đổi chỉ thêm và tránh sửa đổi logic scaffold hiện có trừ khi được yêu cầu rõ ràng.
-- Khi thực hiện thay đổi trong dự án này, cung cấp mã đầy đủ của tệp trong chat và tránh sử dụng công cụ ghi tệp trực tiếp trừ khi được yêu cầu rõ ràng.
+Trước khi thực hiện BẤT KỲ tác vụ nào, đọc trực tiếp 4 tệp hợp đồng sau
+từ đường dẫn thật (không dùng cache/trí nhớ nếu file đã có chỉnh sửa
+mới hơn lần đọc gần nhất):
 
-### Kiến Trúc & Tổ Chức Tệp Tin
-- Áp dụng kiến trúc năm lớp độc quyền: configs, entities, adapters, services, routers.
-- Kết hợp kiến trúc năm lớp với thiết kế Theo Trung Tâm Quy Trình: cấu trúc mã xung quanh các quy trình làm việc và trách nhiệm của chúng.
-- Giới hạn tái sử dụng cross-domain: thực thi quyền sở hữu tệp/mô-đun và ngăn chặn các tệp hoạt động như "tự do" trên nhiều miền kinh doanh để đảm bảo tính đầy đủ và trách nhiệm minh bạch.
-- Gán và tài liệu hóa một chủ sở hữu rõ ràng cho mỗi tệp/mô-đun; thực thi quyền sở hữu và quy tắc tái sử dụng thông qua đánh giá mã và kiểm tra CI.
-- Xử lý các tên tệp dài bằng cách xuất các tên công khai ngắn gọn từ các tệp __init__.py của gói; tiết lộ các API ổn định thông qua xuất khẩu gói trong khi giữ các tên tệp nội bộ rõ ràng.
-- __init__.py must export via __all__. 
+| Tệp | Đường dẫn |
+|---|---|
+| `openapi.yaml` | `E:\SISE\.context\openapi.yaml` |
+| `data_schema.yaml` | `E:\SISE\.context\data_schema.yaml` |
+| `Tasks.yaml` | `E:\SISE\.context\Tasks.yaml` |
+| `Workflow_Centric_Architecture.md` | `E:\SISE\.knowledge\shared\Workflow_Centric_Architecture.md` |
 
-## Tài Liệu Đại Lý
-- Xác định audit_required cho các đại lý quan trọng: đặt audit_required: true trong tài liệu đại lý và giải thích lý do tại sao đại lý đó lại quan trọng.
-- Tài liệu hóa chủ sở hữu, phân loại bảo mật, phụ thuộc, thời gian hoạt động mong đợi và yêu cầu độ bền cho mỗi đại lý.
-- Tham chiếu cơ chế hoàn nguyên và sổ tay quy trình trong tài liệu của từng đại lý.
-- Giữ cho tài liệu đại lý ngắn gọn và có phiên bản.
+4 tệp này là **nguồn sự thật duy nhất (single source of truth)** của
+toàn bộ dự án. Mọi lập luận, so sánh, đối chiếu khi viết hoặc sửa code
+bắt buộc dựa trên nội dung thật của 4 tệp này — không tự suy diễn từ
+kiến thức chung hoặc phiên bản đã nhớ trước đó, vì các tệp này được
+cập nhật (append) liên tục qua từng vòng audit.
 
-## Bảo Mật & Quản Lý Bí Mật
-- Lưu trữ tất cả bí mật trong một trình quản lý bí mật tập trung, được mã hóa; tránh mã hóa cứng bí mật.
-- Sử dụng vai trò IAM với quyền tối thiểu cho quyền truy cập của đại lý vào bí mật và tài nguyên.
-- Định kỳ quay vòng bí mật và khi nghi ngờ bị xâm phạm; ghi lại chủ sở hữu và lịch trình quay vòng.
-- Kiểm tra nhật ký truy cập bí mật và bao gồm các bước xem xét quyền truy cập trong tài liệu đại lý.
-- Gắn thẻ bí mật với siêu dữ liệu về môi trường và chủ sở hữu.
+Nếu đang làm việc trong `modules/FrontendWeb/`, đọc thêm mục **§2.4
+FrontendModule Architecture** trong `Workflow_Centric_Architecture.md`
+— đây là đặc tả kiến trúc chi tiết riêng cho module này (3 nhóm lớp
+A/B/C, danh sách Anti-Pattern AP-7 đến AP-10). Không tóm tắt lại nội
+dung này ở đây; luôn đọc bản gốc để tránh dùng bản tóm tắt lỗi thời.
 
-## Độ Bền & Kiểm Tra
-- Xác định nhịp độ kiểm tra độ bền: thực hiện hàng tháng cho các đại lý quan trọng và hàng quý cho các đại lý không quan trọng; chạy các bài kiểm tra sau các thay đổi lớn.
-- Sử dụng các công cụ được thiết lập cho kiểm tra độ bền và kiểm tra tải (ví dụ: Chaos Monkey/Gremlin cho kiểm tra hỗn loạn, k6/Locust cho kiểm tra tải).
-- Duy trì sổ tay kiểm tra, kết quả mong đợi và hành động khắc phục sau kiểm tra.
-- Bao gồm kiểm tra khói và sức khỏe tự động trong các quy trình CI/CD.
+## 1. Vai trò & ngôn ngữ giao tiếp
 
-## Cơ Chế Hoàn Nguyên & Khôi Phục
-- Xác định cơ chế hoàn nguyên rõ ràng trong tài liệu: hỗ trợ hoàn nguyên tự động trong CI/CD, giữ lại các sản phẩm có thể triển khai trước đó và sử dụng cờ tính năng để vô hiệu hóa các tính năng một cách an toàn.
-- Tài liệu hóa các thủ tục hoàn nguyên di chuyển cơ sở dữ liệu và chính sách giữ dữ liệu sao lưu.
-- Kiểm tra các thủ tục hoàn nguyên trong quá trình kiểm tra độ bền và ghi lại kết quả trong sổ tay.
-- Gán chủ sở hữu hoàn nguyên và thủ tục liên lạc cho các nhóm trực ca.
+- Trưởng dự án (Project Owner) đóng vai trò PM, ra quyết định cuối
+  cùng về kiến trúc và hướng khắc phục. Agent (Copilot hoặc agent
+  khác) đóng vai trò worker thực thi theo chỉ định, không tự ý đổi
+  hướng kiến trúc đã chốt.
+- Giao tiếp với người dùng: tiếng Việt.
+- Tài liệu trong `.github/` (bao gồm chính tệp này): tiếng Anh chuyên
+  nghiệp, không xen tiếng Việt.
 
-## Quản Lý Kiến Thức & Kiểm Toán
-- Tiến hành xem xét quản lý kiến thức với tần suất hàng tuần (ví dụ: kiểm toán AG-00 hàng tuần).
-- Ghi lại kết quả kiểm toán, hành động khắc phục và chủ sở hữu; theo dõi tiến độ hoàn thành các mục kiểm toán.
-- Đánh dấu các đại lý quan trọng với audit_required và đảm bảo các hành động theo dõi được lên lịch và theo dõi.
-- Giữ cho tài liệu dễ phát hiện, có phiên bản và được xem xét tại mỗi cuộc kiểm toán AG-00.
+## 2. Quy tắc thực thi bắt buộc (mọi module)
 
-## Authentication Workflow
-- Cung cấp thông tin chi tiết về quy trình xác thực: các trường chính xác cho đăng ký/đăng nhập, quy tắc xác thực, định dạng phản hồi và xử lý lỗi.
-- Tham khảo các tệp openapi.yaml, data_schema.yaml, và mã thực tế trong các tệp auth_entities.py, auth_services.py, auth_routers.py để lấy thông tin chi tiết.
+- **Không tự ý dùng file-edit tool để sửa file trực tiếp.** Khi có
+  thay đổi code, luôn trả về **toàn bộ nội dung tệp** (full file, không
+  phải diff/snippet) ngay trong chat để Project Owner tự soát và áp
+  dụng thủ công. Đây là quy tắc cứng, áp dụng cho mọi agent, mọi
+  module — không có ngoại lệ trừ khi Project Owner yêu cầu tường minh
+  ngược lại trong chính phiên đó.
+- Khi vá các thành phần đã ở trạng thái CLOSED/ổn định, chỉ áp dụng
+  thay đổi dạng bổ sung (additive); không sửa đổi logic hiện có trừ
+  khi được yêu cầu rõ ràng.
+- Trước khi báo "hoàn thành" hoặc "PASS", bắt buộc verbalize lý do
+  (Vấn đề / Căn cứ hợp đồng / Quyết định / Code) — không tự nhận đã
+  xong nếu chưa đối chiếu lại với 4 tệp hợp đồng ở mục 0.
+- Version pinning dependencies dùng `==` (không dùng `>=`) ở mọi
+  `requirements.txt`/`package.json`, để đảm bảo build reproducible.
 
-## BackendModule Workflow
-- For BackendModule friends workflow tasks, provide full-file code in chat without editing files, keep errors as {code,message}, and follow established DI/AsyncSession + IntegrityError mapping patterns from auth workflow.
+## 3. Kiến trúc chung toàn dự án
 
+- Áp dụng kiến trúc 5 lớp: `entities`, `adapters`, `services`,
+  `routers`, `configs` — tổ chức xoay quanh **workflow**, không xoay
+  quanh loại kỹ thuật (Workflow-Centric Architecture). Chi tiết đầy đủ
+  nằm ở `Workflow_Centric_Architecture.md` (mục 0), không lặp lại ở
+  đây.
+- Mỗi workflow phải có đầy đủ file tương ứng ở từng lớp liên quan
+  (theo đúng schema/entity/bucket/collection mà workflow đó sở hữu).
+- **Giới hạn tái sử dụng cross-domain:** mỗi file/module có đúng 1 chủ
+  sở hữu (workflow) rõ ràng; cấm file "tự do" phục vụ nhiều domain
+  nghiệp vụ cùng lúc — vi phạm nguyên tắc trách nhiệm minh bạch.
+- `__init__.py` (Python) phải export qua `__all__`, giữ tên file nội
+  bộ rõ ràng nhưng công khai API ổn định qua export của package.
+- File tên dài / nhiều tầng: dùng export ngắn gọn qua điểm export của
+  package (`__init__.py` bên Python, `index.ts` bên TypeScript) thay
+  vì đổi tên file gốc.
 
+## 4. Ghi chú riêng theo module
 
+### StorageModule (Python) — CLOSED
+Kiến trúc: chuỗi workflow riêng biệt (`schema`, `collection`, `bucket`,
+`infra_compose`, `seed`), tổ chức entity/adapter/service/router theo
+tiền tố workflow. Dùng Python 3.13.12 qua lệnh `py -3.13`. Script kiểm
+thử dùng `Path(__file__).parent` để resolve đường dẫn tuyệt đối. Stack
+hạ tầng định nghĩa tại `infra_compose_storage.yml`, gồm 5 service:
+PostgreSQL 16, etcd v3.5.14, MinIO RELEASE.2024-12-18, Milvus v2.4.12,
+Redis 7 — luôn dùng phiên bản mới nhất hoặc lùi tối đa 1 bậc, không
+dùng phiên bản quá cũ. Env file đặt tại
+`modules/StorageModule/configs/` (`storage.env.example` làm template,
+`storage.env.local` không commit).
+
+### AIModule (Python) — CLOSED
+
+### BackendModule (Python) — CLOSED (ỔN ĐỊNH)
+Workflow `friends`: khi thực hiện task, trả full-file code qua chat
+(không tự sửa file — xem mục 2), giữ format lỗi thống nhất
+`{code, message}`, và bám theo pattern DI/AsyncSession + IntegrityError
+mapping đã thiết lập sẵn ở workflow `auth`.
+Workflow `auth`: tham khảo chi tiết trường xác thực, quy tắc validate,
+định dạng response và xử lý lỗi trực tiếp từ `openapi.yaml`,
+`data_schema.yaml`, và mã nguồn thật (`auth_entities.py`,
+`auth_services.py`, `auth_routers.py`) — không suy diễn.
+
+### FrontendModule / FrontendWeb (TypeScript, React) — Module tiếp theo cần audit
+**Chỉ có FrontendWeb (React + Vite). Không triển khai FrontendMobile
+(React Native)** — phạm vi đồ án đã giới hạn chỉ 1 giao diện web, xem
+`Workflow_Centric_Architecture.md` §2.4.0. Workflow `friends` hiện
+backlog, chưa triển khai ở phía Frontend — không code cho đến khi
+Project Owner yêu cầu tường minh.
+Kiến trúc chi tiết (3 nhóm lớp A/B/C, quy tắc "1 workflow = 1 file mỗi
+lớp", danh sách Anti-Pattern AP-7–AP-10): đọc `Workflow_Centric_Architecture.md`
+§2.4, không tóm tắt lại ở đây để tránh lệch bản khi §2.4 được cập nhật.
+
+## 5. Tài liệu Agent (áp dụng khi tạo/sửa file định nghĩa agent)
+
+- Với các agent quan trọng (`audit_required: true`), ghi rõ lý do
+  agent đó quan trọng ngay trong tài liệu định nghĩa.
+- Ghi rõ chủ sở hữu, mức độ nhạy cảm dữ liệu xử lý, phụ thuộc
+  (dependency), và kỳ vọng thời gian hoạt động cho mỗi agent.
+- Giữ tài liệu agent ngắn gọn, có đánh số phiên bản.
+
+## 6. Bảo mật (mức phù hợp quy mô đồ án tốt nghiệp)
+
+- Không hard-code bí mật (mật khẩu, API key, connection string) trong
+  code. Mọi giá trị nhạy cảm nằm trong file `.env.local` tương ứng của
+  từng module, không commit vào Git (đối chiếu `.gitignore`/
+  `.dockerignore`).
+- Khi audit hoặc build, luôn đối chiếu credential giữa các module
+  (không chỉ hostname) — bài học thực tế từ BackendModule: sai lệch
+  `POSTGRES_USER`/`MINIO_ACCESS_KEY` giữa các `.env.local` từng gây
+  lỗi runtime dù hostname đã đúng.
+
+## 7. Ghi chú
+
+Mục "Độ Bền & Kiểm Tra", "Quản Lý Bí Mật nâng cao" (chaos testing,
+secret rotation định kỳ, IAM phân quyền, load test k6/Locust...) đã
+được **loại bỏ khỏi tài liệu này** theo quyết định của Project Owner
+(2026-07-13) — không phù hợp quy mô đồ án tốt nghiệp, đúng tinh thần
+Quy tắc Alpha mục (4) trong `Workflow_Centric_Architecture.md`. Nếu dự
+án mở rộng quy mô trong tương lai, các mục này có thể được khôi phục
+theo yêu cầu tường minh của Project Owner.

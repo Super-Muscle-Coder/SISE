@@ -1,8 +1,18 @@
 /**
  * @file landing-layout.css
  * @layer page-layouts (Layer 3)
- * @description Styling for landing page layout
- * Dynamic shadow header, sticky navigation, responsive design
+ * @description Styling cho landing page layout — chỉ còn main content area,
+ *              hero section, generic section.
+ *              SỬA:
+ *              1. Xóa 6 class .landing-layout__header* — đã dời sang
+ *                 components/header/landing-header.css (LandingHeader tách
+ *                 riêng, xem LandingLayout.tsx).
+ *              2. Xóa 3 class .landing-layout__footer* — đây là tàn dư CSS
+ *                 của 1 bản footer viết bằng CSS thuần TRƯỚC KHI Footer được
+ *                 tách thành component thật (components/footer/Footer.tsx,
+ *                 dùng 100% inline style). Không JSX nào còn dùng các class
+ *                 này — xác nhận là dead code, đã xóa.
+ *              3. Bỏ mọi fallback hardcode var(--x, giá-trị).
  * @owner AG-04
  * @reference design-system/tokens (CSS variables)
  */
@@ -16,126 +26,7 @@
     flex-direction: column;
     min-height: 100vh;
     width: 100%;
-    background-color: var(--color-bg-primary, #ffffff);
-}
-
-/* ========================================================================
-   HEADER / NAVIGATION - STICKY WITH DYNAMIC SHADOW
-   ======================================================================== */
-
-/**
- * Header: Sticky positioning
- * NO border by default - seamless blend with hero section at top
- * Shadow appears ONLY when scrolled (see .landing-layout__header--scrolled)
- * 
- * This creates the desired effect:
- * - Top of page: No border, no shadow, seamless with hero
- * - After scroll: Shadow appears, separates header from content
- */
-.landing-layout__header {
-    position: sticky;
-    top: 0;
-    z-index: var(--z-dropdown, 20);
-    background-color: var(--color-bg-primary, #ffffff);
-    
-    /* NO border initially */
-    border-bottom: none;
-    
-    /* NO shadow initially - seamless with hero */
-    box-shadow: none;
-    
-    transition: box-shadow var(--duration-fast, 200ms) ease-in-out,
-                border-color var(--duration-fast, 200ms) ease-in-out;
-    
-    /* Height: ~5-7% of viewheight, gutter-friendly */
-    min-height: 40px;
-}
-
-/**
- * Header when scrolled - Dynamic shadow + border appears
- * Helps header stand out as it separates from content below
- */
-.landing-layout__header--scrolled {
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-    border-bottom: 1px solid var(--color-border-light, #e4e4e7);
-}
-
-/**
- * Header container: Horizontal layout
- * All elements MUST stay on one row (logo, nav links, CTAs)
- * Use flex with nowrap to prevent wrapping
- */
-.landing-layout__header-container {
-    max-width: 1500px;
-    margin: 0 auto;
-    padding: var(--spacing-sm) var(--spacing-sm);
-    /* CRITICAL: Flex on single row */
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 35rem;
-    height: 100%;
-    width: 100%;
-}
-
-/**
- * Responsive: Mobile adjustments
- * On smaller screens, may wrap but should only if necessary
- */
-@media (max-width: 1024px) {
-    .landing-layout__header-container {
-        padding: var(--spacing-base, 0.25rem) var(--spacing-base, 0.25rem);
-        gap: var(--spacing-base, 0.25rem);
-    }
-}
-
-@media (max-width: 768px) {
-    .landing-layout__header-container {
-        flex-wrap: wrap;
-        padding: var(--spacing-base, 0.25rem) var(--spacing-base, 0.25rem);
-        gap: var(--spacing-sm, 0.75rem);
-    }
-
-    .landing-layout__header {
-        min-height: auto;
-    }
-}
-
-/* ========================================================================
-   HEADER SUBCOMPONENTS - Keep on row
-   ======================================================================== */
-
-/**
- * Logo section: Flex-shrink to prevent growing too wide
- */
-.landing-layout__header-logo {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-}
-
-/**
- * Navigation section: Flex-grow in middle, gap between buttons
- */
-.landing-layout__header-nav {
-    flex-grow: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: var(--spacing-base, 1rem);
-    min-width: 0;
-}
-
-/**
- * CTA section: Flex-shrink to prevent growing too wide
- */
-.landing-layout__header-cta {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-base, 1rem);
+    background-color: var(--color-bg-primary);
 }
 
 /* ========================================================================
@@ -143,9 +34,8 @@
    ======================================================================== */
 
 /**
- * Main: Flex container
- * Grows to fill available space between header and footer
- * Will contain routed sub-pages (Introduce, About, Explore, Terms, etc.)
+ * Main: Flex container, lấp đầy khoảng trống giữa header và footer.
+ * Chứa sub-page đã routed (Introduce, About, Explore, Terms...).
  */
 .landing-layout__main {
     flex: 1;
@@ -156,70 +46,68 @@
 }
 
 /* ========================================================================
-   HERO SECTION (Optional - used for Introduce/default view)
+   HERO SECTION (Optional - dùng cho Introduce/default view)
    ======================================================================== */
 
-/**
- * Hero: Full-width hero section
- * ~60vh height, centered content
- * Gradient background for visual interest
- */
 .landing-layout__hero {
     min-height: 60vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--spacing-5xl, 4rem) var(--spacing-2xl, 2.5rem);
-    background: linear-gradient(
-        135deg,
-        var(--color-bg-primary, #ffffff) 0%,
-        var(--color-bg-secondary, #f9f9f9) 100%
-    );
+    padding: var(--spacing-5xl) var(--spacing-2xl);
+    background: linear-gradient( 135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100% );
 }
 
 @media (max-width: 768px) {
     .landing-layout__hero {
         min-height: 40vh;
-        padding: var(--spacing-3xl, 3rem) var(--spacing-lg, 1.5rem);
+        padding: var(--spacing-3xl) var(--spacing-lg);
     }
 }
 
-/**
- * Hero content: Centered, max-width wrapper
- */
+@media (max-width: 480px) {
+    .landing-layout__hero {
+        min-height: 35vh;
+        padding: var(--spacing-2xl) var(--spacing-base);
+    }
+}
+
 .landing-layout__hero-content {
     text-align: center;
     max-width: 700px;
 }
 
 /**
- * Hero title: Large, bold, responsive
+ * Hero title/subtitle dùng clamp() — kích thước responsive liên tục theo
+ * viewport, không có token tĩnh tương ứng trong typography.ts (đây là
+ * trường hợp hợp lý giữ riêng, vì clamp() không map 1-1 sang 1 giá trị rem
+ * cố định).
  */
 .landing-layout__hero-title {
     font-size: clamp(2rem, 5vw, 3.5rem);
-    font-weight: 800;
+    font-weight: var(--font-weight-extrabold);
     line-height: 1.1;
-    color: var(--color-text-primary, #000000);
-    margin: 0 0 var(--spacing-lg, 1.5rem) 0;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--spacing-lg) 0;
 }
 
-/**
- * Hero subtitle: Secondary text, readable
- */
+@media (max-width: 480px) {
+    .landing-layout__hero-title {
+        font-size: clamp(1.5rem, 4vw, 2.5rem);
+    }
+}
+
 .landing-layout__hero-subtitle {
     font-size: clamp(1rem, 2vw, 1.25rem);
-    font-weight: 400;
+    font-weight: var(--font-weight-normal);
     line-height: 1.6;
-    color: var(--color-text-secondary, #71717a);
-    margin: 0 0 var(--spacing-2xl, 2.5rem) 0;
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--spacing-2xl) 0;
 }
 
-/**
- * Hero CTA buttons: Grid layout
- */
 .landing-layout__hero-actions {
     display: flex;
-    gap: var(--spacing-lg, 1.5rem);
+    gap: var(--spacing-lg);
     justify-content: center;
     flex-wrap: wrap;
 }
@@ -228,12 +116,8 @@
    GENERIC CONTENT SECTION
    ======================================================================== */
 
-/**
- * Section: Standard content block
- * Used for feature sections, etc.
- */
 .landing-layout__section {
-    padding: var(--spacing-5xl, 4rem) var(--spacing-2xl, 2.5rem);
+    padding: var(--spacing-5xl) var(--spacing-2xl);
     max-width: 1360px;
     margin: 0 auto;
     width: 100%;
@@ -241,67 +125,12 @@
 
 @media (max-width: 768px) {
     .landing-layout__section {
-        padding: var(--spacing-3xl, 3rem) var(--spacing-lg, 1.5rem);
+        padding: var(--spacing-3xl) var(--spacing-lg);
     }
 }
-
-/* ========================================================================
-   FOOTER - PERSISTENT AT BOTTOM
-   ======================================================================== */
-
-/**
- * Footer: Sticky to bottom, visible on all pages
- * Subtle background, separated from main content
- */
-.landing-layout__footer {
-    background-color: var(--color-bg-secondary, #f9f9f9);
-    border-top: 1px solid var(--color-border-light, #e4e4e7);
-    padding: var(--spacing-2xl, 2.5rem) var(--spacing-lg, 1.5rem);
-    text-align: center;
-    margin-top: auto;
-}
-
-/**
- * Footer content container
- */
-.landing-layout__footer-content {
-    max-width: 1360px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-/**
- * Footer text: Small, secondary color
- */
-.landing-layout__footer-text {
-    font-size: var(--font-size-sm, 0.875rem);
-    font-weight: 400;
-    line-height: 1.5;
-    color: var(--color-text-secondary, #71717a);
-    margin: 0;
-}
-
-/* ========================================================================
-   RESPONSIVE UTILITIES
-   ======================================================================== */
 
 @media (max-width: 480px) {
-    .landing-layout__header-container {
-        padding: var(--spacing-sm, 0.75rem) var(--spacing-base, 1rem);
-    }
-
-    .landing-layout__hero {
-        min-height: 35vh;
-        padding: var(--spacing-2xl, 2.5rem) var(--spacing-base, 1rem);
-    }
-
-    .landing-layout__hero-title {
-        font-size: clamp(1.5rem, 4vw, 2.5rem);
-    }
-
     .landing-layout__section {
-        padding: var(--spacing-2xl, 2.5rem) var(--spacing-base, 1rem);
+        padding: var(--spacing-2xl) var(--spacing-base);
     }
 }

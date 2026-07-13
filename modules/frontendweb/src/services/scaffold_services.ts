@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react'
-import { scaffoldAdapter } from '../adapters/scaffold_adapter_instance'
+import { scaffoldAdapter } from '../adapters/scaffold_adapters'
 import { SCAFFOLD_CONFIG } from '../configs/scaffold_configs'
 import type {
     HealthStatus,
@@ -216,5 +216,10 @@ export const validateUploadFile = (file: File): { isValid: boolean; error?: stri
  * @returns true if backend is reachable and configured correctly
  */
 export const isAppReady = (state: ScaffoldContextState): boolean => {
-    return state.isHealthy && state.expectedVectorDim !== null && state.error === null
+    return (
+        state.isHealthy &&
+        state.expectedVectorDim !== null &&
+        state.error === null &&
+        state.healthStatus?.config_validated !== false
+    )
 }

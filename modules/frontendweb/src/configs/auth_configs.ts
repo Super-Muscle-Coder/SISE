@@ -1,15 +1,10 @@
 /**
  * @file auth_configs.ts
  * @layer configs
- * @description Auth workflow configuration - env-to-config boundary.
- *              All values from environment variables (via env_helpers).
- * 
- * Công dụng: Cấu hình auth (event names, storage keys, URLs)
-  - AUTH_CONFIG.events.sessionStarted, sessionEnded
-  - Token storage keys, API URLs
-  Nếu cần thay API URL, session key, v.v., thay ở đây
+ * @description Cấu hình riêng workflow auth: storage key, session event,
+ *              API path, quy tắc validate form.
  * @owner AG-04
- * @reference data_schema.yaml, openapi.yaml
+ * @reference frontend.env.local, openapi.yaml AuthRequest/AuthResponse/User
  */
 
 import {
@@ -17,40 +12,59 @@ import {
     getEnvNumberWithDefault,
 } from '@/utils/env_helpers';
 
-// ============================================================================
-// AUTH CONFIGURATION (ENV-DRIVEN)
-// ============================================================================
-
 export const AUTH_CONFIG = {
-    // ========================================================================
-    // STORAGE (localStorage keys)
-    // ========================================================================
+    /**
+     * [UI-ONLY] Storage key localStorage — quy ước riêng Frontend, không có
+     * trong hợp đồng.
+     */
     storage: {
         tokenKey: getEnvVarWithDefault('VITE_AUTH_STORAGE_TOKEN_KEY', 'sise_auth_token'),
         userKey: getEnvVarWithDefault('VITE_AUTH_STORAGE_USER_KEY', 'sise_user_profile'),
     } as const,
 
-    // ========================================================================
-    // EVENTS (custom events for cross-tab sync)
-    // ========================================================================
+    /**
+     * [UI-ONLY] Tên CustomEvent cross-tab sync — quy ước riêng Frontend.
+     * CHỈ 1 bộ tên duy nhất (namespace "sise:*"). Không tạo biến trùng lặp
+     * không namespace (đã xác nhận dư thừa khi audit scaffold — xem
+     * Workflow_Centric_Architecture.md §2.4.3 AP-9).
+     */
     events: {
         sessionStarted: getEnvVarWithDefault('VITE_AUTH_SESSION_STARTED_EVENT', 'sise:sessionStarted'),
         sessionExpired: getEnvVarWithDefault('VITE_AUTH_SESSION_EXPIRED_EVENT', 'sise:sessionExpired'),
         sessionEnded: getEnvVarWithDefault('VITE_AUTH_SESSION_ENDED_EVENT', 'sise:sessionEnded'),
     } as const,
 
-    // ========================================================================
-    // API ENDPOINTS
-    // ========================================================================
+    getStoredToken: (): string | null => {
+        const token = localStorage.getItem(AUTH_CONFIG.storage.tokenKey);
+        if (!token || token === 'undefined' || token === 'null' || !token.trim()) {
+            return null;
+        }
+        return token;
+    },
+
+    clearStoredAuth: (): void => {
+        localStorage.removeItem(AUTH_CONFIG.storage.tokenKey);
+        localStorage.removeItem(AUTH_CONFIG.storage.userKey);
+    },
+
+    /**
+     * [CONTRACT] API Endpoints — openapi.yaml paths thật.
+     * LƯU Ý: POST /auth/register trả về schema `User` (KHÔNG phải
+     * `AuthResponse`) kể từ v1.2.0 — xem auth_entities.ts và auth_adapters.ts
+     * để biết cách xử lý đúng (không auto-login từ response register).
+     */
     paths: {
         login: '/auth/login',
         register: '/auth/register',
         getCurrentUser: '/auth/me',
     } as const,
 
-    // ========================================================================
-    // FORM VALIDATION RULES
-    // ========================================================================
+    /**
+     * [UI-ONLY] Quy tắc validate phía client — mirror giá trị Backend thật
+     * đã audit ở BackendModule (Pydantic), nhưng bản thân openapi.yaml
+     * KHÔNG công bố giới hạn min/max trong schema. Nếu Backend đổi giới
+     * hạn, phải cập nhật tay ở đây.
+     */
     validation: {
         email: {
             pattern: new RegExp(
@@ -74,12 +88,13 @@ export const AUTH_CONFIG = {
         },
     } as const,
 
-    // ========================================================================
-    // ERROR MESSAGES
-    // ========================================================================
+    /**
+     * [UI-ONLY] Error message hiển thị cho người dùng — mapping từ
+     * StandardError.code do auth_adapters.ts chuẩn hóa.
+     */
     errorMessages: {
-        ERR_INVALID_CREDENTIALS: 'Invalid email or password. Please try again.',
-        ERR_USER_ALREADY_EXISTS: 'This email is already registered. Try logging in instead.',
+        ERR_INVALID_CREDENTIALS: 'Invalid username or password. Please try again.',
+        ERR_USER_ALREADY_EXISTS: 'This username or email is already registered. Try logging in instead.',
         ERR_VALIDATION_FAILED: 'Please check your input and try again.',
         ERR_TIMEOUT: 'Request timed out. Please check your connection and try again.',
         ERR_NETWORK: 'Network error. Please check your internet connection.',

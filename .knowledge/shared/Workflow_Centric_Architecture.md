@@ -162,16 +162,179 @@ Dưới đây là đặc tả kỹ thuật nghiêm ngặt về phân rã chức 
   9. `admin` **(MỚI v2.4.0, tách từ `evaluation` để khớp tag `Admin` riêng trong openapi.yaml)**: `POST /admin/reindex` — cùng cơ chế `admin_authorization`, gọi C (batch embedding) rồi B (`/vector/index`) theo batch.
   10. `health`: `GET /health/liveness`, `GET /health/readiness` — kiểm tra 4 dependency: postgres (bao gồm pgvector extension), minio, ai_service, **redis** (bổ sung v1.2.0). Trả header `X-Expected-Vector-Dim`.
 
-### 2.4 AG-04 & AG-05: WebFrontend / MobileFrontend — ⏳ [CLAUSE E, chưa audit]
-- **Đặc tả luồng xử lý:** Client State Management & Render Tree optimization. Áp dụng kiến trúc 5 lớp bán phần: tách biệt triệt để API calls (Adapters), Data types (Entities) và Logic trạng thái (Services) ra khỏi các Components hiển thị UI (Routers).
-- **Luồng chức năng (Mắt xích phân rã):**
-  1. `auth`: JWT Local/AsyncStorage management.
-  2. `upload`: Blob transport manipulation. Chunking/presigned dispatching protocols. Ngoại lệ DUY NHẤT: PUT binary trực tiếp lên MinIO qua presigned URL (S2, xem `transaction_semantics`) — không phải gọi MinIO SDK/Admin API.
-  3. `search`: Grid computation & Infinite Scroll pagination mapping.
-  4. `friends` **(MỚI v2.4.0)**: UI quản lý bạn bè, gọi `/friends/*` (D).
-  5. `camera` *(Chỉ áp dụng AG-05)*: Native Hardware Device Interface delegation.
-- **Ràng buộc tuyệt đối:** E **CHỈ** được gọi REST tới D. E **KHÔNG BAO GIỜ** gọi trực tiếp B (StorageModule) hay C (AIModule), kể cả khi biết URL nội bộ. Đây là điểm sẽ được audit nghiêm ngặt khi tới lượt T006-04.
+## 2.4 AG-04: FrontendModule (Web) — KIẾN TRÚC CHI TIẾT (Clause E)
 
+> **Changelog v2.5.0 (bổ sung §2.4 chi tiết, thay thế mô tả sơ lược v2.4.0):**
+> Trước v2.5.0, §2.4 chỉ mô tả sơ lược 5 workflow cho cả AG-04 (Web)
+> và AG-05 (Mobile) dùng chung. Sau khi Project Owner xác nhận phạm vi
+> đồ án CHỈ triển khai FrontendWeb (AG-04, React + Vite), KHÔNG triển
+> khai FrontendMobile (AG-05, React Native) — AG-05 và toàn bộ workflow
+> `camera`/`offline_cache`/`share` (Tasks.yaml T004-08 đến T004-11)
+> chính thức **NGOÀI PHẠM VI** đồ án, không audit, không xây dựng.
+>
+> v2.5.0 thay thế phần mô tả "bán kiến trúc" mơ hồ trước đây bằng một
+> đặc tả đầy đủ, chặt chẽ tương đương mức độ chi tiết của §2.3
+> (BackendModule), xây dựng cùng Project Owner trong phiên audit
+> FrontendWeb đầu tiên (2026-07-13), dựa trên nguyên tắc: kiến trúc
+> phải triệt để rõ ràng, không để lại vùng xám giữa các lớp.
+
+### 2.4.0 Phạm vi module
+
+FrontendModule (AG-04) là ứng dụng web duy nhất của SISE, xây bằng
+**React 18 + TypeScript + Vite + Tailwind CSS + React Router 7**. Đây
+là module **duy nhất** áp dụng kiến trúc "bán phần" — 5-layer nguyên
+bản của Workflow-Centric (§1.1) được giữ cho phần logic, nhưng được
+mở rộng thêm 2 nhóm layer riêng cho nhu cầu đặc thù của UI, mô tả chi
+tiết tại §2.4.1 bên dưới.
+
+Workflow đã triển khai (đối chiếu Tasks.yaml Phase 4, AG-04): `scaffold`,
+`auth`, `media`, `search`, `evaluation`. Workflow `friends` (T004-06,
+P2) hiện **backlog, chưa triển khai** — không audit ở các vòng hiện
+tại cho đến khi Project Owner xác nhận bắt đầu xây. Workflow `upload`
+(T004-04) **chưa triển khai riêng biệt** — cần audit xác nhận mức độ
+tồn tại thực tế khi vào workflow `media`.
+
+### 2.4.1 Ba nhóm lớp (thay thế mô tả "5-layer bán phần" cũ)
+
+FrontendModule tổ chức mã nguồn thành **3 nhóm lớp (A, B, C)** với ranh
+giới trách nhiệm tuyệt đối, không chồng lấn:
+
+---
+
+**NHÓM A — LOGIC THUẦN TÚY (`src/configs`, `entities`, `adapters`,
+`services`, `routers`)**
+
+Tương ứng 5-layer gốc của kiến trúc SISE (§1.1), áp dụng cho TypeScript
+thay vì Python. Toàn bộ file trong nhóm A **cấm tuyệt đối cú pháp
+JSX/TSX**, kể cả khi chỉ render 1 `<div>` — mọi file nhóm A dùng đuôi
+`.ts`, không phải `.tsx`.
+
+| Layer | Vai trò | Quy tắc cứng |
+|---|---|---|
+| `configs/[workflow]_configs.ts` | Trích xuất biến môi trường (`.env`) thành object TypeScript có type. Single source of truth cho mọi hằng số/ngưỡng/timeout — **cấm hard-code** giá trị này ở bất kỳ layer nào khác. | 1 workflow = 1 file |
+| `entities/[workflow]_entities.ts` | Type/interface thuần túy, khớp 1-1 với schema tương ứng trong `openapi.yaml`/`data_schema.yaml`. Không chứa logic, không import layer khác (ngoại trừ ngoại lệ `StandardError`, xem §2.4.2). | 1 workflow = 1 file |
+| `adapters/[workflow]_adapters.ts` | Lớp DUY NHẤT gọi HTTP (Axios) tới BackendModule. **Gộp class định nghĩa và singleton instance vào cùng 1 file** — không tách file `_instance` riêng. Chuẩn hóa lỗi backend về `StandardError`. | 1 workflow = 1 file |
+| `services/[workflow]_services.ts` | React custom hooks + business logic thuần (validate, transform). Gọi `adapters`, dùng `entities`, đọc `configs`. Không JSX. | 1 workflow = 1 file |
+| `routers/[workflow]_routers.ts` | **0% JSX.** "UI Controller" thuần logic — export `RouteObject[]` (định nghĩa route con của workflow) và/hoặc `use[Workflow]Controller()` hook gom các `services` lại thành 1 API duy nhất cho `pages/` tiêu thụ. Guard/protected-route logic (kiểm tra token, redirect) thuộc về `auth_routers.ts`, export dưới dạng loader/guard function — không phải component JSX. | 1 workflow = 1 file |
+
+**`routers/scaffold_routers.ts` — Composition Root (ngoại lệ có kiểm
+soát, KHÔNG phải ngoại lệ về JSX):**
+Đóng vai trò tương đương `app/__init__.py` bên BackendModule (§3.1,
+mục 4). Nhiệm vụ:
+1. Dựng `<BrowserRouter>`, `<Routes>` bằng `React.createElement`
+   (KHÔNG dùng cú pháp JSX `<>` — giữ file ở đuôi `.ts` thuần túy,
+   triệt để 100%, không có ngoại lệ nào được phép giữ đuôi `.tsx`
+   trong toàn bộ thư mục `routers/`).
+2. Gom `RouteObject[]` từ **mọi** `[workflow]_routers.ts` khác thành
+   1 route map tổng.
+3. Định nghĩa `ScaffoldContext` (React Context) và hook
+   `useScaffoldContext()` — gộp chung 1 file, không tách file
+   `use_scaffold_context.ts` riêng.
+4. Xử lý vòng đời phiên đăng nhập ở mức LOGIC (lắng nghe
+   `sessionStarted`/`sessionEnded` CustomEvent, gọi `navigate()`) —
+   KHÔNG tự vẽ UI "Session Expired". UI fallback khi lỗi/hết phiên
+   thuộc về Nhóm B/C (xem `ScaffoldErrorBoundary` bên dưới).
+
+**Xử lý riêng `ScaffoldErrorBoundary` và `ScaffoldAppShell` (đã phát
+hiện vi phạm khi audit, ghi nhận làm tiền lệ):** 2 thành phần này ở
+bản cũ (trước v2.5.0) là React Component có JSX nằm lẫn trong
+`scaffold_routers.tsx` — vi phạm trực tiếp quy tắc "0% JSX" ở trên.
+Hướng xử lý bắt buộc:
+- Phần **logic bắt lỗi** (`componentDidCatch`, quyết định khi nào
+  hiển thị fallback) → giữ lại ở `scaffold_routers.ts`, dưới dạng
+  logic thuần (không return JSX trực tiếp — return qua
+  `React.createElement` gọi tới component fallback nằm ở Nhóm B).
+- Phần **UI hiển thị** (khung "Something went wrong", nút "Reload",
+  khung "Session Expired") → di chuyển thành component `.tsx` trong
+  `components/` hoặc `page-layouts/` (Nhóm B), nhận props thuần
+  (`error`, `onReload`, `onGoToLogin`), không tự chứa logic điều
+  hướng/bắt lỗi.
+
+---
+
+**NHÓM B — GIAO DIỆN THUẦN TÚY (`src/design-system`, `styles`,
+`components`, `page-layouts`)**
+
+Định nghĩa giao diện độc lập hoàn toàn khỏi nghiệp vụ. Đuôi `.tsx`
+được phép (đây là nơi JSX thuộc về). **Cấm tuyệt đối:** import từ
+`adapters/` hoặc `services/`, gọi API trực tiếp, biết về URL/route
+hiện tại, tự phát sinh logic điều hướng.
+
+| Layer | Vai trò | Ràng buộc |
+|---|---|---|
+| `design-system/` | Design token cấp thấp nhất: màu sắc, typography, spacing, shadow, animation — dạng key-value (TypeScript const hoặc CSS variable). | **Hard-code là cấm kỵ tuyệt đối** ở mọi nơi khác trong Nhóm B/C — mọi giá trị màu/spacing/font phải trỏ về đây. |
+| `styles/` | CSS toàn cục (reset, typography-base, utilities), tiêu thụ CSS variable từ `design-system/`. | Không chứa selector gắn với business logic (vd `.error-code-409`) |
+| `components/[workflow]/` | "Mảnh LEGO" tái sử dụng được, ghép từ token của `design-system/` (AuthForm, FormInput, SubmitButton, NavButton, Footer...). | Chỉ nhận **props thuần** (data + callback do `pages/` truyền xuống). Callback là do trên truyền vào, component không tự tạo ra hành vi điều hướng/nghiệp vụ bên trong. |
+| `page-layouts/[layout-name]/` | Khung tổng thể của 1 nhóm trang (LandingLayout, DashboardLayout, ContentLayout), gồm bộ 3 file: `XxxLayout.tsx`, `xxx-layout.css` (có thể để trống nếu không cần), `index.ts` (export point, vai trò tương đương `__init__` cho layout đó). | Chỉ nhận `children` + slot props **thuần túy trạng thái hiển thị** (`showHeader`, `headerContent`). **Cấm nhận callback quyết định điều hướng nghiệp vụ** (vd `onPageChange` chọn trang đích) — đây là lỗi đã phát hiện ở `LandingLayout.tsx` bản cũ, xem §2.4.3. |
+
+---
+
+**NHÓM C — GIAO ĐIỂM (`src/pages`)**
+
+`pages/[Workflow]Page.tsx` là **nơi duy nhất trong toàn bộ codebase**
+được phép vừa import từ Nhóm A (`use[Workflow]Controller()` từ
+`routers/`) vừa import từ Nhóm B (`components/`, `page-layouts/`),
+ghép chúng lại thành JSX hoàn chỉnh mà người dùng thấy. Đây là bản
+dịch trực tiếp của khái niệm "Global Orchestrator UI" đã có sẵn ở
+§1.1 mục 5, được làm rõ ràng dứt điểm cho FrontendModule.
+
+### 2.4.2 Ngoại lệ dùng chung hợp lệ
+
+`StandardError` (khớp `openapi.yaml` `Error` schema: `code, message,
+details?`) là type DUY NHẤT được phép định nghĩa tại
+`entities/scaffold_entities.ts` và tái sử dụng (import lại) ở mọi
+`[workflow]_entities.ts` khác, thay vì mỗi workflow tự định nghĩa lại.
+Lý do: đây là hợp đồng lỗi dùng chung toàn hệ thống, tương đương vai
+trò `Error` schema ở tầng `components.schemas` của `openapi.yaml` —
+định nghĩa lặp lại ở nhiều nơi tạo rủi ro trôi dạt (drift) type mà
+không có cảnh báo biên dịch.
+
+`entities/scaffold_entities.ts` **CHỈ** được giữ: `HealthStatus`,
+`StandardError`, `ScaffoldContextState`, và các hằng số `ERROR_CODES`
+dùng chung. Mọi type nghiệp vụ khác (`User`, `Album`, `ImageMetadata`,
+`SearchResponse`, `EvaluationResult`...) **PHẢI** nằm đúng
+`entities/[workflow]_entities.ts` tương ứng theo nguồn gốc schema
+trong `openapi.yaml`, không được khai báo trùng lặp ở `scaffold_entities.ts`.
+
+### 2.4.3 Anti-Patterns riêng của FrontendModule (bổ sung §3.2)
+
+- **[AP-7] Layer Leakage (Rò rỉ ranh giới lớp):** Bất kỳ file nào
+  trong Nhóm B (`components/`, `page-layouts/`) chứa logic điều hướng
+  (callback chọn trang đích, gọi `navigate()`), gọi trực tiếp
+  `adapters/`/`services/`, hoặc biết về URL hiện tại. Tiền lệ đã phát
+  hiện: `LandingLayout.tsx` (bản cũ) nhận prop
+  `onPageChange?: (page: 'introduce' | 'about' | ...) => void` — đây
+  là logic điều hướng lọt vào Nhóm B, vi phạm AP-7.
+- **[AP-8] JSX Contamination (Nhiễm JSX vào lớp logic):** Bất kỳ file
+  nào trong `routers/` (Nhóm A) chứa cú pháp JSX/TSX, kể cả đơn giản.
+  Không có ngoại lệ, kể cả `scaffold_routers.ts` — file composition
+  root dùng `React.createElement` thay vì JSX để giữ đuôi `.ts` thuần
+  túy. Tiền lệ đã phát hiện: `ScaffoldAppShell`, `ScaffoldErrorBoundary`
+  (bản cũ) chứa JSX trực tiếp trong `scaffold_routers.tsx`.
+- **[AP-9] File Fragmentation (Phân mảnh file trái quy tắc "1 workflow
+  1 file/layer"):** Tách 1 layer của 1 workflow thành nhiều file phụ
+  không có trong bảng §2.4.1 (vd `_instance.ts`, `_context.ts`, router
+  phụ ngoài `[workflow]_routers.ts`). Tiền lệ đã phát hiện: workflow
+  `scaffold` (bản cũ) có đồng thời `scaffold_adapters.ts` +
+  `scaffold_adapter_instance.ts` (2 file cho layer adapters), và
+  `scaffold_routers.tsx` + `router.tsx` + `app_routers.tsx` +
+  `use_scaffold_context.ts` (4 file cho layer routers).
+- **[AP-10] Contract Version Drift (Trôi dạt phiên bản hợp đồng):**
+  `entities/[workflow]_entities.ts` không phản ánh đúng field mới nhất
+  của `openapi.yaml`/`data_schema.yaml` phiên bản hiện hành (v1.2.3).
+  Tiền lệ đã phát hiện: `scaffold_entities.ts` còn field `milvus`
+  (di sản pre-v1.1.0) và thiếu `redis`, `config_validated` (append
+  v1.2.0); `auth_entities.ts` `User` thiếu field `role` (append
+  v1.2.0) — kéo theo lỗi tích hợp thật ở `auth_adapters.ts`
+  (`registerUser()` kỳ vọng sai schema response `AuthResponse` thay vì
+  `User` đúng theo `openapi.yaml` v1.2.0 trở đi, khớp lỗi tương tự đã
+  từng phát hiện và sửa ở BackendModule T003-01).
+
+### 2.4.4 Ràng buộc tuyệt đối (giữ nguyên từ v2.4.0, không đổi)
+
+AG-04 **CHỈ** được gọi REST tới D (BackendModule). AG-04 **KHÔNG BAO
+GIỜ** gọi trực tiếp B (StorageModule) hay C (AIModule), kể cả khi biết
+URL nội bộ.
 ---
 
 ## 3. QUY TẮC TOÀN VẸN (VALIDATION RULES) VÀ ANTI-PATTERNS

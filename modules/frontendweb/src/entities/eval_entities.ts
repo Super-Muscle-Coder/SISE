@@ -1,78 +1,75 @@
 /**
- * Evaluation Domain Entities
- * 
- * Single source of truth for all evaluation-related data contracts.
- * Aligned with OpenAPI `/eval/run`, `/eval/results/{eval_id}`, `/eval/metrics`.
+ * @file eval_entities.ts
+ * @layer entities
+ * @description Type definitions cho workflow evaluation (admin only) và
+ *              admin/reindex (gộp chung file — xem eval_configs.ts). Khớp
+ *              1-1 openapi.yaml /eval/run, /eval/results/{eval_id},
+ *              /eval/metrics, /admin/reindex (v1.2.3).
+ * @owner AG-04
+ * @reference openapi.yaml paths /eval/*, /admin/reindex
  */
 
-// ============================================================================
-// EVALUATION RUN REQUEST & RESPONSE
-// ============================================================================
-
-export interface EvaluationRunRequest {
-    limit?: number;  // Limit evaluation to N random indexed images
-    seed?: number;   // Random seed for reproducibility
+/**
+ * RUN EVALUATION REQUEST
+ * Reference: openapi.yaml POST /eval/run request body (không required)
+ */
+export interface RunEvaluationRequest {
+    limit?: number // default: 100, giới hạn eval N ảnh đã index ngẫu nhiên
+    seed?: number // Random seed cho khả năng tái lập kết quả
 }
 
-export interface EvaluationRunResponse {
-    eval_id: string;     // UUID to track the job
-    status: 'running';   // Always 'running' immediately after POST
-    timestamp?: string;  // ISO 8601 timestamp when job was created (optional for client compat)
+/**
+ * RUN EVALUATION RESPONSE
+ * Reference: openapi.yaml POST /eval/run response 202 (bất đồng bộ)
+ */
+export interface RunEvaluationResponse {
+    eval_id: string // UUID
+    status: string // example: "running"
 }
 
-// ============================================================================
-// EVALUATION RESULTS (from GET /eval/results/{eval_id})
-// ============================================================================
-
+/**
+ * EVALUATION RESULT
+ * Reference: openapi.yaml GET /eval/results/{eval_id} response 200
+ * Field mrr/hit_rate/precision/recall/query_count/completed_at chỉ có giá
+ * trị khi status = "completed" — hợp đồng không đánh dấu required nên để
+ * optional.
+ */
 export interface EvaluationResult {
-    eval_id: string;
-    status: 'running' | 'completed' | 'failed';
-    mrr?: number;              // Mean Reciprocal Rank: 0.0 to 1.0
-    hit_rate?: number;         // Hit Rate: 0.0 to 1.0 (at least 1 correct in top K)
-    precision?: number;        // Precision@10: 0.0 to 1.0
-    recall?: number;           // Recall: 0.0 to 1.0
-    query_count?: number;      // Number of queries executed in this evaluation
-    completed_at?: string;     // ISO 8601 timestamp when completed
-    error_message?: string;    // If status === 'failed', error details here
+    eval_id: string // UUID
+    status: string // example: "completed" — quan sát thực tế còn "running"/"failed"
+    mrr?: number
+    hit_rate?: number
+    precision?: number
+    recall?: number
+    query_count?: number
+    completed_at?: string // ISO 8601
 }
 
-// ============================================================================
-// EVALUATION METRICS HISTORY (from GET /eval/metrics)
-// ============================================================================
-
-export interface HistoricalMetrics {
-    mrr: number;
-    hit_rate: number;
-    precision: number;    // Implicitly Precision@10
-    recall: number;
+/**
+ * EVALUATION METRICS
+ * Reference: openapi.yaml GET /eval/metrics response 200
+ * Report tổng hợp (không gắn với 1 eval_id cụ thể — khác EvaluationResult).
+ */
+export interface EvaluationMetrics {
+    mrr: number
+    hit_rate: number
+    precision: number
+    recall: number
 }
 
-// ============================================================================
-// EVALUATION DISPLAY STATE (for UI layer)
-// ============================================================================
-
-export interface MetricCardData {
-    label: string;        // e.g., "MRR", "Precision@10", "Hit Rate", "Recall"
-    value: number;         // The metric value
-    unit: '%' | 'score';   // Display unit: percentage or raw score [0,1]
-    tooltip: string;       // Hover tooltip explaining the metric
+/**
+ * TRIGGER REINDEX REQUEST
+ * Reference: openapi.yaml POST /admin/reindex request body (không required)
+ */
+export interface TriggerReindexRequest {
+    batch_size?: number // default: 100
+    resume_from?: string
 }
 
-export interface EvaluationUIState {
-    runStatus: 'idle' | 'pending' | 'polling' | 'success' | 'failed' | 'timeout';
-    evalId: string | null;
-    metrics: MetricCardData[];
-    errorMessage: string | null;
-    elapsedMs: number;                    // Time spent polling so far
-    lastFetchedAt: string | null;         // ISO timestamp of last successful fetch
-}
-
-// ============================================================================
-// STANDARD ERROR (matches openapi.yaml Error schema)
-// ============================================================================
-
-export interface StandardError {
-    code: string;
-    message: string;
-    details?: Record<string, unknown>;
+/**
+ * TRIGGER REINDEX RESPONSE
+ * Reference: openapi.yaml POST /admin/reindex response 202
+ */
+export interface TriggerReindexResponse {
+    job_id: string
 }

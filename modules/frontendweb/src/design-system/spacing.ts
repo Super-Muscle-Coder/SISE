@@ -27,4 +27,6 @@ export const SPACING = {
     '4xl': '3.5rem',
     // 5xl: 4rem (64px)
     '5xl': '4rem',
+    // 6xl: 8.75rem (140px) 
+    '6xl': '8.75rem',
 } as const;

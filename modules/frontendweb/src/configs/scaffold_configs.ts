@@ -1,10 +1,13 @@
 /**
  * @file scaffold_configs.ts
  * @layer configs
- * @description Centralized configuration object derived from environment variables.
- *              Single source of truth for app-wide configuration.
+ * @description Cấu hình lõi dùng chung toàn app: API Gateway, Health probe,
+ *              Retry Policy, Idempotency, Presigned Upload, Vector Dimension.
+ *              Đây là những giá trị KHÔNG thuộc riêng 1 workflow nghiệp vụ nào
+ *              (auth/media/search/eval) — thuộc phạm vi scaffold theo đúng
+ *              Workflow_Centric_Architecture.md §2.4.2.
  * @owner AG-04
- * @reference data_schema.yaml, openapi.yaml
+ * @reference frontend.env.local, data_schema.yaml global_configs (v1.2.3)
  */
 
 import {
@@ -14,16 +17,13 @@ import {
     getEnvListWithDefault,
 } from '@/utils/env_helpers';
 
-// ============================================================================
-// SCAFFOLD CONFIGURATION OBJECT
-// ============================================================================
-
 export const SCAFFOLD_CONFIG = {
     /**
-     * API Gateway Configuration
+     * [CONTRACT] API Gateway — trỏ tới BackendModule (AG-03), Clause D.
      */
     API: {
         baseUrl: getEnvVarWithDefault('VITE_API_BASE_URL', 'http://localhost:8000'),
+        // [CONTRACT] data_schema.yaml global_configs.default_timeout_ms
         timeoutMs: getEnvNumberWithDefault('VITE_API_TIMEOUT_MS', 10000),
         defaultHeaders: {
             'Content-Type': 'application/json',
@@ -31,7 +31,9 @@ export const SCAFFOLD_CONFIG = {
     } as const,
 
     /**
-     * Health & Readiness Probe Configuration
+     * [UI-ONLY] Health & Readiness Probe — openapi.yaml /health/readiness
+     * định nghĩa path và response shape, KHÔNG định nghĩa tần suất caller
+     * phải gọi lại. Tần suất là quyết định UX của Frontend.
      */
     HEALTH: {
         checkIntervalMs: getEnvNumberWithDefault('VITE_HEALTH_CHECK_INTERVAL_MS', 30000),
@@ -40,8 +42,10 @@ export const SCAFFOLD_CONFIG = {
     } as const,
 
     /**
-     * Retry Policy Configuration
-     * Implements exponential backoff: backoff_ms × (factor ^ attempt_number)
+     * [CONTRACT] Retry Policy — data_schema.yaml global_configs.retry_policy.
+     * Exponential backoff: backoff_ms × (factor ^ attempt_number).
+     * CHỈ áp dụng cho lỗi HTTP request (408/429/5xx). KHÔNG dùng cho polling
+     * chờ job bất đồng bộ (xem EVAL_CONFIG.POLL ở eval_configs.ts).
      */
     RETRY: {
         maxAttempts: getEnvNumberWithDefault('VITE_RETRY_MAX_ATTEMPTS', 3),
@@ -58,8 +62,9 @@ export const SCAFFOLD_CONFIG = {
     } as const,
 
     /**
-     * Idempotency Configuration
-     * Prevents duplicate request processing within TTL window
+     * [CONTRACT] Idempotency — data_schema.yaml global_configs.idempotency_ttl_hours,
+     * openapi.yaml components.parameters.IdempotencyKey.
+     * Áp dụng cho mọi endpoint có tham số Idempotency-Key (vd POST /media/upload-url).
      */
     IDEMPOTENCY: {
         headerName: 'Idempotency-Key',
@@ -73,7 +78,11 @@ export const SCAFFOLD_CONFIG = {
     } as const,
 
     /**
-     * Presigned Upload Configuration
+     * [CONTRACT] Presigned Upload — data_schema.yaml global_configs +
+     * storage.presigned (2 nơi đồng bộ theo đúng hợp đồng gốc).
+     * Dùng chung bởi cả workflow `media` (upload) và `search` (search-by-image),
+     * vì openapi.yaml quy định /search/image dùng cùng multipart/form-data
+     * với cùng ràng buộc content-type/size.
      */
     UPLOAD: {
         expirySeconds: getEnvNumberWithDefault('VITE_PRESIGNED_URL_EXPIRY_SEC', 3600),
@@ -101,7 +110,12 @@ export const SCAFFOLD_CONFIG = {
     } as const,
 
     /**
-     * Vector Embedding Configuration
+     * [CONTRACT] Vector Embedding — data_schema.yaml global_configs.vector_dim,
+     * supported_dims. Tại v1.2.3, hệ thống CHỈ vận hành với 512 — giá trị 768
+     * là dự phòng tương lai, KHÔNG được hiểu là hỗ trợ song song 2 chiều.
+     * VITE_DEFAULT_VECTOR_DIM chỉ dùng để validate cục bộ trước khi có
+     * response thật từ /health/readiness (header X-Expected-Vector-Dim) —
+     * header runtime luôn là nguồn sự thật, giá trị env chỉ là khởi tạo.
      */
     VECTOR: {
         defaultDim: getEnvNumberWithDefault('VITE_DEFAULT_VECTOR_DIM', 512),
@@ -127,41 +141,25 @@ export const SCAFFOLD_CONFIG = {
     } as const,
 
     /**
-     * Authentication Storage & Session Configuration
+     * [CONTRACT] Metric Type — openapi.yaml MetricType, thu hẹp v1.2.0 chỉ
+     * còn COSINE (data_schema.yaml Clause B chỉ có 1 index HNSW dùng
+     * vector_cosine_ops). Dùng chung bởi workflow `search`. Đặt tại scaffold
+     * (không phải search_configs) vì đây là hằng số hệ thống bất biến, không
+     * phải tham số riêng của UI search.
      */
-    AUTH: {
-        tokenStorageKey: getEnvVarWithDefault('VITE_AUTH_STORAGE_TOKEN_KEY', 'sise_auth_token'),
-        userStorageKey: getEnvVarWithDefault('VITE_AUTH_STORAGE_USER_KEY', 'sise_user_data'),
-        events: {
-            sessionEnded: getEnvVarWithDefault('VITE_SESSION_ENDED_EVENT', 'sessionExpired'),
-            sessionStarted: getEnvVarWithDefault('VITE_SESSION_STARTED_EVENT', 'sessionStarted'),
-        },
-        getStoredToken: (): string | null => {
-            const tokenKey = getEnvVarWithDefault('VITE_AUTH_STORAGE_TOKEN_KEY', 'sise_auth_token');
-            const token = localStorage.getItem(tokenKey);
-            if (!token || token === 'undefined' || token === 'null') return null;
-            return token;
-        },
-        setStoredToken: (token: string): void => {
-            const tokenKey = getEnvVarWithDefault('VITE_AUTH_STORAGE_TOKEN_KEY', 'sise_auth_token');
-            localStorage.setItem(tokenKey, token);
-        },
-        clearStoredAuth: (): void => {
-            const tokenKey = getEnvVarWithDefault('VITE_AUTH_STORAGE_TOKEN_KEY', 'sise_auth_token');
-            const userKey = getEnvVarWithDefault('VITE_AUTH_STORAGE_USER_KEY', 'sise_user_data');
-            localStorage.removeItem(tokenKey);
-            localStorage.removeItem(userKey);
-        },
-    } as const,
+    SEARCH_METRIC: getEnvVarWithDefault('VITE_SEARCH_METRIC', 'COSINE') as 'COSINE',
 
     /**
-     * Error Code Mappings
+     * Error Code Mappings — khớp openapi.yaml Error.code (không phải enum
+     * cứng ở hợp đồng, nhưng đây là tập giá trị đã thấy dùng thật xuyên suốt
+     * dự án, kể cả ở BackendModule).
      */
     ERROR_CODES: {
         VECTOR_DIM_MISMATCH: 'ERR_VECTOR_DIM_MISMATCH',
         HEALTH_CHECK_FAILED: 'ERR_HEALTH_CHECK_FAILED',
         UNAUTHORIZED: 'ERR_UNAUTHORIZED',
         FORBIDDEN: 'ERR_FORBIDDEN',
+        FORBIDDEN_ADMIN_ONLY: 'ERR_FORBIDDEN_ADMIN_ONLY',
         NOT_FOUND: 'ERR_NOT_FOUND',
         CONFLICT: 'ERR_CONFLICT',
         PAYLOAD_TOO_LARGE: 'ERR_PAYLOAD_TOO_LARGE',
@@ -169,7 +167,8 @@ export const SCAFFOLD_CONFIG = {
     } as const,
 
     /**
-     * HTTP Status Code Categories
+     * HTTP Status Code Categories — hỗ trợ phân loại lỗi ở tầng adapters
+     * dùng chung cho mọi workflow.
      */
     HTTP_STATUS: {
         RETRYABLE: [408, 429, 500, 502, 503, 504],
@@ -178,7 +177,7 @@ export const SCAFFOLD_CONFIG = {
     } as const,
 
     /**
-     * Logging & Debug Configuration
+     * [UI-ONLY] Logging & Debug Configuration.
      */
     DEBUG: {
         logLevel: getEnvVarWithDefault('VITE_LOG_LEVEL', 'info') as 'debug' | 'info' | 'warn' | 'error',

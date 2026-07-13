@@ -1,0 +1,110 @@
+/**
+ * @file landing-header.css
+ * @layer components (Layer 2)
+ * @description Styling cho LandingHeader. Dời từ page-layouts/landing-layout/
+ *              landing-layout.css — 6 class header* trước đây lẫn trong CSS
+ *              của layout, nay tách riêng, nằm cạnh component thay vì đặt ở
+ *              styles/ (styles/ chỉ chứa CSS toàn cục áp dụng mọi trang, còn
+ *              đây là CSS riêng của đúng 1 component).
+ *              SỬA:
+ *              1. gap: 35rem (vô lý, không token) → var(--spacing-6xl)
+ *                 (design-system/spacing.ts, mới thêm).
+ *              2. Bỏ mọi fallback hardcode var(--x, giá-trị) — globals.css
+ *                 luôn load trước, fallback thừa (đã áp dụng nhất quán từ
+ *                 styles/, nay lan sang page-layouts/components/).
+ * @owner AG-04
+ * @reference design-system/spacing.ts, design-system/colors.ts
+ */
+
+/**
+ * Header: Sticky positioning.
+ * Không border/shadow mặc định — hòa vào hero phía trên. Shadow xuất hiện
+ * khi cuộn (xem .landing-header--scrolled).
+ */
+.landing-header {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-dropdown);
+    background-color: var(--color-bg-primary);
+    border-bottom: none;
+    box-shadow: none;
+    transition: box-shadow var(--duration-fast) var(--easing-in-out), border-color var(--duration-fast) var(--easing-in-out);
+    /* TODO Project Owner sẽ tự chỉnh sau khi xem giao diện thật (hiện đang
+       thấp so với chuẩn 64-80px cho header có logo+nav+CTA). */
+    min-height: 40px;
+}
+
+.landing-header--scrolled {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+/**
+ * Header container: Flex 1 hàng ngang, không wrap ở màn lớn.
+ * gap dùng --spacing-6xl (khoảng đẩy lớn có chủ đích, khác spacing thông
+ * thường — xem design-system/spacing.ts).
+ */
+.landing-header__container {
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: var(--spacing-sm) var(--spacing-sm);
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-6xl);
+    height: 100%;
+    width: 100%;
+}
+
+@media (max-width: 1024px) {
+    .landing-header__container {
+        padding: var(--spacing-base) var(--spacing-base);
+        gap: var(--spacing-base);
+    }
+}
+
+@media (max-width: 768px) {
+    .landing-header__container {
+        flex-wrap: wrap;
+        padding: var(--spacing-base) var(--spacing-base);
+        gap: var(--spacing-sm);
+    }
+
+    .landing-header {
+        min-height: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .landing-header__container {
+        padding: var(--spacing-sm) var(--spacing-base);
+    }
+}
+
+/**
+ * Subcomponent slots — logo/nav/CTA đặt bên trong children của
+ * LandingHeader, dùng các class này để định vị trong hàng ngang.
+ */
+.landing-header__logo {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+.landing-header__nav {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-base);
+    min-width: 0;
+}
+
+.landing-header__cta {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-base);
+}

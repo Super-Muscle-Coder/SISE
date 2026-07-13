@@ -212,29 +212,58 @@ export function useRegister() {
             setErrorCode(null);
 
             try {
-                const authResponse = await adapterRegisterUser(payload);
+                // Step 1: Register account (returns User, no token)
+                await adapterRegisterUser(payload);
 
-                // FIX E.2: Only update state if component is still mounted
-                if (!abortControllerRef.current.signal.aborted) {
-                    // FIX E.3: Store token using config-driven key
-                    const tokenKey = AUTH_CONFIG.storage.tokenKey;
-                    localStorage.setItem(tokenKey, authResponse.access_token);
-
-                    // Dispatch sessionStarted event using config-driven event name
-                    const eventName = AUTH_CONFIG.events.sessionStarted;
-                    const event = new CustomEvent(eventName, {
-                        detail: {
-                            token: authResponse.access_token,
-                            expiresIn: authResponse.expires_in,
-                        },
-                    });
-                    window.dispatchEvent(event);
-
-                    setIsLoading(false);
-                    return { success: true, data: authResponse };
+                // FIX E.2: Only continue if component is still mounted
+                if (abortControllerRef.current.signal.aborted) {
+                    return { success: false };
                 }
 
-                return { success: false };
+                // Step 2: Auto-login with the same submitted credentials
+                try {
+                    const authResponse = await adapterLoginUser({
+                        username: payload.username,
+                        password: payload.password,
+                    });
+
+                    // FIX E.2: Only update state if component is still mounted
+                    if (!abortControllerRef.current.signal.aborted) {
+                        // FIX E.3: Store token using config-driven key
+                        const tokenKey = AUTH_CONFIG.storage.tokenKey;
+                        localStorage.setItem(tokenKey, authResponse.access_token);
+
+                        // Dispatch sessionStarted event using config-driven event name
+                        const eventName = AUTH_CONFIG.events.sessionStarted;
+                        const event = new CustomEvent(eventName, {
+                            detail: {
+                                token: authResponse.access_token,
+                                expiresIn: authResponse.expires_in,
+                            },
+                        });
+                        window.dispatchEvent(event);
+
+                        setIsLoading(false);
+                        return { success: true, data: authResponse };
+                    }
+
+                    return { success: false };
+                } catch (autoLoginErr: unknown) {
+                    if (abortControllerRef.current?.signal.aborted) {
+                        return { success: false };
+                    }
+
+                    const autoLoginCode = 'ERR_AUTO_LOGIN_FAILED';
+                    const autoLoginMessage =
+                        'Account created successfully, but automatic login failed. Please try logging in manually.';
+
+                    setErrorCode(autoLoginCode);
+                    setError(autoLoginMessage);
+                    setIsLoading(false);
+
+                    void autoLoginErr;
+                    return { success: false };
+                }
             } catch (err: unknown) {
                 // FIX E.2: Only update state if not aborted
                 if (abortControllerRef.current?.signal.aborted) {
@@ -260,12 +289,16 @@ export function useRegister() {
 
 /**
  * Custom hook to load the authenticated user's profile.
- * Calls adapter getCurrentUser() with stored JWT token.
+ * Calls adapter getCurrentUser() — KHÔNG cần truyền token, vì
+ * scaffoldAdapter tự động gắn Bearer token qua request interceptor
+ * (trước đây loadUser(token) nhận tham số token chỉ để truyền xuống
+ * adapter, nhưng adapter không dùng đến — đã dọn tham số chết).
  * FIX E.2: AbortController cleanup to prevent unmount state updates.
  * FIX E.3: Uses config-driven storage key.
  *
  * @returns {Object} { isLoading, error, user, loadUser }
- *   - loadUser: async function to fetch user profile from backend
+ *   - loadUser: async function to fetch user profile from backend, không
+ *     cần tham số
  */
 export function useGetCurrentUser() {
     const [isLoading, setIsLoading] = useState(false);
@@ -282,7 +315,7 @@ export function useGetCurrentUser() {
         };
     }, []);
 
-    const loadUser = useCallback(async (token: string) => {
+    const loadUser = useCallback(async () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
@@ -292,7 +325,7 @@ export function useGetCurrentUser() {
         setError(null);
 
         try {
-            const userData = await adapterGetCurrentUser(token);
+            const userData = await adapterGetCurrentUser();
 
             if (!abortControllerRef.current.signal.aborted) {
                 setUser(userData);

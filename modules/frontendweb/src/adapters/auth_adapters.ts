@@ -2,7 +2,7 @@
  * @file auth_adapters.ts
  * @layer adapters
  * @description Pure async adapter functions for auth API calls.
- *              Owns Axios configuration for auth endpoints.
+ *              Uses global scaffoldAdapter for all auth endpoints.
  *              Normalizes backend errors to StandardError contract.
  *              Does NOT manage state or side effects.
  * 
@@ -15,8 +15,8 @@
  * @reference .context/openapi.yaml, DOS.md
  */
 
-import axios, { AxiosError } from 'axios';
 import { AUTH_CONFIG } from '../configs/auth_configs';
+import { scaffoldAdapter } from './scaffold_adapters';
 import {
     LoginRequest,
     RegisterRequest,
@@ -24,26 +24,6 @@ import {
     User,
     StandardError,
 } from '../entities/auth_entities';
-
-/**
- * Create an Axios instance for auth API calls.
- * Base URL comes from VITE_API_BASE_URL environment variable.
- * Timeout comes from VITE_API_TIMEOUT_MS environment variable.
- * 
- * Auth endpoints do NOT require JWT token by default (public endpoints).
- * Exception: GET /auth/me requires Bearer token.
- */
-function createAuthClient() {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    const timeout = parseInt(import.meta.env.VITE_API_TIMEOUT_MS || '10000', 10);
-
-    return axios.create({
-        baseURL: baseUrl,
-        timeout: timeout,
-    });
-}
-
-const authClient = createAuthClient();
 
 /**
  * FIX D.1: Type guard to validate AuthResponse payload structure.
@@ -66,7 +46,7 @@ function validateAuthResponse(data: unknown): AuthResponse {
     if (!data || typeof data !== 'object') {
         throw {
             code: 'ERR_INVALID_RESPONSE',
-            detail: 'Invalid response format from server.',
+            message: 'Invalid response format from server.',
         } as StandardError;
     }
 
@@ -76,7 +56,7 @@ function validateAuthResponse(data: unknown): AuthResponse {
     if (typeof response.access_token !== 'string' || !response.access_token.trim()) {
         throw {
             code: 'ERR_INVALID_RESPONSE',
-            detail: 'Missing or invalid access_token in response.',
+            message: 'Missing or invalid access_token in response.',
         } as StandardError;
     }
 
@@ -84,7 +64,7 @@ function validateAuthResponse(data: unknown): AuthResponse {
     if (typeof response.token_type !== 'string' || !response.token_type.trim()) {
         throw {
             code: 'ERR_INVALID_RESPONSE',
-            detail: 'Missing or invalid token_type in response.',
+            message: 'Missing or invalid token_type in response.',
         } as StandardError;
     }
 
@@ -92,7 +72,7 @@ function validateAuthResponse(data: unknown): AuthResponse {
     if (typeof response.expires_in !== 'number' || response.expires_in <= 0) {
         throw {
             code: 'ERR_INVALID_RESPONSE',
-            detail: 'Missing or invalid expires_in in response.',
+            message: 'Missing or invalid expires_in in response.',
         } as StandardError;
     }
 
@@ -101,6 +81,95 @@ function validateAuthResponse(data: unknown): AuthResponse {
         token_type: response.token_type as string,
         expires_in: response.expires_in as number,
     };
+}
+
+/**
+ * Validate User response payload structure from POST /auth/register and GET /auth/me.
+ * Required fields: id, username, email, created_at, role.
+ * Dùng chung cho CẢ HAI endpoint (register 201 và /auth/me 200) vì cả hai
+ * trả cùng 1 schema User theo openapi.yaml.
+ *
+ * @param data - Unknown data from backend response
+ * @returns Validated User | throws StandardError
+ * @throws StandardError with code 'ERR_INVALID_RESPONSE' if validation fails
+ */
+function validateUserResponse(data: unknown): User {
+    // Check if data is an object
+    if (!data || typeof data !== 'object') {
+        throw {
+            code: 'ERR_INVALID_RESPONSE',
+            message: 'Invalid response format from server.',
+        } as StandardError;
+    }
+
+    const response = data as Record<string, unknown>;
+
+    // Validate id field
+    if (typeof response.id !== 'number' || Number.isNaN(response.id)) {
+        throw {
+            code: 'ERR_INVALID_RESPONSE',
+            message: 'Missing or invalid id in response.',
+        } as StandardError;
+    }
+
+    // Validate username field
+    if (typeof response.username !== 'string' || !response.username.trim()) {
+        throw {
+            code: 'ERR_INVALID_RESPONSE',
+            message: 'Missing or invalid username in response.',
+        } as StandardError;
+    }
+
+    // Validate email field
+    if (typeof response.email !== 'string' || !response.email.trim()) {
+        throw {
+            code: 'ERR_INVALID_RESPONSE',
+            message: 'Missing or invalid email in response.',
+        } as StandardError;
+    }
+
+    // Validate created_at field
+    if (typeof response.created_at !== 'string' || !response.created_at.trim()) {
+        throw {
+            code: 'ERR_INVALID_RESPONSE',
+            message: 'Missing or invalid created_at in response.',
+        } as StandardError;
+    }
+
+    // Validate role field
+    if (
+        typeof response.role !== 'string' ||
+        (response.role !== 'user' && response.role !== 'admin')
+    ) {
+        throw {
+            code: 'ERR_INVALID_RESPONSE',
+            message: 'Missing or invalid role in response.',
+        } as StandardError;
+    }
+
+    return {
+        id: response.id as number,
+        username: response.username as string,
+        email: response.email as string,
+        created_at: response.created_at as string,
+        role: response.role as 'user' | 'admin',
+    };
+}
+
+type AxiosLikeError = {
+    code?: string;
+    response?: {
+        status?: number;
+        data?: unknown;
+    };
+};
+
+function isAxiosLikeError(error: unknown): error is AxiosLikeError {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        ('response' in error || 'code' in error)
+    );
 }
 
 /**
@@ -120,11 +189,11 @@ function validateAuthResponse(data: unknown): AuthResponse {
  * Maps HTTP status codes to semantic error codes.
  * Implements fallback resilience for schema drift.
  *
- * @param error - Unknown error from axios
+ * @param error - Unknown error from adapter
  * @returns StandardError normalized error object
  */
 function parseBackendError(error: unknown): StandardError {
-    if (axios.isAxiosError(error)) {
+    if (isAxiosLikeError(error)) {
         const statusCode = error.response?.status;
         const backendData = error.response?.data as Record<string, unknown> | undefined;
 
@@ -132,14 +201,14 @@ function parseBackendError(error: unknown): StandardError {
         if (error.code === 'ECONNABORTED') {
             return {
                 code: 'ERR_TIMEOUT',
-                detail: 'Request timed out. Please check your connection.',
+                message: 'Request timed out. Please check your connection.',
             };
         }
 
         if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
             return {
                 code: 'ERR_NETWORK',
-                detail: 'Network error. Please check your internet connection.',
+                message: 'Network error. Please check your internet connection.',
             };
         }
 
@@ -147,7 +216,7 @@ function parseBackendError(error: unknown): StandardError {
         if (backendData && typeof backendData === 'object' && 'code' in backendData) {
             return {
                 code: String(backendData.code) || 'UNKNOWN_ERROR',
-                detail: String(backendData.detail || backendData.message || 'An error occurred.'),
+                message: String(backendData.detail || backendData.message || 'An error occurred.'),
             };
         }
 
@@ -159,28 +228,28 @@ function parseBackendError(error: unknown): StandardError {
             if (detail.includes('already exists') || detail.includes('duplicate')) {
                 return {
                     code: 'ERR_USER_ALREADY_EXISTS',
-                    detail: backendData.detail as string,
+                    message: backendData.detail as string,
                 };
             }
 
             if (detail.includes('invalid') && detail.includes('password')) {
                 return {
                     code: 'ERR_INVALID_CREDENTIALS',
-                    detail: backendData.detail as string,
+                    message: backendData.detail as string,
                 };
             }
 
             if (detail.includes('validation')) {
                 return {
                     code: 'ERR_VALIDATION_FAILED',
-                    detail: backendData.detail as string,
+                    message: backendData.detail as string,
                 };
             }
 
             // Generic detail message
             return {
                 code: 'ERR_SERVER_ERROR',
-                detail: backendData.detail as string,
+                message: backendData.detail as string,
             };
         }
 
@@ -189,27 +258,28 @@ function parseBackendError(error: unknown): StandardError {
             case 400:
                 return {
                     code: 'ERR_VALIDATION_FAILED',
-                    detail: 'Validation failed. Please check your input.',
+                    message: 'Validation failed. Please check your input.',
                 };
             case 401:
                 return {
                     code: 'ERR_INVALID_CREDENTIALS',
-                    detail: 'Invalid username or password. Please try again.',
+                    message: 'Invalid username or password. Please try again.',
                 };
+            // LƯU Ý: nhánh này hiếm khi chạy tới vì scaffoldAdapter interceptor đã chuẩn hóa lỗi 409 thành ERR_CONFLICT trước đó — cần rà soát thống nhất khi audit workflow tiếp theo dùng chung pattern lỗi 409.
             case 409:
                 return {
                     code: 'ERR_USER_ALREADY_EXISTS',
-                    detail: 'This username or email is already registered.',
+                    message: 'This username or email is already registered.',
                 };
             case 500:
                 return {
                     code: 'ERR_SERVER_ERROR',
-                    detail: 'Server error. Please try again later.',
+                    message: 'Server error. Please try again later.',
                 };
             default:
                 return {
                     code: 'UNKNOWN_ERROR',
-                    detail: 'An unexpected error occurred. Please try again.',
+                    message: 'An unexpected error occurred. Please try again.',
                 };
         }
     }
@@ -217,7 +287,7 @@ function parseBackendError(error: unknown): StandardError {
     // ===== Non-Axios Error (e.g., parsing error, validation error) =====
     return {
         code: 'UNKNOWN_ERROR',
-        detail: (error as Error)?.message || 'An unexpected error occurred.',
+        message: (error as Error)?.message || 'An unexpected error occurred.',
     };
 }
 
@@ -227,7 +297,7 @@ function parseBackendError(error: unknown): StandardError {
  * Request: { username, password }
  * Response: { access_token, token_type, expires_in }
  * 
- * Does NOT include JWT token (public endpoint).
+ * Uses scaffoldAdapter (global interceptors/retry/idempotency stack).
  *
  * @param payload - { username, password }
  * @returns AuthResponse containing JWT token
@@ -235,7 +305,7 @@ function parseBackendError(error: unknown): StandardError {
  */
 export async function loginUser(payload: LoginRequest): Promise<AuthResponse> {
     try {
-        const response = await authClient.post<unknown>(
+        const response = await scaffoldAdapter.post<unknown>(
             AUTH_CONFIG.paths.login,
             payload
         );
@@ -252,24 +322,25 @@ export async function loginUser(payload: LoginRequest): Promise<AuthResponse> {
  * REGISTER: POST /auth/register
  * 
  * Request: { username, email, password }
- * Response: { access_token, token_type, expires_in } (auto-login)
+ * Response: User object (id, username, email, created_at, role).
+ * KHÔNG chứa token — Frontend phải tự gọi loginUser() sau khi
+ * register thành công để lấy token (xem auth_services.ts useRegister).
  * 
- * Does NOT include JWT token (public endpoint).
- * Response includes AuthResponse (instant activation, no email confirmation needed).
+ * Uses scaffoldAdapter (global interceptors/retry/idempotency stack).
  *
  * @param payload - { username, email, password }
- * @returns AuthResponse containing JWT token (auto-login on success)
+ * @returns User object
  * @throws StandardError structured error object
  */
-export async function registerUser(payload: RegisterRequest): Promise<AuthResponse> {
+export async function registerUser(payload: RegisterRequest): Promise<User> {
     try {
-        const response = await authClient.post<unknown>(
+        const response = await scaffoldAdapter.post<unknown>(
             AUTH_CONFIG.paths.register,
             payload
         );
 
         // Validate response structure
-        return validateAuthResponse(response.data);
+        return validateUserResponse(response.data);
     } catch (error) {
         const standardError = parseBackendError(error);
         throw standardError;
@@ -279,28 +350,25 @@ export async function registerUser(payload: RegisterRequest): Promise<AuthRespon
 /**
  * GET PROFILE: GET /auth/me
  * 
- * Request header: Authorization: Bearer <token>
- * Response: { id, username, email, created_at }
- * 
- * REQUIRES Bearer token in Authorization header.
- * Fails with 401 if token invalid or expired.
+ * Authorization header is injected automatically by scaffoldAdapter interceptor
+ * — KHÔNG cần truyền token thủ công (đã xóa tham số token khỏi chữ ký hàm,
+ * trước đây là tham số chết không được dùng bên trong thân hàm).
  *
- * @param token - JWT access token
+ * Response cùng schema User như POST /auth/register — dùng chung
+ * validateUserResponse() để đảm bảo runtime validation nhất quán, không
+ * chỉ dựa vào type assertion <User> lúc compile-time (không đảm bảo dữ
+ * liệu thật khớp nếu Backend trả thiếu field, ví dụ thiếu role).
+ *
  * @returns User profile object
  * @throws StandardError structured error object (401 if token invalid/expired)
  */
-export async function getCurrentUser(token: string): Promise<User> {
+export async function getCurrentUser(): Promise<User> {
     try {
-        const response = await authClient.get<User>(
-            AUTH_CONFIG.paths.getCurrentUser,
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            }
+        const response = await scaffoldAdapter.get<unknown>(
+            AUTH_CONFIG.paths.getCurrentUser
         );
 
-        return response.data;
+        return validateUserResponse(response.data);
     } catch (error) {
         const standardError = parseBackendError(error);
         throw standardError;

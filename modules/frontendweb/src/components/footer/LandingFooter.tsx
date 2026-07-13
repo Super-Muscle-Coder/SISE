@@ -1,20 +1,25 @@
 /**
- * @file Footer.tsx
+ * @file LandingFooter.tsx
  * @layer components (Layer 2)
- * @description Landing Footer with 4-column layout, social icons, and AOS animations
- * 
- * Structure:
- * - Column 1: Logo + Brand tagline
- * - Column 2: About SISE
- * - Column 3: Quick Links
- * - Column 4: Social Media Icons
- * - Bottom: Copyright line
- * 
- * Features:
- * - Fade-in-up animation on scroll (AOS-like effect)
- * - Social icon hover effects with colored shadows
- * - Dark background (#1a1a1a) with white text
- * 
+ * @description Landing Footer với 4-column layout, social icons, và AOS
+ *              animations.
+ *              SỬA:
+ *              1. var(--font-size-*) đã bị xóa (globals.css tái cấu trúc)
+ *                 → đổi sang --text-heading-*--text-body-*.
+ *              2. Bảng màu dark theme hardcode → nay dùng
+ *                 var(--color-footer-*), khớp COLORS.footer mới thêm vào
+ *                 design-system/colors.ts.
+ *              3. Màu social icon (GitHub/Twitter/Gmail...) GIỮ NGUYÊN
+ *                 hardcode có chủ đích — màu nhận diện thương hiệu bên thứ
+ *                 3, không thuộc hệ thống màu SISE.
+ *              4. [AP-7 FIX] Trước đây nhận prop `onPageChange` và TỰ GỌI
+ *                 window.scrollTo(...) — đây là logic điều hướng lọt vào
+ *                 Nhóm B (Layer Leakage, xem Workflow_Centric_Architecture.md
+ *                 §2.4.3 AP-7). Footer (giao diện thuần túy) không được
+ *                 biết "trang nào", "URL nào", hay "có cần scroll không".
+ *                 Nay Footer CHỈ phát ra sự kiện thuần `onLinkClick(page)`
+ *                 khi người dùng bấm — quyết định điều hướng/scroll thật
+ *                 thuộc về pages/LandingPage.tsx (Nhóm C).
  * @owner AG-04
  */
 
@@ -32,34 +37,44 @@ const SOCIAL_ICONS: SocialIcon[] = [
     {
         name: 'GitHub',
         icon: Globe,
-        shadowColor: '#0078D7', // GitHub/SISE brand
+        shadowColor: '#0078D7',
         url: 'https://github.com/Super-Muscle-Coder/SISE',
     },
     {
         name: 'Website',
         icon: ExternalLink,
-        shadowColor: '#FFD700', // Yellow/gold
+        shadowColor: '#FFD700',
         url: 'https://sise.com',
     },
     {
         name: 'Twitter/X',
         icon: Send,
-        shadowColor: '#E1306C', // Pinkish-red
+        shadowColor: '#E1306C',
         url: 'https://twitter.com',
     },
     {
         name: 'Email',
         icon: Mail,
-        shadowColor: '#DB4437', // Brand color
+        shadowColor: '#DB4437',
         url: 'mailto:contact@sise.com',
     },
 ];
 
-export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | 'about' | 'explore' | 'terms') => void }): React.ReactElement {
+export type LandingFooterQuickLinkPage = 'introduce' | 'about' | 'explore' | 'terms';
+
+interface LandingFooterProps {
+    /**
+     * Gọi khi người dùng bấm 1 Quick Link. Footer KHÔNG tự quyết định điều
+     * hướng hay scroll — chỉ báo "người dùng muốn tới đâu", pages/ quyết
+     * định phần còn lại.
+     */
+    onLinkClick?: (page: LandingFooterQuickLinkPage) => void;
+}
+
+export function LandingFooter({ onLinkClick }: LandingFooterProps): React.ReactElement {
     const footerRef = useRef<HTMLElement>(null);
     const [isVisible, setIsVisible] = useState(false);
 
-    // Intersection Observer for AOS-like fade-in effect
     useEffect(() => {
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -81,21 +96,13 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
         };
     }, []);
 
-    const handleQuickLinkClick = (page: string) => {
-        if (onPageChange) {
-            onPageChange(page as 'introduce' | 'about' | 'explore' | 'terms');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-    };
-
-    // Animation classes based on visibility
     const getAnimationStyle = (delay: number): React.CSSProperties => {
         return {
             visibility: isVisible ? 'visible' : 'hidden',
             opacity: isVisible ? 1 : 0,
             transform: isVisible ? 'translateY(0)' : 'translateY(180px)',
-            transition: isVisible 
-                ? `all 600ms ease-out ${delay}ms` 
+            transition: isVisible
+                ? `all 600ms ease-out ${delay}ms`
                 : 'none',
         };
     };
@@ -104,8 +111,8 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
         <footer
             ref={footerRef}
             style={{
-                backgroundColor: '#1a1a1a',
-                color: '#ffffff',
+                backgroundColor: 'var(--color-footer-background)',
+                color: 'var(--color-footer-text)',
                 paddingTop: 'var(--spacing-5xl)',
                 paddingBottom: 'var(--spacing-3xl)',
             }}
@@ -138,8 +145,8 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                     </div>
                     <p
                         style={{
-                            fontSize: 'var(--font-size-base)',
-                            color: '#ffffff',
+                            fontSize: 'var(--text-body-base-size)',
+                            color: 'var(--color-footer-text)',
                             lineHeight: '1.6',
                             fontWeight: 'var(--font-weight-normal)',
                         }}
@@ -152,22 +159,22 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                 <div style={getAnimationStyle(250)}>
                     <h3
                         style={{
-                            fontSize: 'var(--font-size-lg)',
+                            fontSize: 'var(--text-heading-h4-size)',
                             fontWeight: 'var(--font-weight-semibold)',
                             marginBottom: 'var(--spacing-lg)',
-                            color: '#ffffff',
+                            color: 'var(--color-footer-text)',
                         }}
                     >
                         About SISE
                     </h3>
                     <p
                         style={{
-                            fontSize: 'var(--font-size-base)',
-                            color: '#b3b3b3',
+                            fontSize: 'var(--text-body-base-size)',
+                            color: 'var(--color-footer-text-muted)',
                             lineHeight: '1.8',
                         }}
                     >
-                        Where your photos live                         
+                        Where your photos live
                         Upload, search, share, and save.
                     </p>
                 </div>
@@ -176,10 +183,10 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                 <div style={getAnimationStyle(350)}>
                     <h3
                         style={{
-                            fontSize: 'var(--font-size-lg)',
+                            fontSize: 'var(--text-heading-h4-size)',
                             fontWeight: 'var(--font-weight-semibold)',
                             marginBottom: 'var(--spacing-lg)',
-                            color: '#ffffff',
+                            color: 'var(--color-footer-text)',
                         }}
                     >
                         Quick Links
@@ -202,12 +209,12 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                         ].map((link) => (
                             <li key={link.value}>
                                 <button
-                                    onClick={() => handleQuickLinkClick(link.value)}
+                                    onClick={() => onLinkClick?.(link.value as LandingFooterQuickLinkPage)}
                                     style={{
                                         background: 'none',
                                         border: 'none',
-                                        color: '#b3b3b3',
-                                        fontSize: 'var(--font-size-base)',
+                                        color: 'var(--color-footer-text-muted)',
+                                        fontSize: 'var(--text-body-base-size)',
                                         cursor: 'pointer',
                                         transition: 'color var(--duration-normal)',
                                         padding: 0,
@@ -217,7 +224,7 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                                         e.currentTarget.style.color = 'var(--color-brand-primary)';
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.color = '#b3b3b3';
+                                        e.currentTarget.style.color = 'var(--color-footer-text-muted)';
                                     }}
                                 >
                                     {link.label}
@@ -231,10 +238,10 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                 <div style={getAnimationStyle(450)}>
                     <h3
                         style={{
-                            fontSize: 'var(--font-size-lg)',
+                            fontSize: 'var(--text-heading-h4-size)',
                             fontWeight: 'var(--font-weight-semibold)',
                             marginBottom: 'var(--spacing-lg)',
-                            color: '#ffffff',
+                            color: 'var(--color-footer-text)',
                         }}
                     >
                         Follow Us
@@ -262,7 +269,7 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                                         height: '44px',
                                         borderRadius: '50%',
                                         backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                                        color: '#ffffff',
+                                        color: 'var(--color-footer-text)',
                                         transition: 'all var(--duration-normal)',
                                         cursor: 'pointer',
                                         textDecoration: 'none',
@@ -294,16 +301,15 @@ export function Footer({ onPageChange }: { onPageChange?: (page: 'introduce' | '
                     textAlign: 'center',
                     visibility: isVisible ? 'visible' : 'hidden',
                     opacity: isVisible ? 1 : 0,
-                    // ✅ Dùng transition thay animation
-                    transition: isVisible 
-                        ? `all 600ms ease-out 400ms` 
+                    transition: isVisible
+                        ? `all 600ms ease-out 400ms`
                         : 'none',
                 }}
             >
                 <p
                     style={{
-                        fontSize: 'var(--font-size-sm)',
-                        color: '#808080',
+                        fontSize: 'var(--text-body-sm-size)',
+                        color: 'var(--color-footer-text-faint)',
                         margin: 0,
                     }}
                 >

@@ -97,4 +97,21 @@ export const COLORS = {
     gray: {
         light: '#f5f5f5',  // Very light gray for buttons
     },
+
+    /**
+     * LandingFooter Colors — Dark theme riêng cho Footer (khác toàn bộ phần còn
+     * lại của app dùng light theme). Trước đây hardcode trực tiếp trong
+     * Footer.tsx (#1a1a1a, #ffffff, #b3b3b3, #808080) — nay token hóa vì
+     * đây là bảng màu có chủ đích, không phải giá trị tùy tiện.
+     */
+    footer: {
+        // Nền tối của toàn bộ footer
+        background: '#1a1a1a',
+        // Text chính (heading cột, tagline) — trắng đầy đủ
+        text: '#ffffff',
+        // Text phụ (mô tả, quick links) — xám nhạt
+        textMuted: '#b3b3b3',
+        // Text mờ nhất (copyright line) — xám đậm hơn nữa
+        textFaint: '#808080',
+    },
 } as const;
