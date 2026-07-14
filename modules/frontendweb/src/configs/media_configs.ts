@@ -1,8 +1,15 @@
 /**
  * @file media_configs.ts
  * @layer configs
- * @description Cấu hình riêng workflow media: pagination Album/Media,
- *              polling trạng thái index sau upload, bulk upload concurrency.
+ * @description Cấu hình riêng workflow media (Album/Media CRUD thuần túy —
+ *              KHÔNG chứa upload): pagination Album/Media, polling trạng
+ *              thái index sau upload.
+ *              SỬA: đã xóa paths.uploadUrl — path này thuộc workflow
+ *              upload, đã chuyển đúng chỗ sang UPLOAD_CONFIG.paths.presignedUrl
+ *              ở upload_configs.ts. Giữ ở đây là field thừa, 2 nguồn cùng
+ *              biết về 1 URL vi phạm nguyên tắc "1 nguồn duy nhất". Cũng
+ *              đã xóa BULK_UPLOAD — thuộc workflow upload, đã chuyển thành
+ *              UPLOAD_CONFIG.bulk.
  * @owner AG-04
  * @reference frontend.env.local, openapi.yaml /albums, /media/*
  */
@@ -29,8 +36,6 @@ export const MEDIA_CONFIG = {
         mediaDetail: (imageId: string) => `/media/${imageId}`,
         mediaUpdate: (imageId: string) => `/media/${imageId}/update`,
         mediaDelete: (imageId: string) => `/media/${imageId}/delete`,
-        // [CONTRACT] S1_Presigned — data_schema.yaml transaction_semantics.upload_pipeline
-        uploadUrl: '/media/upload-url',
     } as const,
 
     /**
@@ -42,17 +47,6 @@ export const MEDIA_CONFIG = {
     INDEX_POLL: {
         intervalMs: getEnvNumberWithDefault('VITE_MEDIA_INDEX_STATUS_POLL_INTERVAL_MS', 3000),
         maxRetries: getEnvNumberWithDefault('VITE_MEDIA_MAX_POLL_RETRIES', 10),
-    } as const,
-
-    /**
-     * [UI-ONLY] Bulk upload — KHÔNG có trong hợp đồng (hợp đồng chỉ định
-     * nghĩa 1 request S1_Presigned tại 1 thời điểm). Giới hạn số upload
-     * đồng thời là quyết định hiệu năng phía client thuần túy.
-     */
-    BULK_UPLOAD: {
-        maxConcurrentUploads: getEnvNumberWithDefault('VITE_MEDIA_BULK_MAX_CONCURRENT_UPLOADS', 3),
-        maxRetries: getEnvNumberWithDefault('VITE_MEDIA_BULK_MAX_RETRIES', 2),
-        maxFilesPerBatch: getEnvNumberWithDefault('VITE_MEDIA_BULK_MAX_FILES_PER_BATCH', 20),
     } as const,
 } as const;
 

@@ -1,13 +1,19 @@
 /**
  * @file media_entities.ts
  * @layer entities
- * @description Type definitions cho workflow media (Album + Image CRUD +
- *              Upload). Khớp 1-1 openapi.yaml Album, ImageMetadata,
- *              UploadResponse, PresignedUploadResponse, PrivacyLevel,
- *              IndexStatus (v1.2.3).
+ * @description Type definitions cho workflow media (Album + Image CRUD
+ *              thuần túy — KHÔNG chứa upload). Khớp 1-1 openapi.yaml
+ *              Album, ImageMetadata, PrivacyLevel, IndexStatus (v1.2.3).
+ *              SỬA: đã xóa PresignedUploadResponse — type này chỉ thuộc
+ *              workflow upload (đã định nghĩa đúng ở upload_entities.ts),
+ *              không phải type domain dùng chung như PrivacyLevel/
+ *              IndexStatus. Giữ nó ở đây là trùng lặp KHÔNG có chủ đích
+ *              (khác PrivacyLevel/IndexStatus — trùng lặp CÓ chủ đích theo
+ *              tiền lệ Backend), và đã trôi dạt khỏi bản đúng (thiếu field
+ *              `note` so với openapi.yaml).
  * @owner AG-04
  * @reference openapi.yaml components.schemas.Album/ImageMetadata/
- *            UploadResponse/PrivacyLevel/IndexStatus
+ *            PrivacyLevel/IndexStatus
  */
 
 /**
@@ -58,34 +64,6 @@ export interface ImageMetadata {
     tags?: string[]
     created_at: string // ISO 8601
     index_status: IndexStatus
-}
-
-/**
- * UPLOAD RESPONSE
- * Reference: openapi.yaml components.schemas.UploadResponse
- * Trả về khi client xác nhận upload xong (S3_Metadata_Pending — xem
- * data_schema.yaml transaction_semantics.upload_pipeline).
- */
-export interface UploadResponse {
-    image_id: string // UUID
-    minio_url: string
-    status: string // example: "pending"
-    index_status: IndexStatus
-}
-
-/**
- * PRESIGNED UPLOAD RESPONSE
- * Trả về bởi bước S1_Presigned (POST /media/upload-url).
- * openapi.yaml không định nghĩa schema riêng tên này trong components —
- * cấu trúc suy từ transaction_semantics.upload_pipeline (data_schema.yaml)
- * và hành vi Backend đã audit.
- */
-export interface PresignedUploadResponse {
-    upload_url: string // Presigned PUT URL cho MinIO
-    object_key: string // Object key trong MinIO bucket
-    expires_in_sec: number
-    max_file_size_mb: number
-    allowed_content_types: string[]
 }
 
 /**
