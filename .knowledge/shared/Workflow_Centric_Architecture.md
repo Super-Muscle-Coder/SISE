@@ -147,7 +147,7 @@ Dưới đây là đặc tả kỹ thuật nghiêm ngặt về phân rã chức 
   4. Runtime surface (REST, dùng bởi D — xem `openapi.yaml` tag `StorageModule`): `POST /vector/index`, `POST /vector/search/hybrid`. **Đây là 2 endpoint DUY NHẤT của B lộ ra ngoài qua REST** — mọi truy cập khác vào Postgres do B sở hữu vật lý nhưng D dùng SQLAlchemy trực tiếp theo `backend_owned_resources` (xem §3.2 AP-2 bên dưới).
 - **Giao tiếp:** implemented_by B, called_by D duy nhất cho 2 REST endpoint trên. E không bao giờ gọi B trực tiếp.
 
-### 2.3 AG-03: BackendModule — [CLAUSE D, ĐANG XÂY LẠI — vùng làm việc chính]
+### 2.3 AG-03: BackendModule — [CLAUSE D, KHÓA]
 - **Đặc tả luồng xử lý:** Central API Gateway & Asynchronous Coordinator. Quản trị Dependency Injection và Transaction Semantics.
 - **Ràng buộc I/O:** Cổng giao tiếp bắt buộc tuân thủ RESTful API theo `openapi.yaml` v1.2.0 — MỌI router phải được đăng ký vào app thật (xem §1.1 bắt buộc mới).
 - **Luồng chức năng (Mắt xích phân rã — 9 workflow, khớp `Tasks.yaml` Phase 3 mở rộng):**

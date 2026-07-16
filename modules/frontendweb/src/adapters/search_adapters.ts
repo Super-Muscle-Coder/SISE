@@ -1,78 +1,146 @@
 /**
- * search_adapters.ts: HTTP adapter layer for search endpoints
- * Handles text and image search requests with zero-copy FormData streaming
- * Integrates AbortSignal for cancellation
+ * @file search_adapters.ts
+ * @layer adapters
+ * @description Adapter layer for search workflow.
+ * @owner AG-04
  */
 
-import { scaffoldAdapter } from '@/adapters/scaffold_adapter_instance';
-import { SEARCH_CONFIG } from '@/configs/search_configs';
-import type { SearchResultItem, SearchResponse } from '@/entities/search_entities';
+import axios from 'axios'
+import { scaffoldAdapter } from './scaffold_adapters'
+import { SEARCH_CONFIG } from '../configs/search_configs'
+import type { StandardError } from '../entities/scaffold_entities'
+import type {
+    MetricType,
+    SearchByImageRequest,
+    SearchByTextRequest,
+    SearchResponse,
+} from '../entities/search_entities'
 
 interface RequestOptions {
-    signal?: AbortSignal;
+    signal?: AbortSignal
 }
 
-export const searchAdapter = {
-    /**
-     * searchByText: Query search API with text prompt
-     * Request: POST /search/text with { query_text, top_k }
-     * Response: SearchResponse with result array
-     */
-    searchByText: async (
-        queryText: string,
-        topK: number,
-        options?: RequestOptions
-    ): Promise<SearchResultItem[]> => {
-        const response = await scaffoldAdapter.post<SearchResponse>(
-            '/search/text',
-            {
-                query_text: queryText,
-                top_k: topK,
-                metric: 'COSINE', // Fixed metric for CLIP embeddings (per openapi.yaml)
+const DEFAULT_METRIC: MetricType = 'COSINE'
+
+function extractBackendMessage(data: unknown): string | null {
+    if (!data || typeof data !== 'object') return null
+    const record = data as Record<string, unknown>
+
+    if (typeof record.message === 'string' && record.message.trim()) {
+        return record.message
+    }
+
+    if (typeof record.detail === 'string' && record.detail.trim()) {
+        return record.detail
+    }
+
+    return null
+}
+
+function normalizeSearchError(error: unknown, fallbackMessage: string): StandardError {
+    if (axios.isAxiosError(error)) {
+        const status = error.response?.status
+        const backendMessage = extractBackendMessage(error.response?.data)
+
+        return {
+            code:
+                (typeof (error.response?.data as Record<string, unknown> | undefined)?.code === 'string'
+                    ? ((error.response?.data as Record<string, unknown>).code as string)
+                    : undefined) ||
+                (status ? `HTTP_${status}` : 'ERR_SEARCH_REQUEST_FAILED'),
+            message: backendMessage || error.message || fallbackMessage,
+            details: {
+                httpStatus: status,
             },
-            { signal: options?.signal }
-        );
-        return response.data.results;
-    },
+        }
+    }
 
-    /**
-     * searchByImage: Query search API with binary image file
-     * Request: POST /search/image with multipart/form-data containing binary file
-     * Zero-copy pattern: File object passed directly to FormData (no base64 encoding)
-     * Response: SearchResponse with result array
-     */
-    searchByImage: async (
-        imageFile: File,
-        topK: number,
+    if (typeof error === 'object' && error !== null) {
+        const e = error as Record<string, unknown>
+        if (typeof e.code === 'string' && typeof e.message === 'string') {
+            return {
+                code: e.code,
+                message: e.message,
+                details:
+                    typeof e.details === 'object' && e.details !== null
+                        ? (e.details as Record<string, unknown>)
+                        : undefined,
+            }
+        }
+    }
+
+    return {
+        code: 'ERR_SEARCH_REQUEST_FAILED',
+        message: fallbackMessage,
+    }
+}
+
+export class SearchAdapter {
+    async searchByText(
+        payload: SearchByTextRequest,
         options?: RequestOptions
-    ): Promise<SearchResultItem[]> => {
-        // Validate file type against config (no hardcoding)
-        const allowedMimes = SEARCH_CONFIG.allowedImageMimes;
-        if (!allowedMimes.includes(imageFile.type)) {
-            throw new Error(
-                `Invalid image type: ${imageFile.type}. Allowed: ${allowedMimes.join(', ')}`
-            );
+    ): Promise<SearchResponse> {
+        const body: SearchByTextRequest = {
+            query_text: payload.query_text,
+            top_k: payload.top_k ?? SEARCH_CONFIG.defaultTopK,
+            metric: payload.metric ?? DEFAULT_METRIC,
+            ...(typeof payload.album_id === 'number' ? { album_id: payload.album_id } : {}),
         }
 
-        // Validate file size against config
-        const maxSizeBytes = SEARCH_CONFIG.maxImageSizeMb * 1024 * 1024;
-        if (imageFile.size > maxSizeBytes) {
-            throw new Error(
-                `File exceeds ${SEARCH_CONFIG.maxImageSizeMb}MB limit`
-            );
+        try {
+            const response = await scaffoldAdapter.post<SearchResponse>(
+                SEARCH_CONFIG.paths.searchByText,
+                body,
+                {
+                    signal: options?.signal,
+                    timeout: SEARCH_CONFIG.requestTimeoutMs,
+                }
+            )
+            return response.data
+        } catch (error) {
+            throw normalizeSearchError(error, 'Failed to search by text.')
+        }
+    }
+
+    async searchByImage(
+        payload: SearchByImageRequest,
+        options?: RequestOptions
+    ): Promise<SearchResponse> {
+        const maxSizeBytes = SEARCH_CONFIG.maxImageSizeMb * 1024 * 1024
+        if (payload.file.size > maxSizeBytes) {
+            throw {
+                code: 'ERR_FILE_TOO_LARGE',
+                message: `Image exceeds maximum size of ${SEARCH_CONFIG.maxImageSizeMb}MB.`,
+                details: {
+                    maxImageSizeMb: SEARCH_CONFIG.maxImageSizeMb,
+                    actualSizeBytes: payload.file.size,
+                },
+            } as StandardError
         }
 
-        // Zero-copy FormData: file object passed by reference, not encoded
-        const formData = new FormData();
-        formData.append('file', imageFile);
-        formData.append('top_k', topK.toString());
-        formData.append('metric', 'COSINE');
+        const formData = new FormData()
+        formData.append('file', payload.file)
+        formData.append('top_k', String(payload.top_k ?? SEARCH_CONFIG.defaultTopK))
+        formData.append('metric', payload.metric ?? DEFAULT_METRIC)
 
-        const response = await scaffoldAdapter.post<SearchResponse>(
-            '/search/image',
-            formData,
-            { signal: options?.signal }
-        );
-        return response.data.results;
-    },
-};
+        if (typeof payload.album_id === 'number') {
+            formData.append('album_id', String(payload.album_id))
+        }
+
+        try {
+            const response = await scaffoldAdapter.post<SearchResponse>(
+                SEARCH_CONFIG.paths.searchByImage,
+                formData,
+                {
+                    signal: options?.signal,
+                    timeout: SEARCH_CONFIG.requestTimeoutMs,
+                }
+            )
+            return response.data
+        } catch (error) {
+            throw normalizeSearchError(error, 'Failed to search by image.')
+        }
+    }
+}
+
+export const searchAdapter = new SearchAdapter()

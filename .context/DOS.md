@@ -50,7 +50,7 @@ Xây dựng một giải pháp tìm kiếm ảnh vượt trội về:
   - `ViT-B/32`: vector 512 chiều — nhẹ hơn, phù hợp với môi trường không có GPU mạnh.
   - `ViT-L/14`: vector 768 chiều — chính xác hơn, yêu cầu GPU tốt hơn.
 
-> ⚠️ **Ràng buộc cứng:** Phiên bản CLIP được chọn phải nhất quán xuyên suốt toàn solution. `vector_dim` phải khớp giữa `data_schema.yaml`, Milvus collection, và AI Service. Không được thay đổi giữa chừng mà không xóa và tái tạo toàn bộ Milvus collection.
+> **Ràng buộc cứng:** Phiên bản CLIP được chọn phải nhất quán xuyên suốt toàn solution. `vector_dim` phải khớp giữa `data_schema.yaml`, Milvus collection, và AI Service. Không được thay đổi giữa chừng mà không xóa và tái tạo toàn bộ Milvus collection.
 
 **Lựa chọn phụ (chuyên biệt):** ResNet-100 hoặc Vision Transformer (ViT) thuần túy nếu cần nhận diện đặc điểm hình dạng sâu. Không phải ưu tiên của dự án này.
 
@@ -90,7 +90,7 @@ Nếu The Brain tạo ra vector, The Storage là "trí nhớ dài hạn" lưu tr
 
 | Thuật toán | Ưu điểm | Nhược điểm | Lựa chọn của SISE |
 |---|---|---|---|
-| **HNSW** | Độ chính xác cực cao, tốc độ nhanh | Tốn RAM | ✅ Mặc định |
+| **HNSW** | Độ chính xác cực cao, tốc độ nhanh | Tốn RAM | Mặc định |
 | IVF | Tiết kiệm RAM | Chậm hơn một chút | Nghiên cứu so sánh |
 
 **Distance Metric:** Cosine Similarity — chuẩn cho CLIP vector.
@@ -153,7 +153,7 @@ Backend đóng vai trò "Nhạc trưởng" — điều phối luồng dữ liệ
 - **Auto docs:** Tự sinh `/docs` (Swagger UI) để test endpoint.
 - **Cổng:** 8000 (API Gateway chính).
 
-> ⚠️ **Forbidden:** Flask bị cấm. Dùng FastAPI bắt buộc.
+> **Forbidden:** Flask bị cấm. Dùng FastAPI bắt buộc.
 
 #### B. Các Module chức năng chính
 
@@ -199,7 +199,7 @@ Request → JWT Validation
 - **Backend → MinIO:** boto3 / minio-py.
 - **Backend → Redis:** aioredis.
 
-> ⚠️ **Forbidden (AG-03):** `heavy_image_processing` — mọi xử lý nặng về ảnh (resize, embedding) PHẢI gọi qua AI Service. Backend chỉ điều phối, không xử lý trực tiếp.
+> **Forbidden (AG-03):** `heavy_image_processing` — mọi xử lý nặng về ảnh (resize, embedding) PHẢI gọi qua AI Service. Backend chỉ điều phối, không xử lý trực tiếp.
 
 ---
 
@@ -216,7 +216,7 @@ Request → JWT Validation
 - **Evaluation Dashboard:** Biểu đồ MRR, Precision@K, HitRate, Recall.
 - Responsive — chạy tốt trên laptop và tablet.
 
-> ⚠️ AG-04 chỉ giao tiếp với AG-03 (Backend). **Cấm gọi thẳng AI Service hay Storage.**
+> AG-04 chỉ giao tiếp với AG-03 (Backend). **Cấm gọi thẳng AI Service hay Storage.**
 
 #### B. Mobile App (AG-05 — FrontendMobile)
 
@@ -228,7 +228,7 @@ Request → JWT Validation
 - **Offline Cache:** Lưu kết quả tìm kiếm gần nhất để xem lại khi offline.
 - **Share Extension:** Nhận ảnh từ app khác (Facebook, Instagram) để search tương tự.
 
-> ⚠️ AG-05 chỉ giao tiếp với AG-03 (Backend). **Cấm gọi thẳng AI Service hay Storage.**
+> AG-05 chỉ giao tiếp với AG-03 (Backend). **Cấm gọi thẳng AI Service hay Storage.**
 
 #### C. DevOps & Deployment
 

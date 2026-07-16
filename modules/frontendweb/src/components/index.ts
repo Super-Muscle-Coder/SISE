@@ -14,3 +14,7 @@ export * from './auth';
 export * from './footer';
 export * from './nav';
 export * from './header';
+export * from './media';
+export * from './protected-route';
+export * from './upload';
+export * from './scaffold-fallback';
