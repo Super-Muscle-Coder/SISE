@@ -6,6 +6,7 @@
  * @owner AG-04
  */
 import { getStoredToken } from '../services/auth_services'
+import type { User } from '../entities/auth_entities'
 
 /**
  * isAuthenticated: Kiểm tra người dùng đã đăng nhập hay chưa.
@@ -14,4 +15,14 @@ import { getStoredToken } from '../services/auth_services'
  */
 export function isAuthenticated(): boolean {
     return getStoredToken() !== null
+}
+
+/**
+ * isAdmin: Kiểm tra user có quyền admin hay không.
+ * Dùng bởi eval_routers.ts và admin_routers.ts để ẩn/hiện UI
+ * admin-only. KHÔNG tự gọi API — nhận User đã tải sẵn (qua
+ * useGetCurrentUser) làm tham số.
+ */
+export function isAdmin(user: User | null): boolean {
+    return user?.role === 'admin'
 }

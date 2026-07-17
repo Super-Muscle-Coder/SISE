@@ -1,21 +1,25 @@
 /**
- * @file eval_adapters.ts
+ * @file admin_adapters.ts
  * @layer adapters
- * @description Adapter layer for evaluation workflow (admin only).
+ * @description Adapter layer for admin workflow (reindex).
+ *              SỬA (Bước 3 audit): comment cũ ghi nhầm response là bất
+ *              đồng bộ (202) — thực tế hợp đồng ghi rõ response 201,
+ *              endpoint xử lý ĐỒNG BỘ (chỉ trả về sau khi reindex xong
+ *              thật). Không có thay đổi logic runtime (code không hardcode
+ *              kiểm tra status code cụ thể), chỉ sửa lại JSDoc cho khớp sự
+ *              thật, tránh gây hiểu lầm cho người đọc sau này.
  * @owner AG-04
  */
 
 import axios from 'axios'
 import { scaffoldAdapter } from './scaffold_adapters'
-import { EVAL_CONFIG } from '../configs/eval_configs'
+import { ADMIN_CONFIG } from '../configs/admin_configs'
 import { ERROR_CODES } from '../entities/scaffold_entities'
 import type { StandardError } from '../entities/scaffold_entities'
 import type {
-    EvaluationMetrics,
-    EvaluationResult,
-    RunEvaluationRequest,
-    RunEvaluationResponse,
-} from '../entities/eval_entities'
+    TriggerReindexRequest,
+    TriggerReindexResponse,
+} from '../entities/admin_entities'
 
 function extractBackendMessage(data: unknown): string | null {
     if (!data || typeof data !== 'object') return null
@@ -32,7 +36,7 @@ function extractBackendMessage(data: unknown): string | null {
     return null
 }
 
-function normalizeEvalError(error: unknown, fallbackMessage: string): StandardError {
+function normalizeAdminError(error: unknown, fallbackMessage: string): StandardError {
     if (axios.isAxiosError(error)) {
         const status = error.response?.status
 
@@ -49,7 +53,7 @@ function normalizeEvalError(error: unknown, fallbackMessage: string): StandardEr
         const backendMessage = extractBackendMessage(backendData)
 
         return {
-            code: backendCode || (status ? `HTTP_${status}` : 'ERR_EVAL_REQUEST_FAILED'),
+            code: backendCode || (status ? `HTTP_${status}` : 'ERR_ADMIN_REQUEST_FAILED'),
             message: backendMessage || error.message || fallbackMessage,
             details: { httpStatus: status },
         }
@@ -70,50 +74,38 @@ function normalizeEvalError(error: unknown, fallbackMessage: string): StandardEr
     }
 
     return {
-        code: 'ERR_EVAL_REQUEST_FAILED',
+        code: 'ERR_ADMIN_REQUEST_FAILED',
         message: fallbackMessage,
     }
 }
 
-export class EvalAdapter {
-    async runEvaluation(payload?: RunEvaluationRequest): Promise<RunEvaluationResponse> {
-        const body: RunEvaluationRequest = {
-            limit: payload?.limit ?? EVAL_CONFIG.runDefaultLimit,
-            ...(typeof payload?.seed === 'number' ? { seed: payload.seed } : {}),
+export class AdminAdapter {
+    /**
+     * POST /admin/reindex — response 201, XỬ LÝ ĐỒNG BỘ. Promise chỉ
+     * resolve sau khi Backend đã reindex xong thật sự (có thể mất nhiều
+     * thời gian với dataset lớn) — KHÔNG polling, response đã là kết quả
+     * cuối cùng.
+     */
+    async triggerReindex(
+        payload?: TriggerReindexRequest
+    ): Promise<TriggerReindexResponse> {
+        const body: TriggerReindexRequest = {
+            batch_size: payload?.batch_size ?? ADMIN_CONFIG.reindexDefaultBatchSize,
+            ...(typeof payload?.resume_from === 'string' && payload.resume_from.trim()
+                ? { resume_from: payload.resume_from }
+                : {}),
         }
 
         try {
-            const response = await scaffoldAdapter.post<RunEvaluationResponse>(
-                EVAL_CONFIG.paths.run,
+            const response = await scaffoldAdapter.post<TriggerReindexResponse>(
+                ADMIN_CONFIG.paths.reindex,
                 body
             )
             return response.data
         } catch (error) {
-            throw normalizeEvalError(error, 'Failed to start evaluation.')
-        }
-    }
-
-    async getEvaluationResults(evalId: string): Promise<EvaluationResult> {
-        try {
-            const response = await scaffoldAdapter.get<EvaluationResult>(
-                EVAL_CONFIG.paths.results(evalId)
-            )
-            return response.data
-        } catch (error) {
-            throw normalizeEvalError(error, 'Failed to fetch evaluation results.')
-        }
-    }
-
-    async getEvaluationMetrics(): Promise<EvaluationMetrics> {
-        try {
-            const response = await scaffoldAdapter.get<EvaluationMetrics>(
-                EVAL_CONFIG.paths.metrics
-            )
-            return response.data
-        } catch (error) {
-            throw normalizeEvalError(error, 'Failed to fetch evaluation metrics.')
+            throw normalizeAdminError(error, 'Failed to trigger reindex.')
         }
     }
 }
 
-export const evalAdapter = new EvalAdapter()
+export const adminAdapter = new AdminAdapter()

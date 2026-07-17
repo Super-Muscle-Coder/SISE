@@ -1,12 +1,14 @@
 /**
  * @file eval_entities.ts
  * @layer entities
- * @description Type definitions cho workflow evaluation (admin only) và
- *              admin/reindex (gộp chung file — xem eval_configs.ts). Khớp
+ * @description Type definitions cho workflow evaluation (admin only). Khớp
  *              1-1 openapi.yaml /eval/run, /eval/results/{eval_id},
- *              /eval/metrics, /admin/reindex (v1.2.3).
+ *              /eval/metrics (v1.2.3).
+ *              SỬA: TriggerReindexRequest/Response đã tách hẳn sang
+ *              admin_entities.ts — cùng lý do tách workflow như
+ *              eval_configs.ts.
  * @owner AG-04
- * @reference openapi.yaml paths /eval/*, /admin/reindex
+ * @reference openapi.yaml paths /eval/*
  */
 
 /**
@@ -49,27 +51,12 @@ export interface EvaluationResult {
  * EVALUATION METRICS
  * Reference: openapi.yaml GET /eval/metrics response 200
  * Report tổng hợp (không gắn với 1 eval_id cụ thể — khác EvaluationResult).
+ * LƯU Ý: cả 4 field đều KHÔNG optional (khác EvaluationResult) — hợp đồng
+ * không đánh dấu optional cho object này.
  */
 export interface EvaluationMetrics {
     mrr: number
     hit_rate: number
     precision: number
     recall: number
-}
-
-/**
- * TRIGGER REINDEX REQUEST
- * Reference: openapi.yaml POST /admin/reindex request body (không required)
- */
-export interface TriggerReindexRequest {
-    batch_size?: number // default: 100
-    resume_from?: string
-}
-
-/**
- * TRIGGER REINDEX RESPONSE
- * Reference: openapi.yaml POST /admin/reindex response 202
- */
-export interface TriggerReindexResponse {
-    job_id: string
 }

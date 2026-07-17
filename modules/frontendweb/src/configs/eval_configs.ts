@@ -3,12 +3,15 @@
  * @layer configs
  * @description Cấu hình riêng workflow evaluation (admin only): limit chạy
  *              đánh giá, polling chờ job hoàn thành, label nút bấm.
- *              Bao gồm cả cấu hình workflow admin (/admin/reindex) vì 2
- *              workflow này dùng chung cơ chế admin_authorization và
- *              thường xuất hiện cùng 1 màn hình Admin trên UI.
+ *              SỬA: ADMIN_CONFIG đã tách hẳn sang admin_configs.ts —
+ *              evaluation và admin là 2 workflow ĐỘC LẬP theo Tasks.yaml
+ *              (T003-07 vs T003-08), chỉ dùng CHUNG cơ chế phân quyền
+ *              admin_authorization, không có nghĩa phải chung file. Áp
+ *              dụng nhất quán nguyên tắc "1 workflow 1 file" đã dùng cho
+ *              upload tách khỏi media.
  * @owner AG-04
- * @reference frontend.env.local, openapi.yaml /eval/run, /eval/results/{eval_id},
- *            /eval/metrics, /admin/reindex
+ * @reference frontend.env.local, openapi.yaml /eval/run,
+ *            /eval/results/{eval_id}, /eval/metrics
  */
 
 import { getEnvVarWithDefault, getEnvNumberWithDefault } from '@/utils/env_helpers';
@@ -49,21 +52,4 @@ export const EVAL_CONFIG = {
     } as const,
 } as const;
 
-/**
- * [CONTRACT] Admin — openapi.yaml POST /admin/reindex. Cùng cơ chế
- * admin_authorization như /eval/run (data_schema.yaml Clause D).
- */
-export const ADMIN_CONFIG = {
-    paths: {
-        reindex: '/admin/reindex',
-    } as const,
-
-    /**
-     * [CONTRACT] openapi.yaml POST /admin/reindex request body: batch_size
-     * default 100.
-     */
-    reindexDefaultBatchSize: getEnvNumberWithDefault('VITE_ADMIN_REINDEX_DEFAULT_BATCH_SIZE', 100),
-} as const;
-
 export type EvalConfigType = typeof EVAL_CONFIG;
-export type AdminConfigType = typeof ADMIN_CONFIG;
