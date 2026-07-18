@@ -48,6 +48,7 @@
     <Compile Include="migrations\env.py" />
     <Compile Include="migrations\versions\schema_0001_create_storage_schema.py" />
     <Compile Include="migrations\versions\schema_0002_add_pgvector.py" />
+    <Compile Include="migrations\versions\schema_0003_add_users_role_albums_deleted_at.py" />
     <Compile Include="storage_main.py" />
   </ItemGroup>
   <ItemGroup>

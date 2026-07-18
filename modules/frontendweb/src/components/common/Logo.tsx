@@ -87,14 +87,6 @@ export function Logo({
                         setImageError(true);
                     }}
                 />
-                {showText && (
-                    <span 
-                        className={`${sizes.text} font-extrabold`}
-                        style={{ color: 'var(--color-text-primary)' }}
-                    >
-                        SISE
-                    </span>
-                )}
             </div>
         );
     }

@@ -8,3 +8,4 @@
  */
 
 export { Logo } from './Logo';
+export { LinkButton } from './LinkButton';

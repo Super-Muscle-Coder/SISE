@@ -750,7 +750,7 @@ phase_6:
       title: "[AG-02] Append migration: users.role + albums.deleted_at (MỚI v1.2.0)"
       assigned_to: AG-02
       priority: P1
-      status: backlog
+      status: done
       description: >
         Task NỐI TIẾP T006-01 (không mở lại task đã đóng). Thêm 1 migration
         Alembic mới: cột users.role (VARCHAR(20) DEFAULT 'user' CHECK IN

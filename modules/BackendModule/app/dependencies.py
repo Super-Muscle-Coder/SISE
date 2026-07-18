@@ -48,11 +48,20 @@ def get_scaffold_config_adapter() -> ScaffoldConfigAdapter:
 def get_scaffold_service() -> ScaffoldService:
     return ScaffoldService(config_adapter=get_scaffold_config_adapter())
 
+async def _lifecycle_shutdown_handler() -> None:
+    engine = get_async_engine()
+    await engine.dispose()
+
+    redis_client = get_redis_client()
+    await redis_client.aclose()
+
 
 @lru_cache(maxsize=1)
 def get_lifecycle_service() -> AppLifecycleService:
-    return AppLifecycleService(scaffold_service=get_scaffold_service())
-
+    return AppLifecycleService(
+        scaffold_service=get_scaffold_service(),
+        shutdown_handler=_lifecycle_shutdown_handler,
+    )
 
 @lru_cache(maxsize=1)
 def get_database_config() -> DatabaseConfig:

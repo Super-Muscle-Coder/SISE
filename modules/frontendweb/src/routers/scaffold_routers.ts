@@ -3,6 +3,15 @@
  * @layer routers
  * @description Global composition root with context provider, error boundary, app routes, and session navigation.
  *              0% JSX in routers layer (React.createElement only).
+ *              SỬA: LandingRoot (4 sub-page About/Explore/Introduce/Terms)
+ *              đã bị loại khỏi scope — thay bằng LandingPage.tsx (1 Hero
+ *              Section + CTA, tối giản theo quyết định Project Owner).
+ *              Thêm khung Route /login, /register với placeholder tạm —
+ *              LandingPage.tsx đã gọi navigate('/login')/navigate('/register')
+ *              nên 2 route này BẮT BUỘC phải tồn tại để không bấm nút mà
+ *              im lặng không đi đâu cả. Khi LoginPage/RegisterPage thật
+ *              viết xong, CHỈ cần đổi giá trị `element` bên dưới, không
+ *              cần sửa lại cấu trúc AppRoutes().
  * @owner AG-04
  */
 
@@ -12,7 +21,7 @@ import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import { useScaffoldService } from '../services/scaffold_services'
 import type { ScaffoldContextState } from '../entities/scaffold_entities'
 import { AUTH_CONFIG } from '../configs/auth_configs'
-import { LandingRoot } from '../pages/landing/LandingRoot'
+import { LandingPage } from '../pages/LandingPage'
 import { ScaffoldFallbackUI } from '../components/scaffold-fallback'
 import { ProtectedRoute } from '../components/protected-route'
 
@@ -155,8 +164,16 @@ export function AppRoutes(): React.ReactElement {
         Routes,
         null,
         React.createElement(Route, {
-            path: '/*',
-            element: React.createElement(LandingRoot),
+            path: '/',
+            element: React.createElement(LandingPage),
+        }),
+        React.createElement(Route, {
+            path: '/login',
+            element: React.createElement(LandingPage),
+        }),
+        React.createElement(Route, {
+            path: '/register',
+            element: React.createElement(LandingPage),
         }),
         React.createElement(Route, {
             path: '/dashboard',

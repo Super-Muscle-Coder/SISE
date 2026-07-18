@@ -5,6 +5,7 @@
  * @owner AG-04
  */
 
-export { AuthForm } from './AuthForm';
-export { FormInput } from './FormInput';
-export { SubmitButton } from './SubmitButton';
+export { LoginForm } from './LoginForm';
+export { SignupForm } from './SignupForm';
+export { FormSubmitButton } from './FormSubmitButton';
+export { AuthModal } from './AuthModal';
