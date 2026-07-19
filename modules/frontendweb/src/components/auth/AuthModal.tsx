@@ -11,6 +11,7 @@
  */
 
 import React from 'react';
+import { X } from 'lucide-react';
 import { LoginForm } from './LoginForm';
 import { SignupForm } from './SignupForm';
 
@@ -59,16 +60,17 @@ export function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProps): Reac
                         position: 'absolute',
                         top: 'var(--spacing-base)',
                         right: 'var(--spacing-base)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         border: 'none',
                         background: 'none',
                         color: 'var(--color-text-secondary)',
-                        fontSize: 'var(--text-heading-h4-size)',
                         cursor: 'pointer',
-                        lineHeight: 1,
                         padding: 'var(--spacing-xs)',
                     }}
                 >
-                    ×
+                    <X size={20} strokeWidth={2} />
                 </button>
 
                 {mode === 'login' ? <LoginForm /> : <SignupForm />}

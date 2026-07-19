@@ -30,6 +30,7 @@ class DatabaseConfig:
 class StorageConfig:
     """Object storage (MinIO) configuration."""
     endpoint: str
+    public_endpoint: str
     access_key: str
     secret_key: str
     bucket_images: str

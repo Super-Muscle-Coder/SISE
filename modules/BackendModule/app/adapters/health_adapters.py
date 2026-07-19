@@ -32,7 +32,14 @@ class PostgreSQLHealthChecker:
         start_time = time.time()
         conn: asyncpg.Connection | None = None
         try:
-            conn = await asyncio.wait_for(asyncpg.connect(self.database_url), timeout=timeout_sec)
+            # asyncpg (thư viện thuần, không qua SQLAlchemy) chỉ chấp nhận
+            # scheme "postgresql://"/"postgres://" — DATABASE_URL trong .env
+            # dùng "postgresql+asyncpg://" (cú pháp riêng của SQLAlchemy để
+            # chọn driver), nên cần loại bỏ "+asyncpg" trước khi truyền vào
+            # asyncpg.connect(), nếu không sẽ raise ClientConfigurationError
+            # ngay khi parse DSN.
+            asyncpg_url = self.database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+            conn = await asyncio.wait_for(asyncpg.connect(asyncpg_url), timeout=timeout_sec)
             row = await asyncio.wait_for(
                 conn.fetchrow("SELECT extname FROM pg_extension WHERE extname = 'vector'"),
                 timeout=timeout_sec,

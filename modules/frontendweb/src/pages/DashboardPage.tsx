@@ -1,232 +1,112 @@
-import React, { useMemo, useState } from 'react'
-import { useMediaGalleryController, useAlbumListController } from '../routers/media_routers'
-import { useUploadController } from '../routers/upload_routers'
-import { BulkUploadModal } from '../components/upload/BulkUploadModal'
-import { ImageCard } from '../components/media/ImageCard'
+/**
+ * @file DashboardPage.tsx
+ * @layer pages (Nhóm C — nơi DUY NHẤT nối logic A với giao diện B)
+ * @description Trang Dashboard sau đăng nhập. Gọi useSearchController()
+ *              (search_routers.ts) — nơi DUY NHẤT làm việc này, truyền
+ *              state/callback xuống DashboardLayout/DashboardHeader qua
+ *              props (đúng ranh giới Nhóm B không tự gọi hook).
+ *              Quản lý điều hướng nội bộ giữa Home/Upload/Result bằng
+ *              state cục bộ (KHÔNG dùng URL route riêng cho 3 trang này —
+ *              đơn giản hóa theo đúng tinh thần "đi nhanh" của giai đoạn
+ *              hiện tại; có thể nâng cấp thành route con sau nếu cần).
+ *              Khi search thành công (text hoặc ảnh), tự động chuyển sang
+ *              "result" và lưu SearchResponse mới nhất vào state để
+ *              ResultPage hiển thị (theo đúng thiết kế đã chốt: ResultPage
+ *              nhận kết quả qua điều hướng, KHÔNG tự gọi lại API search).
+ * @owner AG-04
+ */
+
+import React from 'react';
+import { DashboardLayout } from '@/page-layouts/dashboard-layout';
+import type { DashboardNavItem } from '@/components/dashboard-sidebar';
+import { useSearchController } from '@/routers/search_routers';
+import type { SearchResultItem, SearchResponse } from '@/entities/search_entities';
+import { UploadPage } from './UploadPage'
+
+// Placeholder tạm — thay bằng pages/HomePage.tsx, pages/UploadPage.tsx,
+// pages/ResultPage.tsx thật khi viết xong (đúng lộ trình đã chốt).
+function HomePagePlaceholder(): React.ReactElement {
+    return <p style={{ color: 'var(--color-text-secondary)' }}>Home page coming soon.</p>;
+}
+function UploadPagePlaceholder(): React.ReactElement {
+    return <p style={{ color: 'var(--color-text-secondary)' }}>Upload page coming soon.</p>;
+}
+function ResultPagePlaceholder({ lastSearch }: { lastSearch: SearchResponse | null }): React.ReactElement {
+    return (
+        <div>
+            <p style={{ color: 'var(--color-text-secondary)' }}>Result page coming soon.</p>
+            {lastSearch && (
+                <pre style={{ fontSize: 'var(--text-body-sm-size)' }}>
+                    {JSON.stringify(lastSearch, null, 2)}
+                </pre>
+            )}
+        </div>
+    );
+}
 
 export function DashboardPage(): React.ReactElement {
-    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
-    const [selectedAlbumId, setSelectedAlbumId] = useState<number | undefined>(undefined)
+    const [activeNavItem, setActiveNavItem] = React.useState<DashboardNavItem>('home');
+    const [lastSearchResponse, setLastSearchResponse] = React.useState<SearchResponse | null>(null);
 
-    const mediaController = useMediaGalleryController(selectedAlbumId)
-    const albumController = useAlbumListController()
-    const uploadController = useUploadController()
+    const search = useSearchController();
 
-    // SỬA: useAlbumListController() trả đúng UseAlbumListActions (field
-    // "items", KHÔNG PHẢI "albums") — đã xác nhận qua media_services.ts.
-    // Bỏ shape "mềm" đoán 2 khả năng (albums ?? items), dùng thẳng field
-    // thật để TypeScript tự bắt lỗi nếu sau này API đổi, thay vì âm thầm
-    // fallback sai.
-    const albums = albumController.items
+    // LƯU Ý: search.searchByText() tự debounce nội bộ (đã audit Nhóm 3,
+    // search_services.ts) — mỗi lần gõ ký tự gọi thẳng hàm này là ĐÚNG
+    // thiết kế, KHÔNG cần tách riêng "chỉ update text" vs "trigger search".
+    // Enter cũng gọi lại chính hàm này để đảm bảo search ngay lập tức,
+    // không đợi hết debounce window.
+    const handleSubmitTextSearch = async (text: string) => {
+        await search.searchByText(text);
+    };
 
-    const { offset, limit, total } = mediaController.pagination
-    const start = total === 0 ? 0 : offset + 1
-    const end = total === 0 ? 0 : Math.min(offset + limit, total)
+    const handleSubmitImageSearch = async (file: File) => {
+        await search.searchByImage(file);
+    };
 
-    const handleAlbumFilterChange = (value: string) => {
-        const nextAlbumId = value ? Number(value) : undefined
-        setSelectedAlbumId(nextAlbumId)
-        mediaController.setAlbumId(nextAlbumId)
-    }
+    // Bấm 1 gợi ý trong dropdown: chuyển sang tab Result. Không cần lọc
+    // riêng theo item được chọn — toàn bộ search.results (cùng 1 lần gọi
+    // API) đã là "những ảnh thuộc về gợi ý này", đúng ý đã chốt.
+    const handleSelectSuggestion = (): void => {
+        setActiveNavItem('result');
+    };
 
-    const handleUploadSuccess = async () => {
-        await mediaController.refetch()
-        setIsUploadModalOpen(false)
-    }
+    // Đồng bộ: mỗi khi search.results đổi (search thành công), lưu lại
+    // SearchResponse đầy đủ (results + latencyMs + topK) cho ResultPage.
+    React.useEffect(() => {
+        if (search.results.length > 0 || search.latencyMs !== null) {
+            setLastSearchResponse({
+                results: search.results,
+                latency_ms: search.latencyMs ?? 0,
+                top_k: search.results.length,
+            });
+        }
+    }, [search.results, search.latencyMs]);
+
+    const renderContent = () => {
+        switch (activeNavItem) {
+            case 'upload':
+                return <UploadPage />;
+            case 'result':
+                return <ResultPagePlaceholder lastSearch={lastSearchResponse} />;
+            case 'home':
+            default:
+                return <HomePagePlaceholder />;
+        }
+    };
 
     return (
-        <main
-            style={{
-                minHeight: '100vh',
-                backgroundColor: 'var(--color-bg-secondary)',
-                padding: 'var(--spacing-xl)',
-            }}
+        <DashboardLayout
+            activeNavItem={activeNavItem}
+            onNavigate={setActiveNavItem}
+            searchQuery={search.query}
+            isSearchLoading={search.isLoading}
+            searchResults={search.results}
+            onSearchQueryChange={handleSubmitTextSearch}
+            onSubmitTextSearch={handleSubmitTextSearch}
+            onSubmitImageSearch={handleSubmitImageSearch}
+            onSelectSuggestion={handleSelectSuggestion}
         >
-            <section
-                style={{
-                    maxWidth: '1200px',
-                    margin: '0 auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--spacing-lg)',
-                }}
-            >
-                <header
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: 'var(--spacing-base)',
-                    }}
-                >
-                    <h1
-                        style={{
-                            margin: 0,
-                            color: 'var(--color-text-primary)',
-                            fontSize: 'var(--text-heading-h3-size)',
-                        }}
-                    >
-                        Dashboard
-                    </h1>
-
-                    <button
-                        type="button"
-                        onClick={() => setIsUploadModalOpen(true)}
-                        style={{
-                            border: 'none',
-                            backgroundColor: 'var(--color-brand-primary)',
-                            color: 'var(--color-text-inverted)',
-                            borderRadius: 'var(--radius-base)',
-                            padding: 'var(--spacing-sm) var(--spacing-base)',
-                            cursor: 'pointer',
-                            fontSize: 'var(--text-ui-button-size)',
-                            fontWeight: 'var(--text-ui-button-weight)',
-                        }}
-                    >
-                        Bulk Upload
-                    </button>
-                </header>
-
-                <section
-                    style={{
-                        backgroundColor: 'var(--color-bg-primary)',
-                        border: '1px solid var(--color-border-light)',
-                        borderRadius: 'var(--radius-lg)',
-                        padding: 'var(--spacing-base)',
-                        boxShadow: 'var(--shadow-sm)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 'var(--spacing-base)',
-                        flexWrap: 'wrap',
-                    }}
-                >
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                        <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-body-sm-size)' }}>
-                            Filter by album:
-                        </span>
-                        <select
-                            value={selectedAlbumId ?? ''}
-                            onChange={(e) => handleAlbumFilterChange(e.target.value)}
-                            style={{
-                                border: '1px solid var(--color-border-light)',
-                                borderRadius: 'var(--radius-base)',
-                                padding: 'var(--spacing-sm)',
-                                backgroundColor: 'var(--color-bg-primary)',
-                                color: 'var(--color-text-primary)',
-                            }}
-                        >
-                            <option value="">All albums</option>
-                            {albums.map((album) => (
-                                <option key={album.id} value={album.id}>
-                                    {album.title}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-
-                    <div
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 'var(--spacing-sm)',
-                            color: 'var(--color-text-secondary)',
-                            fontSize: 'var(--text-body-sm-size)',
-                        }}
-                    >
-                        <button
-                            type="button"
-                            onClick={() => mediaController.setOffset(Math.max(0, offset - limit))}
-                            disabled={offset === 0}
-                            style={{
-                                border: '1px solid var(--color-border-medium)',
-                                backgroundColor: 'var(--color-bg-primary)',
-                                color: 'var(--color-text-primary)',
-                                borderRadius: 'var(--radius-base)',
-                                padding: 'var(--spacing-sm) var(--spacing-base)',
-                                cursor: offset === 0 ? 'not-allowed' : 'pointer',
-                                opacity: offset === 0 ? 0.6 : 1,
-                            }}
-                        >
-                            Prev
-                        </button>
-
-                        <span>
-                            Showing {start}–{end} of {total}
-                        </span>
-
-                        <button
-                            type="button"
-                            onClick={() => mediaController.setOffset(offset + limit)}
-                            disabled={offset + limit >= total}
-                            style={{
-                                border: '1px solid var(--color-border-medium)',
-                                backgroundColor: 'var(--color-bg-primary)',
-                                color: 'var(--color-text-primary)',
-                                borderRadius: 'var(--radius-base)',
-                                padding: 'var(--spacing-sm) var(--spacing-base)',
-                                cursor: offset + limit >= total ? 'not-allowed' : 'pointer',
-                                opacity: offset + limit >= total ? 0.6 : 1,
-                            }}
-                        >
-                            Next
-                        </button>
-                    </div>
-                </section>
-
-                {mediaController.error && (
-                    <p
-                        style={{
-                            margin: 0,
-                            color: 'var(--color-semantic-error)',
-                            fontSize: 'var(--text-body-sm-size)',
-                        }}
-                    >
-                        {mediaController.error.message}
-                    </p>
-                )}
-
-                {albumController.error && (
-                    <p
-                        style={{
-                            margin: 0,
-                            color: 'var(--color-semantic-error)',
-                            fontSize: 'var(--text-body-sm-size)',
-                        }}
-                    >
-                        {albumController.error.message}
-                    </p>
-                )}
-
-                {mediaController.loading ? (
-                    <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>Loading gallery...</p>
-                ) : (
-                    <section
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                            gap: 'var(--spacing-base)',
-                        }}
-                    >
-                        {mediaController.items.map((item) => (
-                            <ImageCard key={item.image_id} item={item} />
-                        ))}
-                    </section>
-                )}
-            </section>
-
-            <BulkUploadModal
-                isOpen={isUploadModalOpen}
-                onClose={() => setIsUploadModalOpen(false)}
-                albums={albums}
-                defaultAlbumId={selectedAlbumId}
-                uploadState={uploadController}
-                onEnqueueFiles={uploadController.enqueueFiles}
-                onCancelFile={uploadController.cancelFile}
-                onRetryFile={uploadController.retryFile}
-                onClearQueue={uploadController.clearQueue}
-                onUploadSuccess={handleUploadSuccess}
-            />
-        </main>
-    )
+            {renderContent()}
+        </DashboardLayout>
+    );
 }

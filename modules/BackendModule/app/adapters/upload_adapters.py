@@ -20,12 +20,15 @@ logger = logging.getLogger(__name__)
 
 
 class MinIOAdapter:
-    """
-    Adapter for MinIO object storage operations.
-    """
-
-    def __init__(self, minio_client: Minio, bucket_name: str = "raw-images", endpoint: str = ""):
+    def __init__(
+        self,
+        minio_client: Minio,
+        public_minio_client: Minio,
+        bucket_name: str = "raw-images",
+        endpoint: str = "",
+    ):
         self.client = minio_client
+        self.public_client = public_minio_client
         self.bucket_name = bucket_name
         self.endpoint = endpoint.rstrip("/")
 
@@ -36,7 +39,7 @@ class MinIOAdapter:
         content_type: str = "image/jpeg",
     ) -> str:
         try:
-            url = self.client.get_presigned_url(
+            url = self.public_client.get_presigned_url(
                 method="PUT",
                 bucket_name=self.bucket_name,
                 object_name=object_key,
@@ -54,7 +57,7 @@ class MinIOAdapter:
         expires_in_sec: int = 3600,
     ) -> str:
         try:
-            return self.client.get_presigned_url(
+            return self.public_client.get_presigned_url(
                 method="GET",
                 bucket_name=self.bucket_name,
                 object_name=object_key,

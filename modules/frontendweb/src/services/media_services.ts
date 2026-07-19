@@ -4,9 +4,13 @@
  * @layer services
  * @description React hooks cho workflow media thuần túy (gallery + album
  *              list + index status polling)
- *              SỬA: bổ sung useAlbumList() — trước đây thiếu, khiến
- *              không có cách nào đúng kiến trúc để lấy danh sách album mà
- *              không gọi thẳng adapters/ từ pages/.
+ *              SỬA: bổ sung createAlbum(title) vào useAlbumList() — trước
+ *              đây UI cần tạo album mới phải gọi thẳng mediaAdapter từ
+ *              pages/ (vi phạm ranh giới Nhóm C không gọi thẳng adapters/,
+ *              phát hiện khi viết UploadPage.tsx). Cùng loại vấn đề với
+ *              lần thiếu useAlbumList() đã phát hiện trước đó — mỗi khi
+ *              UI cần 1 hành động mới, phải bổ sung đúng chỗ ở services/,
+ *              không tự ý gọi tắt qua adapters/ từ pages/.
  * @owner AG-04
  */
 
@@ -143,6 +147,8 @@ interface UseAlbumListState {
     loading: boolean
     error: Error | null
     pagination: AlbumListPagination
+    isCreating: boolean
+    createError: Error | null
 }
 
 export interface UseAlbumListActions {
@@ -153,13 +159,23 @@ export interface UseAlbumListActions {
     setOffset: (newOffset: number) => void
     setLimit: (newLimit: number) => void
     refetch: () => Promise<void>
+    /**
+     * Tạo album mới (POST /albums), rồi TỰ ĐỘNG refetch() danh sách —
+     * caller không cần tự gọi refetch() sau khi tạo thành công.
+     * Trả về Album vừa tạo nếu thành công, null nếu lỗi (lỗi nằm trong
+     * createError).
+     */
+    createAlbum: (title: string, description?: string, isPublic?: boolean) => Promise<Album | null>
+    isCreating: boolean
+    createError: Error | null
 }
 
 /**
- * useAlbumList: Tải danh sách album của người dùng (GET /albums).
- * Dùng cho selector chọn album (upload modal) và bộ lọc gallery
- * (DashboardPage) — cả 2 nơi đều cần cùng 1 nguồn dữ liệu album, tách
- * riêng hook này để không trùng lặp logic gọi API ở tầng pages/.
+ * useAlbumList: Tải danh sách album của người dùng (GET /albums), tạo
+ * album mới (POST /albums). Dùng cho selector chọn album (upload modal),
+ * bộ lọc gallery (DashboardPage/UploadPage), và dialog tạo album mới —
+ * tất cả nơi cần thao tác với album đều đi qua hook DUY NHẤT này, không
+ * gọi thẳng mediaAdapter từ pages/.
  */
 export function useAlbumList(): UseAlbumListActions {
     const [state, setState] = useState<UseAlbumListState>({
@@ -171,6 +187,8 @@ export function useAlbumList(): UseAlbumListActions {
             limit: MEDIA_CONFIG.LIST.defaultLimit,
             total: 0,
         },
+        isCreating: false,
+        createError: null,
     })
 
     const fetchAlbums = useCallback(async () => {
@@ -225,6 +243,33 @@ export function useAlbumList(): UseAlbumListActions {
         }))
     }, [])
 
+    const createAlbum = useCallback(
+        async (title: string, description?: string, isPublic?: boolean): Promise<Album | null> => {
+            setState((prev) => ({ ...prev, isCreating: true, createError: null }))
+
+            try {
+                // SỬA: mediaAdapter.createAlbum() nhận 3 tham số RỜI
+                // (title, description?, isPublic?) — KHÔNG PHẢI 1 object
+                // CreateAlbumRequest. Đã xác nhận qua đọc lại chính xác
+                // media_adapters.ts (lỗi TS2345 trước đó là do gọi sai
+                // chữ ký, bọc nhầm 3 tham số vào 1 object).
+                const album = await mediaAdapter.createAlbum(title, description, isPublic)
+
+                setState((prev) => ({ ...prev, isCreating: false, createError: null }))
+                await fetchAlbums()
+                return album
+            } catch (err) {
+                setState((prev) => ({
+                    ...prev,
+                    isCreating: false,
+                    createError: err instanceof Error ? err : new Error('Failed to create album'),
+                }))
+                return null
+            }
+        },
+        [fetchAlbums]
+    )
+
     return {
         items: state.items,
         loading: state.loading,
@@ -233,6 +278,9 @@ export function useAlbumList(): UseAlbumListActions {
         setOffset,
         setLimit,
         refetch: fetchAlbums,
+        createAlbum,
+        isCreating: state.isCreating,
+        createError: state.createError,
     }
 }
 

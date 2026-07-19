@@ -1,4 +1,26 @@
+/**
+ * @file BulkUploadModal.tsx
+ * @layer components (Layer 2)
+ * @description Modal upload nhiều file. Component thuần — nhận toàn bộ
+ *              state/callback qua props, KHÔNG tự gọi hook từ
+ *              routers/services/adapters (đúng ranh giới Nhóm B).
+ *              SỬA (theo yêu cầu Project Owner, đối chiếu schema images
+ *              thật):
+ *              1. Bỏ dropdown chọn album — UploadPage.tsx đã chọn sẵn
+ *                 album qua AlbumStrip (điều kiện để nút Upload hiện ra),
+ *                 có 2 nơi cùng chọn 1 thứ gây nhầm lẫn. Thay bằng dòng
+ *                 text chỉ đọc "Uploading to: {album.title}".
+ *              2. Tags đổi từ input text thô (tách bằng dấu phẩy) sang
+ *                 dạng "chip" — đúng bản chất cột images.tags là JSONB
+ *                 mảng string, không phải 1 chuỗi. Gõ rồi Enter/dấu phẩy
+ *                 để tạo chip, bấm X để xóa từng chip.
+ *              3. Privacy level thêm mô tả ngắn dưới mỗi lựa chọn, khớp
+ *                 đúng ý nghĩa cột images.privacy_level (CHECK 0/1/2).
+ * @owner AG-04
+ */
+
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import type { Album } from '../../entities/media_entities'
 import type { useUploadController } from '../../routers/upload_routers'
 import { UploadQueueItemCard } from './UploadQueueItemCard'
@@ -23,6 +45,12 @@ interface BulkUploadModalProps {
     onUploadSuccess?: (imageIds: string[]) => void
 }
 
+const PRIVACY_OPTIONS: { value: 0 | 1 | 2; label: string; description: string }[] = [
+    { value: 0, label: 'Private', description: 'Only you can see this' },
+    { value: 1, label: 'Friends', description: 'Only your friends can see this' },
+    { value: 2, label: 'Public', description: 'Everyone can see this' },
+]
+
 export function BulkUploadModal({
     isOpen,
     onClose,
@@ -36,19 +64,20 @@ export function BulkUploadModal({
     onUploadSuccess,
 }: BulkUploadModalProps): React.ReactElement | null {
     const [isDragActive, setIsDragActive] = useState(false)
-    const [selectedAlbumId, setSelectedAlbumId] = useState<number | undefined>(defaultAlbumId)
     const [selectedPrivacy, setSelectedPrivacy] = useState<0 | 1 | 2>(2)
     const [batchError, setBatchError] = useState<string | null>(null)
-    const [tagsInput, setTagsInput] = useState('')
+    const [tags, setTags] = useState<string[]>([])
+    const [tagDraft, setTagDraft] = useState('')
 
     const completedMarkerRef = useRef<string>('')
 
     const queueState = uploadState.state
     const queueItems = queueState.items
 
-    useEffect(() => {
-        setSelectedAlbumId(defaultAlbumId)
-    }, [defaultAlbumId])
+    const selectedAlbum = useMemo(
+        () => albums.find((a) => a.id === defaultAlbumId),
+        [albums, defaultAlbumId]
+    )
 
     const isQueueFinished = useMemo(() => {
         return (
@@ -73,17 +102,33 @@ export function BulkUploadModal({
         }
     }, [isQueueFinished, onUploadSuccess, queueItems])
 
-    const parseTags = (): string[] | undefined => {
-        const tags = tagsInput
-            .split(',')
-            .map((v) => v.trim())
-            .filter(Boolean)
-        return tags.length > 0 ? tags : undefined
+    const addTagFromDraft = () => {
+        const trimmed = tagDraft.trim()
+        if (!trimmed) return
+        if (!tags.includes(trimmed)) {
+            setTags((prev) => [...prev, trimmed])
+        }
+        setTagDraft('')
+    }
+
+    const removeTag = (tag: string) => {
+        setTags((prev) => prev.filter((t) => t !== tag))
+    }
+
+    const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault()
+            addTagFromDraft()
+        } else if (e.key === 'Backspace' && !tagDraft && tags.length > 0) {
+            // Xóa chip cuối cùng khi bấm Backspace trên ô input rỗng —
+            // hành vi quen thuộc của UI chip-input.
+            setTags((prev) => prev.slice(0, -1))
+        }
     }
 
     const enqueue = async (files: File[]) => {
-        if (!selectedAlbumId) {
-            setBatchError('Please select an album before uploading.')
+        if (!defaultAlbumId) {
+            setBatchError('Please select an album first.')
             return
         }
         if (files.length === 0) {
@@ -94,7 +139,7 @@ export function BulkUploadModal({
         try {
             setBatchError(null)
             completedMarkerRef.current = ''
-            await onEnqueueFiles(files, selectedAlbumId, selectedPrivacy, parseTags())
+            await onEnqueueFiles(files, defaultAlbumId, selectedPrivacy, tags.length > 0 ? tags : undefined)
         } catch (error) {
             setBatchError(error instanceof Error ? error.message : 'Failed to enqueue files.')
         }
@@ -163,93 +208,158 @@ export function BulkUploadModal({
                     <button
                         type="button"
                         onClick={onClose}
+                        aria-label="Close"
                         style={{
-                            border: '1px solid var(--color-border-medium)',
-                            backgroundColor: 'var(--color-bg-primary)',
-                            color: 'var(--color-text-primary)',
-                            borderRadius: 'var(--radius-base)',
-                            padding: 'var(--spacing-sm) var(--spacing-base)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: 'none',
+                            background: 'none',
+                            color: 'var(--color-text-secondary)',
                             cursor: 'pointer',
                         }}
                     >
-                        Close
+                        <X size={20} strokeWidth={2} />
                     </button>
                 </div>
 
-                <div
+                {/* SỬA: bỏ dropdown chọn album — chỉ đọc, đã chọn sẵn qua
+                    AlbumStrip ở UploadPage. */}
+                <p
                     style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: 'var(--spacing-base)',
-                        marginBottom: 'var(--spacing-base)',
+                        margin: '0 0 var(--spacing-base) 0',
+                        fontSize: 'var(--text-body-sm-size)',
+                        color: 'var(--color-text-secondary)',
                     }}
                 >
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
-                        <span style={{ fontSize: 'var(--text-ui-label-size)', color: 'var(--color-text-secondary)' }}>
-                            Album
-                        </span>
-                        <select
-                            value={selectedAlbumId ?? ''}
-                            onChange={(e) =>
-                                setSelectedAlbumId(
-                                    e.target.value ? Number(e.target.value) : undefined
-                                )
-                            }
-                            style={{
-                                border: '1px solid var(--color-border-light)',
-                                borderRadius: 'var(--radius-base)',
-                                padding: 'var(--spacing-sm)',
-                                backgroundColor: 'var(--color-bg-primary)',
-                                color: 'var(--color-text-primary)',
-                            }}
-                        >
-                            <option value="">Select album</option>
-                            {albums.map((album) => (
-                                <option key={album.id} value={album.id}>
-                                    {album.title}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                    Uploading to:{' '}
+                    <span style={{ color: 'var(--color-brand-primary)', fontWeight: 'var(--font-weight-semibold)' }}>
+                        {selectedAlbum?.title ?? 'Unknown album'}
+                    </span>
+                </p>
 
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
-                        <span style={{ fontSize: 'var(--text-ui-label-size)', color: 'var(--color-text-secondary)' }}>
-                            Privacy
-                        </span>
-                        <select
-                            value={selectedPrivacy}
-                            onChange={(e) => setSelectedPrivacy(Number(e.target.value) as 0 | 1 | 2)}
-                            style={{
-                                border: '1px solid var(--color-border-light)',
-                                borderRadius: 'var(--radius-base)',
-                                padding: 'var(--spacing-sm)',
-                                backgroundColor: 'var(--color-bg-primary)',
-                                color: 'var(--color-text-primary)',
-                            }}
-                        >
-                            <option value={0}>Private</option>
-                            <option value={1}>Friends</option>
-                            <option value={2}>Public</option>
-                        </select>
-                    </label>
+                <div style={{ marginBottom: 'var(--spacing-base)' }}>
+                    <span
+                        style={{
+                            display: 'block',
+                            marginBottom: 'var(--spacing-sm)',
+                            fontSize: 'var(--text-ui-label-size)',
+                            color: 'var(--color-text-secondary)',
+                        }}
+                    >
+                        Privacy
+                    </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--spacing-sm)' }}>
+                        {PRIVACY_OPTIONS.map((option) => {
+                            const isSelected = option.value === selectedPrivacy
+                            return (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setSelectedPrivacy(option.value)}
+                                    style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'flex-start',
+                                        gap: 'var(--spacing-xs)',
+                                        padding: 'var(--spacing-sm) var(--spacing-base)',
+                                        borderRadius: 'var(--radius-base)',
+                                        border: `1px solid ${isSelected ? 'var(--color-brand-primary)' : 'var(--color-border-light)'}`,
+                                        backgroundColor: isSelected ? 'var(--color-bg-secondary)' : 'var(--color-bg-primary)',
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            fontSize: 'var(--text-body-sm-size)',
+                                            fontWeight: 'var(--font-weight-semibold)',
+                                            color: isSelected ? 'var(--color-brand-primary)' : 'var(--color-text-primary)',
+                                        }}
+                                    >
+                                        {option.label}
+                                    </span>
+                                    <span
+                                        style={{
+                                            fontSize: 'var(--text-body-xs-size)',
+                                            color: 'var(--color-text-secondary)',
+                                        }}
+                                    >
+                                        {option.description}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                    </div>
                 </div>
 
+                {/* SỬA: tags dạng chip thay vì input text thô — đúng bản
+                    chất images.tags là JSONB mảng string. */}
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)', marginBottom: 'var(--spacing-base)' }}>
                     <span style={{ fontSize: 'var(--text-ui-label-size)', color: 'var(--color-text-secondary)' }}>
-                        Tags (comma separated, optional)
+                        Tags (optional — press Enter or comma to add)
                     </span>
-                    <input
-                        value={tagsInput}
-                        onChange={(e) => setTagsInput(e.target.value)}
-                        placeholder="nature, sunset, family"
+                    <div
                         style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 'var(--spacing-xs)',
+                            padding: 'var(--spacing-sm)',
                             border: '1px solid var(--color-border-light)',
                             borderRadius: 'var(--radius-base)',
-                            padding: 'var(--spacing-sm)',
                             backgroundColor: 'var(--color-bg-primary)',
-                            color: 'var(--color-text-primary)',
                         }}
-                    />
+                    >
+                        {tags.map((tag) => (
+                            <span
+                                key={tag}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 'var(--spacing-xs)',
+                                    padding: 'var(--spacing-xs) var(--spacing-sm)',
+                                    borderRadius: 'var(--radius-full)',
+                                    backgroundColor: 'var(--color-bg-secondary)',
+                                    color: 'var(--color-text-primary)',
+                                    fontSize: 'var(--text-body-xs-size)',
+                                }}
+                            >
+                                {tag}
+                                <button
+                                    type="button"
+                                    onClick={() => removeTag(tag)}
+                                    aria-label={`Remove tag ${tag}`}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        border: 'none',
+                                        background: 'none',
+                                        color: 'var(--color-text-secondary)',
+                                        cursor: 'pointer',
+                                        padding: 0,
+                                    }}
+                                >
+                                    <X size={12} strokeWidth={2} />
+                                </button>
+                            </span>
+                        ))}
+                        <input
+                            value={tagDraft}
+                            onChange={(e) => setTagDraft(e.target.value)}
+                            onKeyDown={handleTagInputKeyDown}
+                            onBlur={addTagFromDraft}
+                            placeholder={tags.length === 0 ? 'nature, sunset, family' : ''}
+                            style={{
+                                flex: 1,
+                                minWidth: '120px',
+                                border: 'none',
+                                outline: 'none',
+                                backgroundColor: 'transparent',
+                                color: 'var(--color-text-primary)',
+                                fontSize: 'var(--text-body-sm-size)',
+                            }}
+                        />
+                    </div>
                 </label>
 
                 <div

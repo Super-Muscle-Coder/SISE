@@ -3,6 +3,25 @@
  * @layer adapters
  * @description Axios HTTP adapter with request/response interceptors, retry logic, and error standardization.
  *              All outbound HTTP calls route through this singleton adapter.
+ *              SỬA (phát hiện Blocking khi debug upload thật):
+ *              setupResponseInterceptor() TRƯỚC ĐÂY tự bắt riêng lỗi 409
+ *              và ném StandardError MỚI (buildStandardError), LÀM MẤT
+ *              error.response.data gốc. Điều này phá vỡ chính thiết kế
+ *              idempotency đã thống nhất từ đầu (409 phải giữ nguyên
+ *              response.data để tầng gọi phía trên — vd upload_adapters.ts
+ *              — tự quyết định coi đây là thành công hay lỗi thật, tùy
+ *              endpoint). Hậu quả thực tế: upload_adapters.ts's
+ *              isAxiosConflictWithData() luôn trả false vì error nhận
+ *              được không còn là AxiosError thật (axios.isAxiosError()
+ *              fail) — mọi request presign/confirm gặp 409 hợp lệ (đúng
+ *              thiết kế idempotency) đều bị coi là lỗi thật, kích hoạt
+ *              retry ở tầng nghiệp vụ (upload_services.ts), gây lặp
+ *              request 3 lần rồi thất bại hẳn.
+ *              Đã bỏ hẳn nhánh xử lý 409 riêng — lỗi 409 giờ đi qua đúng
+ *              nguyên bản AxiosError, để từng adapter (upload_adapters.ts,
+ *              friends_adapters.ts...) tự quyết định ý nghĩa 409 theo
+ *              đúng ngữ cảnh endpoint của nó, không áp 1 chính sách chung
+ *              sai cho mọi trường hợp.
  * @owner AG-04
  * @reference
  *   - openapi.yaml (BearerAuth, IdempotencyKey, error codes)
@@ -66,24 +85,31 @@ export class ScaffoldAdapter {
 
                 // ============================================================
                 // 2. Idempotency-Key Header Injection (per openapi.yaml parameter)
+                // SỬA (phát hiện Blocking khi debug upload thật): TRƯỚC ĐÂY
+                // tự động NHỚ và TÁI SỬ DỤNG key theo URL
+                // (localStorage key = `idempotency_${url}`) — nhưng
+                // "cùng URL" KHÔNG có nghĩa là "cùng thao tác nghiệp vụ".
+                // Ví dụ thật đã xảy ra: upload EM1.jpg rồi upload EM4.jpg
+                // đều gọi POST /media/upload-url (cùng URL, khác file hoàn
+                // toàn) — code cũ tái sử dụng key đã lưu cho EM1.jpg, khiến
+                // Backend coi EM4.jpg là request TRÙNG LẶP với EM1.jpg (409,
+                // trả lại y hệt presigned URL cũ của EM1.jpg). Idempotency-Key
+                // mang Ý NGHĨA NGHIỆP VỤ (đại diện 1 thao tác cụ thể của
+                // người dùng), không phải khái niệm HTTP chung theo URL —
+                // tầng scaffoldAdapter (transport chung) KHÔNG được tự ý
+                // quyết định 2 request có "cùng là 1 thao tác" hay không.
+                // Nay LUÔN sinh UUID MỚI cho mỗi request — nếu 1 workflow
+                // cụ thể (vd retry đúng nghĩa cho CÙNG 1 file) cần giữ cố
+                // định 1 key qua nhiều lần gọi, adapter của WORKFLOW ĐÓ
+                // (không phải scaffoldAdapter) phải tự truyền key qua
+                // config.headers, ghi đè giá trị mặc định ở đây.
                 // ============================================================
                 if (
                     MUTATING_METHODS.includes(config.method?.toUpperCase() || '') &&
                     !config.headers[SCAFFOLD_CONFIG.IDEMPOTENCY.headerName]
                 ) {
-                    // Check if client previously stored a key for this URL
-                    const storedKey = this.getStoredIdempotencyKey(config.url || '')
-                    if (storedKey && SCAFFOLD_CONFIG.IDEMPOTENCY.isValidKey(storedKey.createdAtMs)) {
-                        // Reuse stored key (enables server-side dedup)
-                        config.headers[SCAFFOLD_CONFIG.IDEMPOTENCY.headerName] = storedKey.key
-                    } else {
-                        // Generate fresh key and store it
-                        const newKey = uuidv4()
-                        config.headers[SCAFFOLD_CONFIG.IDEMPOTENCY.headerName] = newKey
-                        this.storeIdempotencyKey(config.url || '', newKey)
-                    }
+                    config.headers[SCAFFOLD_CONFIG.IDEMPOTENCY.headerName] = uuidv4()
                 }
-
                 // ============================================================
                 // 3. Request Logging (if enabled in config)
                 // ============================================================
@@ -105,6 +131,13 @@ export class ScaffoldAdapter {
      * RESPONSE INTERCEPTOR
      * Handles errors, maps to StandardError, and implements 401 global logout
      * Reference: openapi.yaml error handling, data_schema.yaml error codes
+     *
+     * SỬA: KHÔNG còn xử lý riêng 409 ở đây — 409 đi qua nguyên bản
+     * AxiosError, để từng adapter tự quyết định ý nghĩa theo đúng endpoint
+     * (idempotency success vs conflict thật). Đây là ngoại lệ có chủ đích
+     * so với các status khác (401/403/404/413), vì CHỈ 409 có 2 khả năng
+     * ngữ nghĩa khác nhau tùy endpoint — các status còn lại luôn là lỗi
+     * thật trong mọi trường hợp của hệ thống này.
      */
     private setupResponseInterceptor(): void {
         this.client.interceptors.response.use(
@@ -155,16 +188,19 @@ export class ScaffoldAdapter {
                     return Promise.reject(this.buildStandardError(404, 'Resource not found'))
                 }
 
-                if (error.response?.status === 409) {
-                    SCAFFOLD_CONFIG.DEBUG.log('warn', '[Client] 409 Conflict (possible duplicate request)')
-                    return Promise.reject(this.buildStandardError(409, 'Duplicate request detected'))
-                }
+                // SỬA: nhánh 409 đã bị XÓA khỏi đây — KHÔNG bọc lại thành
+                // StandardError nữa. Lỗi 409 giữ nguyên AxiosError thật,
+                // tiếp tục rơi xuống nhánh "GENERIC ERROR HANDLER" bên
+                // dưới CHỈ KHI nó thực sự đi hết pipeline reject — nhưng vì
+                // Promise.reject(error) ở generic handler dùng error GỐC
+                // (không tạo mới), axios.isAxiosError(error) ở tầng gọi
+                // (upload_adapters.ts) sẽ trả true, error.response.data
+                // vẫn còn nguyên — đúng yêu cầu idempotency.
 
                 if (error.response?.status === 413) {
                     SCAFFOLD_CONFIG.DEBUG.log('warn', '[Client] 413 Payload Too Large')
                     return Promise.reject(this.buildStandardError(413, 'File exceeds size limit'))
                 }
-
                 // ============================================================
                 // SERVER ERRORS (5xx) — Will be retried
                 // ============================================================
@@ -191,8 +227,15 @@ export class ScaffoldAdapter {
                 }
 
                 // ============================================================
-                // GENERIC ERROR HANDLER
+                // GENERIC ERROR HANDLER — bao gồm cả 409 giờ rơi vào đây,
+                // dùng Promise.reject(error) với error GỐC (không tạo mới
+                // StandardError), giữ nguyên AxiosError + response.data để
+                // tầng gọi (adapters cụ thể) tự xử lý ý nghĩa 409.
                 // ============================================================
+                if (error.response?.status === 409) {
+                    return Promise.reject(error)
+                }
+
                 return Promise.reject(
                     this.buildStandardError(error.response?.status || 500, 'Request failed')
                 )
@@ -204,6 +247,13 @@ export class ScaffoldAdapter {
      * RETRY INTERCEPTOR
      * Implements exponential backoff retry logic per data_schema.yaml retry_policy
      * Reference: VITE_RETRY_MAX_ATTEMPTS, VITE_RETRY_BACKOFF_MS, VITE_RETRY_BACKOFF_FACTOR
+     *
+     * LƯU Ý: interceptor này chạy TRƯỚC setupResponseInterceptor() trong
+     * chuỗi xử lý lỗi thực tế của axios (interceptor đăng ký sau chạy
+     * trước đối với response error) — SCAFFOLD_CONFIG.RETRY.isRetryableStatus()
+     * đã audit từ trước CHỈ coi 408/429/5xx là retryable, KHÔNG bao gồm
+     * 409 — xác nhận lại đây để tránh vòng lặp retry kép giữa tầng HTTP
+     * (ở đây) và tầng nghiệp vụ (upload_services.ts's processSingle loop).
      */
     private setupRetryInterceptor(): void {
         this.client.interceptors.response.use(
@@ -244,7 +294,6 @@ export class ScaffoldAdapter {
             }
         )
     }
-
     /**
      * Helper: Build StandardError from HTTP status + message
      * Reference: openapi.yaml Error schema
@@ -265,35 +314,6 @@ export class ScaffoldAdapter {
             code: codeMap[status] || 'ERR_UNKNOWN',
             message,
             details: { httpStatus: status },
-        }
-    }
-
-    /**
-     * Helper: Store idempotency key in localStorage with timestamp
-     * Returns key for reuse within TTL window
-     */
-    private storeIdempotencyKey(url: string, key: string): void {
-        const storageKey = `${SCAFFOLD_CONFIG.IDEMPOTENCY.storageKeyPrefix}${url}`
-        localStorage.setItem(
-            storageKey,
-            JSON.stringify({
-                key,
-                createdAtMs: Date.now(),
-            })
-        )
-    }
-
-    /**
-     * Helper: Retrieve idempotency key from localStorage
-     */
-    private getStoredIdempotencyKey(url: string): { key: string; createdAtMs: number } | null {
-        const storageKey = `${SCAFFOLD_CONFIG.IDEMPOTENCY.storageKeyPrefix}${url}`
-        const stored = localStorage.getItem(storageKey)
-        if (!stored) return null
-        try {
-            return JSON.parse(stored)
-        } catch (e) {
-            return null
         }
     }
 
@@ -364,7 +384,6 @@ export class ScaffoldAdapter {
             headers: response.headers,
         }
     }
-
     /**
      * Generic DELETE request wrapper
      */

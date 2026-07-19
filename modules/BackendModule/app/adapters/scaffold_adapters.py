@@ -49,6 +49,7 @@ class ConfigLoader:
     def get_storage_config() -> StorageConfig:
         return StorageConfig(
             endpoint=_read_required_env("MINIO_ENDPOINT"),
+            public_endpoint=_read_required_env("MINIO_PUBLIC_ENDPOINT"),
             access_key=_read_required_env("MINIO_ACCESS_KEY"),
             secret_key=_read_required_env("MINIO_SECRET_KEY"),
             bucket_images=_read_required_env("MINIO_BUCKET_IMAGES"),
@@ -128,6 +129,7 @@ class ScaffoldConfigAdapter:
         required_vars = [
             "DATABASE_URL",
             "MINIO_ENDPOINT",
+            "MINIO_PUBLIC_ENDPOINT",
             "MINIO_ACCESS_KEY",
             "MINIO_SECRET_KEY",
             "MINIO_BUCKET_IMAGES",

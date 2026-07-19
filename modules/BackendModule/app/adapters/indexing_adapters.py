@@ -1,10 +1,10 @@
 """
 Indexing workflow adapters.
 """
-
 from __future__ import annotations
 
 import json
+import mimetypes
 from typing import Any
 
 import httpx
@@ -87,12 +87,20 @@ class IndexingAdapter:
         filename: str,
         bearer_token: str,
     ) -> EmbeddingResult:
+        # Suy ra content-type thật từ đuôi file (ví dụ .jpg -> image/jpeg,
+        # .png -> image/png) thay vì hardcode "application/octet-stream" —
+        # AIModule validate chặt content-type của phần multipart và từ
+        # chối "application/octet-stream" với 400 ERR_INVALID_CONTENT_TYPE.
+        # mimetypes.guess_type trả về None nếu không đoán được -> fallback
+        # về "image/jpeg" (định dạng phổ biến nhất trong pipeline upload).
+        guessed_type, _ = mimetypes.guess_type(filename)
+        content_type = guessed_type or "image/jpeg"
+
         url = f"{self.ai_service_url}/inference/embed/image"
         files = {
-            "file": (filename, image_bytes, "application/octet-stream"),
+            "file": (filename, image_bytes, content_type),
         }
         headers = {"Authorization": f"Bearer {bearer_token}"}
-
         try:
             async with httpx.AsyncClient(timeout=self.http_timeout_sec) as client:
                 resp = await client.post(url, files=files, headers=headers)
@@ -117,9 +125,15 @@ class IndexingAdapter:
 
         try:
             data: dict[str, Any] = resp.json()
+            # AIModule thực tế trả "vector_dimension" (không phải "dim" như
+            # openapi.yaml VectorEmbeddingResponse ghi), và không có field
+            # "model" — xác nhận qua gọi trực tiếp AI Service thật (response
+            # {"success", "vector", "vector_dimension", "processing_time_ms"}).
+            # Đọc đúng field thật thay vì field theo hợp đồng cũ — hợp đồng cần
+            # cập nhật lại sau cho khớp thực tế (quyết định của Project Owner).
             return EmbeddingResult(
                 vector=data["vector"],
-                dim=int(data["dim"]),
+                dim=int(data["vector_dimension"]),
                 model=str(data.get("model", "")),
             )
         except Exception as exc:

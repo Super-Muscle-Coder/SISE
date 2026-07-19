@@ -1,75 +1,65 @@
 /**
  * @file DashboardLayout.tsx
- * @layer page-layouts (Layer 2)
- * @description Layout wrapper for dashboard pages
- * Provides two-column layout: sidebar + main content
+ * @layer page-layouts (Layer 3)
+ * @description Khung 3 vùng cố định cho toàn bộ khu vực đã đăng nhập:
+ *              Sidebar (trái) + Header (trên) + Content (còn lại).
+ *              Component thuần — nhận toàn bộ nội dung/state qua props từ
+ *              pages/DashboardPage.tsx (Nhóm C), không tự gọi hook nào.
  * @owner AG-04
  */
 
-import React, { useState } from 'react';
-import './dashboard-layout.css';
+import React from 'react';
+import { DashboardSidebar, type DashboardNavItem } from '@/components/dashboard-sidebar';
+import { DashboardHeader } from '@/components/dashboard-header';
+import type { SearchResultItem } from '@/entities/search_entities';
 
 interface DashboardLayoutProps {
-    title?: string;
-    sidebar?: React.ReactNode;
     children: React.ReactNode;
-    sidebarCollapsible?: boolean;
+    activeNavItem: DashboardNavItem;
+    onNavigate: (item: DashboardNavItem) => void;
+    searchQuery: string;
+    isSearchLoading: boolean;
+    searchResults: SearchResultItem[];
+    onSearchQueryChange: (text: string) => void;
+    onSubmitTextSearch: (text: string) => void;
+    onSubmitImageSearch: (file: File) => void;
+    onSelectSuggestion: (item: SearchResultItem) => void;
 }
 
-/**
- * DashboardLayout: Two-column dashboard structure
- * Used by: DashboardPage, ProfilePage, etc.
- * 
- * Features:
- * - Optional collapsible sidebar
- * - Main content area
- * - Responsive: sidebar collapses on mobile
- * - Optional header/title area
- */
 export function DashboardLayout({
-    title,
-    sidebar,
     children,
-    sidebarCollapsible = true,
+    activeNavItem,
+    onNavigate,
+    searchQuery,
+    isSearchLoading,
+    searchResults,
+    onSearchQueryChange,
+    onSubmitTextSearch,
+    onSubmitImageSearch,
+    onSelectSuggestion,
 }: DashboardLayoutProps): React.ReactElement {
-    const [sidebarOpen, setSidebarOpen] = useState(!sidebarCollapsible);
-
     return (
-        <div className="dashboard-layout">
-            {/* Header */}
-            {title && (
-                <header className="dashboard-layout__header">
-                    <div className="dashboard-layout__header-content">
-                        {sidebarCollapsible && (
-                            <button
-                                className="dashboard-layout__toggle"
-                                onClick={() => setSidebarOpen(!sidebarOpen)}
-                                aria-label="Toggle sidebar"
-                            >
-                                ☰
-                            </button>
-                        )}
-                        <h1 className="dashboard-layout__title">{title}</h1>
-                    </div>
-                </header>
-            )}
+        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+            <DashboardSidebar activeItem={activeNavItem} onNavigate={onNavigate} />
 
-            {/* Main Container */}
-            <div className="dashboard-layout__container">
-                {/* Sidebar */}
-                {sidebar && (
-                    <aside
-                        className={`dashboard-layout__sidebar ${sidebarOpen ? 'dashboard-layout__sidebar--open' : ''
-                            }`}
-                    >
-                        <nav className="dashboard-layout__sidebar-content">
-                            {sidebar}
-                        </nav>
-                    </aside>
-                )}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <DashboardHeader
+                    query={searchQuery}
+                    isLoading={isSearchLoading}
+                    results={searchResults}
+                    onQueryChange={onSearchQueryChange}
+                    onSubmitTextSearch={onSubmitTextSearch}
+                    onSubmitImageSearch={onSubmitImageSearch}
+                    onSelectSuggestion={onSelectSuggestion}
+                />
 
-                {/* Main Content */}
-                <main className="dashboard-layout__main">
+                <main
+                    style={{
+                        flex: 1,
+                        padding: 'var(--spacing-xl)',
+                        backgroundColor: 'var(--color-bg-secondary)',
+                    }}
+                >
                     {children}
                 </main>
             </div>

@@ -151,10 +151,25 @@ def get_redis_client() -> Redis:
 
 
 @lru_cache(maxsize=1)
+def get_public_minio_client() -> Minio:
+    storage_config = get_storage_config()
+    endpoint = storage_config.public_endpoint
+    secure = endpoint.startswith("https://")
+    normalized_endpoint = endpoint.removeprefix("http://").removeprefix("https://")
+    return Minio(
+        endpoint=normalized_endpoint,
+        access_key=storage_config.access_key,
+        secret_key=storage_config.secret_key,
+        secure=secure,
+        region="us-east-1",
+    )
+
+@lru_cache(maxsize=1)
 def get_minio_adapter() -> MinIOAdapter:
     storage_config = get_storage_config()
     return MinIOAdapter(
         minio_client=get_minio_client(),
+        public_minio_client=get_public_minio_client(),
         bucket_name="raw-images",
         endpoint=storage_config.endpoint,
     )
@@ -308,4 +323,5 @@ __all__ = [
     "get_evaluation_service",
     "get_admin_service",
     "get_health_service",
+    "get_public_minio_client"
 ]

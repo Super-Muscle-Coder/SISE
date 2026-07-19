@@ -18,3 +18,7 @@ export * from './media';
 export * from './protected-route';
 export * from './upload';
 export * from './scaffold-fallback';
+export * from './dashboard-header';
+export * from './dashboard-sidebar';
+export * from './album-strip';
+export * from './create-album-dialog';

@@ -6,12 +6,12 @@
  *              SỬA: LandingRoot (4 sub-page About/Explore/Introduce/Terms)
  *              đã bị loại khỏi scope — thay bằng LandingPage.tsx (1 Hero
  *              Section + CTA, tối giản theo quyết định Project Owner).
- *              Thêm khung Route /login, /register với placeholder tạm —
- *              LandingPage.tsx đã gọi navigate('/login')/navigate('/register')
- *              nên 2 route này BẮT BUỘC phải tồn tại để không bấm nút mà
- *              im lặng không đi đâu cả. Khi LoginPage/RegisterPage thật
- *              viết xong, CHỈ cần đổi giá trị `element` bên dưới, không
- *              cần sửa lại cấu trúc AppRoutes().
+ *              Route /login, /register CÙNG trỏ LandingPage (không phải
+ *              trang riêng) — LandingPage tự đọc URL qua useLocation() để
+ *              quyết định AuthModal có hiện hay không.
+ *              DashboardPage đổi từ định nghĩa inline (placeholder) sang
+ *              import từ pages/DashboardPage.tsx thật — đã có
+ *              Sidebar + Header (search text/image) + Content area thật.
  * @owner AG-04
  */
 
@@ -22,6 +22,7 @@ import { useScaffoldService } from '../services/scaffold_services'
 import type { ScaffoldContextState } from '../entities/scaffold_entities'
 import { AUTH_CONFIG } from '../configs/auth_configs'
 import { LandingPage } from '../pages/LandingPage'
+import { DashboardPage } from '../pages/DashboardPage'
 import { ScaffoldFallbackUI } from '../components/scaffold-fallback'
 import { ProtectedRoute } from '../components/protected-route'
 
@@ -39,23 +40,6 @@ export const useScaffoldContextHelper = (): ScaffoldContextState => {
 
 interface ScaffoldContextProviderProps {
     children: ReactNode
-}
-
-const DashboardPage = (): React.ReactElement => {
-    return React.createElement(
-        'div',
-        { className: 'mx-auto max-w-7xl px-6 py-8' },
-        React.createElement(
-            'h2',
-            { className: 'text-3xl font-bold text-gray-900' },
-            'Dashboard'
-        ),
-        React.createElement(
-            'p',
-            { className: 'mt-4 text-gray-600' },
-            'Welcome! This is your dashboard. Album management and search features coming soon.'
-        )
-    )
 }
 
 export const ScaffoldContextProvider = ({ children }: ScaffoldContextProviderProps): React.ReactElement => {

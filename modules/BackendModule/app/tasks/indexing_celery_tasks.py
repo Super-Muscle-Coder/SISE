@@ -57,6 +57,7 @@ celery_app = Celery(
 )
 celery_app.conf.broker_connection_retry_on_startup = True
 
+
 def _build_minio_client() -> Minio:
     endpoint = _storage_config.endpoint
     secure = endpoint.startswith("https://")
@@ -66,6 +67,19 @@ def _build_minio_client() -> Minio:
         access_key=_storage_config.access_key,
         secret_key=_storage_config.secret_key,
         secure=secure,
+    )
+
+
+def _build_public_minio_client() -> Minio:
+    endpoint = _storage_config.public_endpoint
+    secure = endpoint.startswith("https://")
+    normalized_endpoint = endpoint.removeprefix("http://").removeprefix("https://")
+    return Minio(
+        endpoint=normalized_endpoint,
+        access_key=_storage_config.access_key,
+        secret_key=_storage_config.secret_key,
+        secure=secure,
+        region="us-east-1",
     )
 
 
@@ -85,6 +99,7 @@ async def _run_indexing_once(image_id: str) -> None:
         async with session_factory() as session:
             minio_adapter = MinIOAdapter(
                 minio_client=_build_minio_client(),
+                public_minio_client=_build_public_minio_client(),
                 bucket_name="raw-images",
                 endpoint=_storage_config.endpoint,
             )
@@ -110,6 +125,7 @@ async def _mark_failed(image_id: str) -> None:
         async with session_factory() as session:
             minio_adapter = MinIOAdapter(
                 minio_client=_build_minio_client(),
+                public_minio_client=_build_public_minio_client(),
                 bucket_name="raw-images",
                 endpoint=_storage_config.endpoint,
             )
