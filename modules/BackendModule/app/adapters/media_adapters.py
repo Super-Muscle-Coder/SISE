@@ -123,7 +123,6 @@ class AlbumAdapter:
             LIMIT :limit
             """
         )
-
         total_result = await self.session.execute(count_stmt, {"user_id": user_id})
         total = int(total_result.scalar_one() or 0)
 
@@ -146,7 +145,6 @@ class AlbumAdapter:
         update_fields = {k: v for k, v in kwargs.items() if k in allowed_fields}
 
         if not update_fields:
-            # Service layer should handle this, but keep safe behavior.
             return await self.get_album(album_id, user_id)
 
         set_parts: List[str] = []
@@ -236,7 +234,13 @@ class ImageAdapter:
         tags: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         logger.info("Creating image metadata image_id=%s user_id=%s", image_id, user_id)
-
+        # SỬA: bỏ "::uuid" ngay sau ":image_id" — sqlalchemy.text() dùng
+        # dấu ":" để nhận diện bind parameter; ":image_id::uuid" (không có
+        # khoảng trắng) khiến parser của text() không tách đúng tên biến,
+        # bind param không được compile, driver asyncpg nhận lại chuỗi
+        # ":image_id" thô -> PostgresSyntaxError. asyncpg tự cast đúng
+        # kiểu UUID khi bind 1 chuỗi UUID hợp lệ vào cột kiểu UUID, không
+        # cần ép kiểu tường minh.
         stmt = text(
             """
             INSERT INTO images (
@@ -244,7 +248,7 @@ class ImageAdapter:
                 privacy_level, tags
             )
             VALUES (
-                :image_id::uuid, :user_id, :album_id, :minio_object_name, :minio_bucket,
+                :image_id, :user_id, :album_id, :minio_object_name, :minio_bucket,
                 :privacy_level, CAST(:tags AS JSONB)
             )
             RETURNING
@@ -292,7 +296,7 @@ class ImageAdapter:
                 index_status,
                 deleted_at
             FROM images
-            WHERE id = :image_id::uuid
+            WHERE id = :image_id
               AND user_id = :user_id
               AND deleted_at IS NULL
             """
@@ -363,7 +367,6 @@ class ImageAdapter:
             LIMIT :limit
             """
         )
-
         total_result = await self.session.execute(count_stmt, params)
         total = int(total_result.scalar_one() or 0)
 
@@ -400,7 +403,7 @@ class ImageAdapter:
             f"""
             UPDATE images
             SET {", ".join(set_parts)}
-            WHERE id = :image_id::uuid
+            WHERE id = :image_id
               AND user_id = :user_id
               AND deleted_at IS NULL
             RETURNING
@@ -437,7 +440,7 @@ class ImageAdapter:
             """
             UPDATE images
             SET deleted_at = NOW(), updated_at = NOW()
-            WHERE id = :image_id::uuid
+            WHERE id = :image_id
               AND user_id = :user_id
               AND deleted_at IS NULL
             """

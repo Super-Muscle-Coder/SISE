@@ -63,8 +63,23 @@ export class ScaffoldAdapter {
         })
 
         this.setupRequestInterceptor()
-        this.setupResponseInterceptor()
+        // SỬA (Blocking, phát hiện khi debug Edit/Delete media): thứ tự
+        // đăng ký ĐẢO NGƯỢC so với bản cũ — setupRetryInterceptor() PHẢI
+        // chạy TRƯỚC setupResponseInterceptor(). Axios chạy các response
+        // interceptor lỗi theo ĐÚNG thứ tự đăng ký (đăng ký trước chạy
+        // trước). Bản cũ: setupResponseInterceptor() chạy trước, biến MỌI
+        // lỗi HTTP (401/403/404/413/5xx/timeout/network) thành object
+        // StandardError MỚI (mất field .config gốc của AxiosError) —
+        // setupRetryInterceptor() chạy sau, cố đọc error.config để track
+        // số lần retry, nhưng error lúc này không còn .config nữa →
+        // TypeError "Cannot read properties of undefined (reading
+        // 'retryCount')" — lỗi này che mất hoàn toàn lỗi HTTP thật (vd
+        // lỗi 500 từ Backend), khiến UI hiển thị thông báo vô nghĩa thay
+        // vì lỗi thật. Nay retry chạy TRƯỚC (luôn thấy AxiosError gốc còn
+        // nguyên .config), normalize lỗi thành StandardError chạy SAU
+        // CÙNG (chỉ xử lý lỗi CUỐI CÙNG sau khi đã thử retry xong).
         this.setupRetryInterceptor()
+        this.setupResponseInterceptor()
     }
 
     /**

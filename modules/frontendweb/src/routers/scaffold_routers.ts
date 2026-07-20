@@ -23,6 +23,10 @@ import type { ScaffoldContextState } from '../entities/scaffold_entities'
 import { AUTH_CONFIG } from '../configs/auth_configs'
 import { LandingPage } from '../pages/LandingPage'
 import { DashboardPage } from '../pages/DashboardPage'
+import { HomePage } from '../pages/HomePage'
+import { UploadPage } from '../pages/UploadPage'
+import { ResultPage } from '../pages/ResultPage'
+import { DetailImagePage } from '../pages/DetailImagePage'
 import { ScaffoldFallbackUI } from '../components/scaffold-fallback'
 import { ProtectedRoute } from '../components/protected-route'
 
@@ -159,14 +163,26 @@ export function AppRoutes(): React.ReactElement {
             path: '/register',
             element: React.createElement(LandingPage),
         }),
-        React.createElement(Route, {
-            path: '/dashboard',
-            element: React.createElement(
-                ProtectedRoute,
-                null,
-                React.createElement(DashboardPage)
-            ),
-        })
+        // SỬA: /dashboard giờ là NESTED ROUTE thật — DashboardPage đã đổi
+        // vai trò thành layout wrapper (Sidebar+Header cố định + <Outlet/>),
+        // KHÔNG còn tự quản lý "trang nào active" bằng state nội bộ. Các
+        // trang con (Home/Upload/Result/DetailImage) là Route riêng, có
+        // URL thật, render vào <Outlet/> bên trong DashboardPage.
+        React.createElement(
+            Route,
+            {
+                path: '/dashboard',
+                element: React.createElement(
+                    ProtectedRoute,
+                    null,
+                    React.createElement(DashboardPage)
+                ),
+            },
+            React.createElement(Route, { index: true, element: React.createElement(HomePage) }),
+            React.createElement(Route, { path: 'upload', element: React.createElement(UploadPage) }),
+            React.createElement(Route, { path: 'result', element: React.createElement(ResultPage) }),
+            React.createElement(Route, { path: 'image/:imageId', element: React.createElement(DetailImagePage) })
+        )
     )
 }
 

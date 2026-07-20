@@ -3,21 +3,21 @@
  * @file media_services.ts
  * @layer services
  * @description React hooks cho workflow media thuần túy (gallery + album
- *              list + index status polling)
- *              SỬA: bổ sung createAlbum(title) vào useAlbumList() — trước
- *              đây UI cần tạo album mới phải gọi thẳng mediaAdapter từ
- *              pages/ (vi phạm ranh giới Nhóm C không gọi thẳng adapters/,
- *              phát hiện khi viết UploadPage.tsx). Cùng loại vấn đề với
- *              lần thiếu useAlbumList() đã phát hiện trước đó — mỗi khi
- *              UI cần 1 hành động mới, phải bổ sung đúng chỗ ở services/,
- *              không tự ý gọi tắt qua adapters/ từ pages/.
+ *              list + index status polling + single image metadata +
+ *              update/delete).
+ *              SỬA: bổ sung useImageMetadata(imageId) (GET /media/{id}),
+ *              useUpdateImage() (PUT /media/{id}/update), useDeleteImage()
+ *              (DELETE /media/{id}/delete) — cần cho DetailImagePage +
+ *              menu Edit/Delete trên ImageCard. mediaAdapter đã có sẵn 3
+ *              hàm này từ Nhóm 2 (getImageMetadata/updateImageMetadata/
+ *              deleteImage), chỉ thiếu hook wrapper đúng kiến trúc.
  * @owner AG-04
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MEDIA_CONFIG } from '@/configs/media_configs'
 import { mediaAdapter } from '@/adapters/media_adapters'
-import type { Album, ImageMetadata } from '@/entities/media_entities'
+import type { Album, ImageMetadata, PrivacyLevel } from '@/entities/media_entities'
 
 interface MediaGalleryPagination {
     offset: number
@@ -159,24 +159,11 @@ export interface UseAlbumListActions {
     setOffset: (newOffset: number) => void
     setLimit: (newLimit: number) => void
     refetch: () => Promise<void>
-    /**
-     * Tạo album mới (POST /albums), rồi TỰ ĐỘNG refetch() danh sách —
-     * caller không cần tự gọi refetch() sau khi tạo thành công.
-     * Trả về Album vừa tạo nếu thành công, null nếu lỗi (lỗi nằm trong
-     * createError).
-     */
     createAlbum: (title: string, description?: string, isPublic?: boolean) => Promise<Album | null>
     isCreating: boolean
     createError: Error | null
 }
 
-/**
- * useAlbumList: Tải danh sách album của người dùng (GET /albums), tạo
- * album mới (POST /albums). Dùng cho selector chọn album (upload modal),
- * bộ lọc gallery (DashboardPage/UploadPage), và dialog tạo album mới —
- * tất cả nơi cần thao tác với album đều đi qua hook DUY NHẤT này, không
- * gọi thẳng mediaAdapter từ pages/.
- */
 export function useAlbumList(): UseAlbumListActions {
     const [state, setState] = useState<UseAlbumListState>({
         items: [],
@@ -248,11 +235,6 @@ export function useAlbumList(): UseAlbumListActions {
             setState((prev) => ({ ...prev, isCreating: true, createError: null }))
 
             try {
-                // SỬA: mediaAdapter.createAlbum() nhận 3 tham số RỜI
-                // (title, description?, isPublic?) — KHÔNG PHẢI 1 object
-                // CreateAlbumRequest. Đã xác nhận qua đọc lại chính xác
-                // media_adapters.ts (lỗi TS2345 trước đó là do gọi sai
-                // chữ ký, bọc nhầm 3 tham số vào 1 object).
                 const album = await mediaAdapter.createAlbum(title, description, isPublic)
 
                 setState((prev) => ({ ...prev, isCreating: false, createError: null }))
@@ -381,4 +363,131 @@ export function useImageStatusPolling(imageId: string): UseImageStatusPollingAct
         isFinalized: Boolean(isFinalized),
         manualRefresh: pollOnce,
     }
+}
+
+interface UseImageMetadataState {
+    image: ImageMetadata | null
+    loading: boolean
+    error: Error | null
+}
+
+export interface UseImageMetadataActions {
+    image: ImageMetadata | null
+    loading: boolean
+    error: Error | null
+    refetch: () => Promise<void>
+}
+
+/**
+ * useImageMetadata: Tải metadata của 1 ảnh cụ thể (GET /media/{image_id}).
+ * Dùng bởi DetailImagePage — tự fetch khi mount hoặc khi imageId đổi.
+ */
+export function useImageMetadata(imageId: string | undefined): UseImageMetadataActions {
+    const [state, setState] = useState<UseImageMetadataState>({
+        image: null,
+        loading: false,
+        error: null,
+    })
+
+    const fetchImage = useCallback(async () => {
+        if (!imageId) return
+
+        setState((prev) => ({ ...prev, loading: true, error: null }))
+
+        try {
+            const image = await mediaAdapter.getImageMetadata(imageId)
+            setState({ image, loading: false, error: null })
+        } catch (err) {
+            setState((prev) => ({
+                ...prev,
+                loading: false,
+                error: err instanceof Error ? err : new Error('Failed to load image'),
+            }))
+        }
+    }, [imageId])
+
+    useEffect(() => {
+        fetchImage()
+    }, [fetchImage])
+
+    return {
+        image: state.image,
+        loading: state.loading,
+        error: state.error,
+        refetch: fetchImage,
+    }
+}
+
+export interface UseUpdateImageActions {
+    isUpdating: boolean
+    updateError: Error | null
+    updateImage: (
+        imageId: string,
+        updates: { album_id?: number; privacy_level?: PrivacyLevel; tags?: string[] }
+    ) => Promise<ImageMetadata | null>
+}
+
+/**
+ * useUpdateImage: Cập nhật metadata 1 ảnh (PUT /media/{image_id}/update) —
+ * album_id, privacy_level, tags. Dùng bởi EditImageDialog (menu 3 chấm
+ * trên ImageCard).
+ */
+export function useUpdateImage(): UseUpdateImageActions {
+    const [isUpdating, setIsUpdating] = useState(false)
+    const [updateError, setUpdateError] = useState<Error | null>(null)
+
+    const updateImage = useCallback(
+        async (
+            imageId: string,
+            updates: { album_id?: number; privacy_level?: PrivacyLevel; tags?: string[] }
+        ): Promise<ImageMetadata | null> => {
+            setIsUpdating(true)
+            setUpdateError(null)
+
+            try {
+                const image = await mediaAdapter.updateImageMetadata(imageId, updates)
+                setIsUpdating(false)
+                return image
+            } catch (err) {
+                setIsUpdating(false)
+                setUpdateError(err instanceof Error ? err : new Error('Failed to update image'))
+                return null
+            }
+        },
+        []
+    )
+
+    return { isUpdating, updateError, updateImage }
+}
+
+export interface UseDeleteImageActions {
+    isDeleting: boolean
+    deleteError: Error | null
+    deleteImage: (imageId: string) => Promise<boolean>
+}
+
+/**
+ * useDeleteImage: Xóa mềm 1 ảnh (DELETE /media/{image_id}/delete). Dùng
+ * bởi DeleteImageConfirmDialog (menu 3 chấm trên ImageCard).
+ */
+export function useDeleteImage(): UseDeleteImageActions {
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [deleteError, setDeleteError] = useState<Error | null>(null)
+
+    const deleteImage = useCallback(async (imageId: string): Promise<boolean> => {
+        setIsDeleting(true)
+        setDeleteError(null)
+
+        try {
+            await mediaAdapter.deleteImage(imageId)
+            setIsDeleting(false)
+            return true
+        } catch (err) {
+            setIsDeleting(false)
+            setDeleteError(err instanceof Error ? err : new Error('Failed to delete image'))
+            return false
+        }
+    }, [])
+
+    return { isDeleting, deleteError, deleteImage }
 }

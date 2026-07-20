@@ -13,7 +13,7 @@ from app.services import TextEmbeddingService
 
 class TextEmbedRequestBody(BaseModel):
     """Request body for POST /embed/text endpoint."""
-    text: str
+    query_text: str
 
 
 def get_text_embedding_service(request: Request) -> TextEmbeddingService:
@@ -45,7 +45,7 @@ def create_text_embedding_router() -> APIRouter:
 
         Request:
           - Content-Type: application/json
-          - Body: {"text": "..."}
+          - Body: {"query_text": "..."}
           - Max text length: 4096 characters
 
         Returns:
@@ -63,7 +63,7 @@ def create_text_embedding_router() -> APIRouter:
         """
         try:
             # Extract embedding
-            result = text_embedding_svc.extract_text_embedding(request.text)
+            result = text_embedding_svc.extract_text_embedding(request.query_text)
 
             # Handle errors
             if not result.success:

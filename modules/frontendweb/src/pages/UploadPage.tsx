@@ -21,23 +21,35 @@
 
 import React from 'react';
 import { Upload as UploadIcon } from 'lucide-react';
-import { useAlbumListController, useMediaGalleryController } from '@/routers/media_routers';
+import { useNavigate } from 'react-router-dom';
+import { useAlbumListController, useMediaGalleryController, useUpdateImageController, useDeleteImageController } from '@/routers/media_routers';
 import { useUploadController, validateAlbumSelected } from '@/routers/upload_routers';
 import { AlbumStrip } from '@/components/album-strip';
 import { CreateAlbumDialog } from '@/components/create-album-dialog';
-import { ImageCard } from '@/components/media';
+import { ImageCard, EditImageDialog, DeleteImageConfirmDialog } from '@/components/media';
 import { BulkUploadModal } from '@/components/upload';
+import type { ImageMetadata } from '@/entities/media_entities';
 
 export function UploadPage(): React.ReactElement {
+    const navigate = useNavigate();
+
     // State RIÊNG của UploadPage — album đang chọn để lọc/upload vào.
     // KHÔNG phải field của albumController (đúng quyết định đã chốt).
     const [selectedAlbumId, setSelectedAlbumId] = React.useState<number | null>(null);
     const [isCreateAlbumOpen, setIsCreateAlbumOpen] = React.useState(false);
     const [isUploadModalOpen, setIsUploadModalOpen] = React.useState(false);
 
+    // SỬA: thêm state cho Edit/Delete (menu 3 chấm trên ImageCard) —
+    // theo quyết định Project Owner, UploadPage cần đủ 3 chức năng
+    // (Edit/Delete/Click xem chi tiết), không chỉ xem ảnh thuần túy.
+    const [editingImage, setEditingImage] = React.useState<ImageMetadata | null>(null);
+    const [deletingImage, setDeletingImage] = React.useState<ImageMetadata | null>(null);
+
     const albumController = useAlbumListController();
     const mediaController = useMediaGalleryController(selectedAlbumId ?? undefined);
     const uploadController = useUploadController();
+    const updateController = useUpdateImageController();
+    const deleteController = useDeleteImageController();
 
     const albums = albumController.items;
 
@@ -74,6 +86,34 @@ export function UploadPage(): React.ReactElement {
     const handleUploadSuccess = async () => {
         await mediaController.refetch();
         setIsUploadModalOpen(false);
+    };
+
+    // SỬA: 3 handler mới cho menu 3 chấm + click xem chi tiết trên
+    // ImageCard — theo quyết định đủ 3 chức năng ở UploadPage.
+    const handleImageClick = (item: ImageMetadata) => {
+        navigate(`/dashboard/image/${item.image_id}`);
+    };
+
+    const handleEditSubmit = async (updates: { album_id?: number; privacy_level?: 0 | 1 | 2; tags?: string[] }) => {
+        if (!editingImage) return;
+        const result = await updateController.updateImage(editingImage.image_id, updates);
+        if (result) {
+            setEditingImage(null);
+            await mediaController.refetch();
+        }
+        // Nếu thất bại, giữ dialog mở — updateController.updateError sẽ
+        // hiển thị lỗi (đã truyền vào EditImageDialog qua prop error).
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!deletingImage) return;
+        const success = await deleteController.deleteImage(deletingImage.image_id);
+        if (success) {
+            setDeletingImage(null);
+            await mediaController.refetch();
+        }
+        // Nếu thất bại, giữ dialog mở — deleteController.deleteError sẽ
+        // hiển thị lỗi.
     };
 
     return (
@@ -127,7 +167,12 @@ export function UploadPage(): React.ReactElement {
                     <div className="masonry-4">
                         {mediaController.items.map((item) => (
                             <div key={item.image_id} className="masonry-item">
-                                <ImageCard item={item} />
+                                <ImageCard
+                                    item={item}
+                                    onClick={handleImageClick}
+                                    onEdit={setEditingImage}
+                                    onDelete={setDeletingImage}
+                                />
                             </div>
                         ))}
                     </div>
@@ -138,6 +183,24 @@ export function UploadPage(): React.ReactElement {
                 isOpen={isCreateAlbumOpen}
                 onClose={() => setIsCreateAlbumOpen(false)}
                 onSubmit={handleCreateAlbum}
+            />
+
+            <EditImageDialog
+                isOpen={editingImage !== null}
+                image={editingImage}
+                albums={albums}
+                onClose={() => setEditingImage(null)}
+                onSubmit={handleEditSubmit}
+                isSubmitting={updateController.isUpdating}
+                error={updateController.updateError?.message ?? null}
+            />
+
+            <DeleteImageConfirmDialog
+                isOpen={deletingImage !== null}
+                onCancel={() => setDeletingImage(null)}
+                onConfirm={handleDeleteConfirm}
+                isDeleting={deleteController.isDeleting}
+                error={deleteController.deleteError?.message ?? null}
             />
 
             {selectedAlbumId !== null && (
