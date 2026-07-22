@@ -4,6 +4,7 @@ Search workflow adapters.
 
 from __future__ import annotations
 
+import mimetypes
 from typing import Any
 
 import httpx
@@ -21,7 +22,13 @@ class AIServiceSearchAdapter:
     async def embed_image(self, file_bytes: bytes, filename: str, bearer_token: str) -> list[float]:
         url = f"{self.ai_service_base_url}/inference/embed/image"
         headers = {"Authorization": f"Bearer {bearer_token}"}
-        files = {"file": (filename, file_bytes, "application/octet-stream")}
+        # Suy ra content-type thật từ đuôi file (ví dụ .jpg -> image/jpeg,
+        # .png -> image/png) thay vì hardcode "application/octet-stream" —
+        # AIModule validate chặt content-type của phần multipart và từ
+        # chối "application/octet-stream" với 400 ERR_INVALID_CONTENT_TYPE.
+        guessed_type, _ = mimetypes.guess_type(filename)
+        content_type = guessed_type or "image/jpeg"
+        files = {"file": (filename, file_bytes, content_type)}
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout_sec) as client:

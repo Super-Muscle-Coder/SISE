@@ -296,6 +296,7 @@ declare global {
         // EVALUATION WORKFLOW (T003-07, admin only) — openapi.yaml /eval/*
         // ====================================================================
         readonly VITE_EVAL_RUN_DEFAULT_LIMIT: string;
+        readonly VITE_EVAL_RUN_TIMEOUT_MS: string;
         readonly VITE_EVAL_POLL_INTERVAL_MS: string;
         readonly VITE_EVAL_POLL_MAX_DURATION_MS: string;
         readonly VITE_EVAL_RUN_BUTTON_LABEL: string;

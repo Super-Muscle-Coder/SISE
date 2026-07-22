@@ -7,9 +7,18 @@
  *                 lượng kết quả) — đọc từ Outlet context (lastSearchResponse,
  *                 do DashboardPage cung cấp), KHÔNG tự gọi API.
  *              2. Benchmark CLIP tổng thể (mrr/hit_rate/precision/recall)
- *                 — gọi GET /eval/metrics qua useEvalController(), CHỈ
- *                 admin xem được (theo đúng admin_authorization đã audit
- *                 Nhóm 4). Đây là bằng chứng học thuật chính cho báo cáo.
+ *                 — admin only.
+ *              SỬA: bổ sung nút "Run Evaluation" (POST /eval/run) — trước
+ *              đây chỉ có "Refresh Metrics" (GET /eval/metrics, thuần đọc
+ *              lại kết quả CŨ đã lưu). Phát hiện qua test thật: bảng
+ *              evaluation_runs/evaluation_metrics vừa tạo migration xong,
+ *              hoàn toàn trống — GET /eval/metrics trả về 0.0 cho cả 4 chỉ
+ *              số vì query không tìm thấy dòng nào với status='completed'.
+ *              PHẢI chạy POST /eval/run trước ít nhất 1 lần để có dữ liệu
+ *              thật, sau đó "Refresh Metrics" mới có ý nghĩa. Dùng
+ *              evalController.runEvaluation (đã có sẵn từ Nhóm 4, chưa
+ *              từng được UI gọi tới) — không cần sửa routers/services/
+ *              adapters, hạ tầng đã đủ.
  * @owner AG-04
  */
 
@@ -21,6 +30,22 @@ import type { DashboardOutletContext } from './HomePage'
 export function ResultPage(): React.ReactElement {
     const { lastSearchResponse } = useOutletContext<DashboardOutletContext>()
     const evalController = useEvalController()
+
+    const { runEvaluation, metrics, isAdminUser, isCheckingAdmin } = evalController
+
+    // Sau khi Run Evaluation hoàn tất (isRunning: true → false, có result),
+    // tự động refresh metrics 1 lần để hiển thị số liệu MỚI NHẤT ngay,
+    // không bắt người dùng phải tự bấm "Refresh Metrics" thêm 1 lần nữa.
+    const previousIsRunningRef = React.useRef(false)
+    React.useEffect(() => {
+        const justFinished = previousIsRunningRef.current && !runEvaluation.isRunning
+        previousIsRunningRef.current = runEvaluation.isRunning
+
+        if (justFinished && runEvaluation.result && !runEvaluation.isTimedOut) {
+            metrics.fetchMetrics()
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [runEvaluation.isRunning])
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-2xl)' }}>
@@ -64,6 +89,8 @@ export function ResultPage(): React.ReactElement {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         marginBottom: 'var(--spacing-base)',
+                        flexWrap: 'wrap',
+                        gap: 'var(--spacing-sm)',
                     }}
                 >
                     <h2
@@ -77,38 +104,82 @@ export function ResultPage(): React.ReactElement {
                         CLIP Model Benchmark
                     </h2>
 
-                    {evalController.isAdminUser && (
-                        <button
-                            type="button"
-                            onClick={() => evalController.metrics.fetchMetrics()}
-                            disabled={evalController.metrics.isLoading}
-                            style={{
-                                padding: 'var(--spacing-sm) var(--spacing-lg)',
-                                borderRadius: 'var(--radius-full)',
-                                border: 'none',
-                                backgroundColor: 'var(--color-brand-primary)',
-                                color: 'var(--color-text-inverted)',
-                                fontSize: 'var(--text-ui-button-size)',
-                                cursor: evalController.metrics.isLoading ? 'not-allowed' : 'pointer',
-                                opacity: evalController.metrics.isLoading ? 0.6 : 1,
-                            }}
-                        >
-                            {evalController.metrics.isLoading ? 'Loading...' : 'Refresh Metrics'}
-                        </button>
+                    {isAdminUser && (
+                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                            <button
+                                type="button"
+                                onClick={() => runEvaluation.run()}
+                                disabled={runEvaluation.isRunning}
+                                style={{
+                                    padding: 'var(--spacing-sm) var(--spacing-lg)',
+                                    borderRadius: 'var(--radius-full)',
+                                    border: 'none',
+                                    backgroundColor: runEvaluation.isRunning
+                                        ? 'var(--color-text-tertiary)'
+                                        : 'var(--color-brand-primary)',
+                                    color: 'var(--color-text-inverted)',
+                                    fontSize: 'var(--text-ui-button-size)',
+                                    cursor: runEvaluation.isRunning ? 'not-allowed' : 'pointer',
+                                }}
+                            >
+                                {runEvaluation.isRunning ? 'Running...' : 'Run Evaluation'}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => metrics.fetchMetrics()}
+                                disabled={metrics.isLoading}
+                                style={{
+                                    padding: 'var(--spacing-sm) var(--spacing-lg)',
+                                    borderRadius: 'var(--radius-full)',
+                                    border: '1px solid var(--color-brand-primary)',
+                                    backgroundColor: 'var(--color-bg-primary)',
+                                    color: 'var(--color-brand-primary)',
+                                    fontSize: 'var(--text-ui-button-size)',
+                                    cursor: metrics.isLoading ? 'not-allowed' : 'pointer',
+                                    opacity: metrics.isLoading ? 0.6 : 1,
+                                }}
+                            >
+                                {metrics.isLoading ? 'Loading...' : 'Refresh Metrics'}
+                            </button>
+                        </div>
                     )}
                 </div>
 
-                {evalController.isCheckingAdmin ? (
+                {/* Trạng thái đang chạy evaluation — hiển thị riêng, không
+                    lẫn với trạng thái lỗi/loading của metrics.fetchMetrics() */}
+                {runEvaluation.isRunning && (
+                    <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-base)' }}>
+                        Running evaluation — this samples indexed images and computes
+                        MRR/HitRate/Precision/Recall. May take a while for large datasets.
+                    </p>
+                )}
+
+                {runEvaluation.isTimedOut && (
+                    <p style={{ color: 'var(--color-semantic-error)', marginBottom: 'var(--spacing-base)' }}>
+                        Evaluation is taking longer than expected. It may still be running
+                        on the server — try "Refresh Metrics" again in a moment.
+                    </p>
+                )}
+
+                {runEvaluation.error && !runEvaluation.isTimedOut && (
+                    <p style={{ color: 'var(--color-semantic-error)', marginBottom: 'var(--spacing-base)' }}>
+                        {runEvaluation.error}
+                    </p>
+                )}
+
+                {isCheckingAdmin ? (
                     <p style={{ color: 'var(--color-text-secondary)' }}>Checking permissions...</p>
-                ) : !evalController.isAdminUser ? (
+                ) : !isAdminUser ? (
                     <p style={{ color: 'var(--color-text-secondary)' }}>
                         Benchmark metrics are only visible to admin accounts.
                     </p>
-                ) : evalController.metrics.error ? (
-                    <p style={{ color: 'var(--color-semantic-error)' }}>{evalController.metrics.error}</p>
-                ) : !evalController.metrics.metrics ? (
+                ) : metrics.error ? (
+                    <p style={{ color: 'var(--color-semantic-error)' }}>{metrics.error}</p>
+                ) : !metrics.metrics ? (
                     <p style={{ color: 'var(--color-text-secondary)' }}>
-                        No benchmark data yet — click "Refresh Metrics" to load.
+                        No benchmark data yet — click "Run Evaluation" first, then
+                        "Refresh Metrics" to load the results.
                     </p>
                 ) : (
                     <div
@@ -118,10 +189,10 @@ export function ResultPage(): React.ReactElement {
                             gap: 'var(--spacing-base)',
                         }}
                     >
-                        <MetricCard label="MRR" value={evalController.metrics.metrics.mrr.toFixed(4)} />
-                        <MetricCard label="Hit Rate" value={evalController.metrics.metrics.hit_rate.toFixed(4)} />
-                        <MetricCard label="Precision" value={evalController.metrics.metrics.precision.toFixed(4)} />
-                        <MetricCard label="Recall" value={evalController.metrics.metrics.recall.toFixed(4)} />
+                        <MetricCard label="MRR" value={metrics.metrics.mrr.toFixed(4)} />
+                        <MetricCard label="Hit Rate" value={metrics.metrics.hit_rate.toFixed(4)} />
+                        <MetricCard label="Precision" value={metrics.metrics.precision.toFixed(4)} />
+                        <MetricCard label="Recall" value={metrics.metrics.recall.toFixed(4)} />
                     </div>
                 )}
             </section>

@@ -274,7 +274,20 @@ export class ScaffoldAdapter {
         this.client.interceptors.response.use(
             (response) => response,
             async (error: AxiosError) => {
-                const config = error.config as InternalAxiosRequestConfig & { retryCount?: number }
+                const config = error.config as InternalAxiosRequestConfig & {
+                    retryCount?: number
+                    skipRetry?: boolean
+                }
+
+                // SỬA: đọc cờ skipRetry — 1 số request (vd POST /eval/run,
+                // không idempotent, mỗi lần gọi tạo 1 bản ghi mới trong DB)
+                // cần đánh dấu tường minh KHÔNG được tự động retry, để
+                // tránh kích hoạt nhiều lần thao tác trùng lặp phía Backend
+                // chỉ vì timeout ở tầng client trong khi Backend vẫn đang
+                // xử lý bình thường.
+                if (config?.skipRetry) {
+                    return Promise.reject(error)
+                }
 
                 // Initialize retry counter if not present
                 if (!config.retryCount) {

@@ -5,6 +5,7 @@ Admin Workflow Adapters
 from __future__ import annotations
 
 import logging
+import mimetypes
 from typing import Any, Optional
 
 import httpx
@@ -43,7 +44,7 @@ class AdminAdapter:
                 minio_bucket,
                 minio_object_name
             FROM images
-            WHERE (:resume_from IS NULL OR id > :resume_from::uuid)
+            WHERE (:resume_from IS NULL OR id > :resume_from)
               AND deleted_at IS NULL
             ORDER BY id
             LIMIT :batch_size
@@ -88,12 +89,17 @@ class AdminAdapter:
                 bucket_name=item["minio_bucket"],
                 object_name=item["minio_object_name"],
             )
-            filename = f'{item["image_id"]}.bin'
-            files_payload.append(("files", (filename, data, "application/octet-stream")))
+            # Dùng đúng tên file gốc (tách từ minio_object_name, ví dụ
+            # "raw-images/1/<uuid>/photo.jpg" -> "photo.jpg") thay vì tự
+            # chế "<image_id>.bin" — cần đuôi file thật để suy ra đúng
+            # content-type, tránh AIModule từ chối 400 ERR_INVALID_CONTENT_TYPE.
+            filename = item["minio_object_name"].split("/")[-1]
+            guessed_type, _ = mimetypes.guess_type(filename)
+            content_type = guessed_type or "image/jpeg"
+            files_payload.append(("files", (filename, data, content_type)))
 
         url = f"{self.ai_service_url}/inference/embed/batch"
         headers = {"Authorization": f"Bearer {bearer_token}"}
-
         async with httpx.AsyncClient(timeout=self.http_timeout_sec) as client:
             resp = await client.post(url, files=files_payload, headers=headers)
 
@@ -152,7 +158,7 @@ class AdminAdapter:
             """
             UPDATE images
             SET index_status = :status_value, updated_at = CURRENT_TIMESTAMP
-            WHERE id = :image_id::uuid
+            WHERE id = :image_id
             """
         )
         try:

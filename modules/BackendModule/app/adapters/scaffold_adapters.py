@@ -39,6 +39,7 @@ class ConfigLoader:
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             metrics_enabled=os.getenv("METRICS_ENABLED", "True").lower() == "true",
             health_check_timeout_sec=int(os.getenv("HEALTH_CHECK_TIMEOUT_SEC", "5")),
+            eval_max_images=int(os.getenv("EVAL_MAX_IMAGES", "100")),
         )
 
     @staticmethod

@@ -64,13 +64,20 @@ class EvaluationAdapter:
         limit: int,
         seed: Optional[int],
     ) -> list[dict[str, Any]]:
+        """
+        Lấy N ảnh ngẫu nhiên đã index xong (index_status='ready') để làm
+        query mẫu cho benchmark. Trả kèm tags/album_id ngay tại đây (thay
+        vì query riêng sau) để ground truth builder dùng luôn cho ảnh mẫu.
+        """
         if seed is None:
             stmt = text(
                 """
                 SELECT
                     id AS image_id,
                     minio_bucket,
-                    minio_object_name
+                    minio_object_name,
+                    album_id,
+                    tags
                 FROM images
                 WHERE index_status = 'ready'
                   AND deleted_at IS NULL
@@ -86,7 +93,9 @@ class EvaluationAdapter:
                 SELECT
                     id AS image_id,
                     minio_bucket,
-                    minio_object_name
+                    minio_object_name,
+                    album_id,
+                    tags
                 FROM images
                 WHERE index_status = 'ready'
                   AND deleted_at IS NULL
@@ -103,9 +112,52 @@ class EvaluationAdapter:
                 "image_id": str(r["image_id"]),
                 "minio_bucket": r["minio_bucket"],
                 "minio_object_name": r["minio_object_name"],
+                "album_id": r["album_id"],
+                "tags": r["tags"] if r["tags"] is not None else [],
             }
             for r in rows
         ]
+
+    async def fetch_metadata_for_images(
+        self,
+        image_ids: list[str],
+    ) -> dict[str, dict[str, Any]]:
+        """
+        Lấy tags/album_id cho MỘT LOẠT ảnh cùng lúc (1 câu SELECT duy
+        nhất, tránh N+1 query) — dùng để xây ground truth cho các ảnh
+        NẰM TRONG top_k kết quả search (khác ảnh mẫu, vốn đã có sẵn tags/
+        album_id từ fetch_ready_images_for_evaluation()).
+
+        Trả về dict {image_id: {"tags": [...], "album_id": ...}} để tra
+        cứu O(1) theo image_id khi build ground truth cho từng candidate.
+        """
+        if not image_ids:
+            return {}
+
+        stmt = text(
+            """
+            SELECT
+                id AS image_id,
+                album_id,
+                tags,
+                minio_object_name,
+                minio_bucket
+            FROM images
+            WHERE id = ANY(:image_ids)
+              AND deleted_at IS NULL
+            """
+        )
+        result = await self.db_session.execute(stmt, {"image_ids": image_ids})
+        rows = result.mappings().all()
+        return {
+            str(r["image_id"]): {
+                "album_id": r["album_id"],
+                "tags": r["tags"] if r["tags"] is not None else [],
+                "minio_object_name": r["minio_object_name"],
+                "minio_bucket": r["minio_bucket"],
+            }
+            for r in rows
+        }
 
     async def complete_evaluation_run(
         self,
@@ -119,7 +171,7 @@ class EvaluationAdapter:
         insert_metrics_stmt = text(
             """
             INSERT INTO evaluation_metrics (eval_id, mrr, hit_rate, precision, recall)
-            VALUES (:eval_id::uuid, :mrr, :hit_rate, :precision, :recall)
+            VALUES (:eval_id, :mrr, :hit_rate, :precision, :recall)
             ON CONFLICT (eval_id)
             DO UPDATE SET
                 mrr = EXCLUDED.mrr,
@@ -135,7 +187,7 @@ class EvaluationAdapter:
             SET status = 'completed',
                 query_count = :query_count,
                 completed_at = CURRENT_TIMESTAMP
-            WHERE eval_id = :eval_id::uuid
+            WHERE eval_id = :eval_id
             """
         )
         try:
@@ -165,7 +217,7 @@ class EvaluationAdapter:
             SET status = 'failed',
                 query_count = :query_count,
                 completed_at = CURRENT_TIMESTAMP
-            WHERE eval_id = :eval_id::uuid
+            WHERE eval_id = :eval_id
             """
         )
         try:
@@ -189,7 +241,7 @@ class EvaluationAdapter:
                 m.recall
             FROM evaluation_runs r
             LEFT JOIN evaluation_metrics m ON m.eval_id = r.eval_id
-            WHERE r.eval_id = :eval_id::uuid
+            WHERE r.eval_id = :eval_id
             """
         )
         result = await self.db_session.execute(stmt, {"eval_id": eval_id})

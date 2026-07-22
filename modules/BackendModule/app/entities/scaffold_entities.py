@@ -15,6 +15,7 @@ class AppConfig:
     log_level: str
     metrics_enabled: bool
     health_check_timeout_sec: int = 5
+    eval_max_images: int = 100
 
 
 @dataclass

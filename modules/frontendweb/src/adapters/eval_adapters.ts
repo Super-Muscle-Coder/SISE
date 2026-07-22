@@ -2,6 +2,21 @@
  * @file eval_adapters.ts
  * @layer adapters
  * @description Adapter layer for evaluation workflow (admin only).
+ *              SỬA (phát hiện Blocking khi test benchmark thật với
+ *              limit=500): runEvaluation() trước đây KHÔNG truyền config
+ *              riêng cho scaffoldAdapter.post(), nên dùng đúng
+ *              SCAFFOLD_CONFIG.API.timeoutMs mặc định (10000ms = 10s) —
+ *              nhưng POST /eval/run chạy ĐỒNG BỘ (data_schema.yaml xác
+ *              nhận: benchmark tính toán trong chính request, không dùng
+ *              Celery), và với limit=500 (tính embedding + so sánh cosine
+ *              similarity cho 500 ảnh), thời gian xử lý thực tế VƯỢT XA
+ *              10 giây — gây "Request timeout" ở tầng client dù Backend
+ *              vẫn đang xử lý bình thường (không log lỗi nào ở
+ *              Backend/AI/Storage, xác nhận qua Docker logs thật). Thêm
+ *              timeout RIÊNG cho endpoint này, đọc từ config mới
+ *              (EVAL_CONFIG.runTimeoutMs), tách khỏi timeout chung của
+ *              scaffoldAdapter — giống pattern đã dùng cho
+ *              searchByImage() (Nhóm 3) khi cần timeout khác mặc định.
  * @owner AG-04
  */
 
@@ -44,6 +59,18 @@ function normalizeEvalError(error: unknown, fallbackMessage: string): StandardEr
             }
         }
 
+        // SỬA: phân biệt rõ timeout thật (request quá lâu) với network
+        // error khác — trước đây cả 2 đều rơi vào cùng 1 message chung
+        // chung, khó chẩn đoán khi debug thật (đã xác nhận qua case thật:
+        // "Request timeout" hiển thị đúng nhưng dễ nhầm là network error).
+        if (error.code === 'ECONNABORTED') {
+            return {
+                code: 'ERR_EVAL_TIMEOUT',
+                message: `Evaluation is taking longer than ${EVAL_CONFIG.runTimeoutMs / 1000}s. It may still be running on the server — try "Refresh Metrics" again in a moment.`,
+                details: { httpStatus: status },
+            }
+        }
+
         const backendData = error.response?.data as Record<string, unknown> | undefined
         const backendCode = typeof backendData?.code === 'string' ? backendData.code : null
         const backendMessage = extractBackendMessage(backendData)
@@ -83,9 +110,22 @@ export class EvalAdapter {
         }
 
         try {
+            // SỬA: truyền timeout RIÊNG (EVAL_CONFIG.runTimeoutMs, mặc định
+            // 5 phút) VÀ tắt hẳn retry cho request này — POST /eval/run
+            // KHÔNG idempotent theo thiết kế thông thường (mỗi lần gọi tạo
+            // 1 bản ghi eval_id MỚI trong evaluation_runs, khác hẳn
+            // /media/upload-url có Idempotency-Key dedupe thật). Nếu để
+            // retry interceptor tự thử lại khi timeout, có thể kích hoạt
+            // NHIỀU lần chạy benchmark trùng lặp trong Backend (tối đa 4
+            // lần: 1 gốc + 3 retry, mỗi lần tới 5 phút = 20+ phút), làm
+            // nhiễu dữ liệu benchmark dùng cho báo cáo. skipRetry đọc bởi
+            // setupRetryInterceptor() (scaffold_adapters.ts) — request nào
+            // đánh dấu cờ này sẽ bỏ qua toàn bộ logic retry, chỉ thử đúng 1
+            // lần rồi báo lỗi ngay nếu thất bại.
             const response = await scaffoldAdapter.post<RunEvaluationResponse>(
                 EVAL_CONFIG.paths.run,
-                body
+                body,
+                { timeout: EVAL_CONFIG.runTimeoutMs, skipRetry: true } as never
             )
             return response.data
         } catch (error) {

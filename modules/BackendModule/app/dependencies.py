@@ -252,7 +252,7 @@ async def get_evaluation_service(
         ai_service_url=ai_service_url,
         vector_service_base_url=vector_service_base_url,
         http_timeout_sec=30,
-        eval_max_images=100,
+        eval_max_images=app_config.eval_max_images,
         top_k=10,
     )
 
