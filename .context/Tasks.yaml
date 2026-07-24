@@ -428,7 +428,7 @@ phase_3:
       title: "[workflow:indexing] Async embedding + indexing bundle + storage_vector endpoints (TÁCH RIÊNG, MỚI v1.2.0, MỞ RỘNG v1.2.1)"
       assigned_to: AG-03
       priority: P0
-      status: backlog
+      status: done
       description: >
         4 file gốc: indexing_entities.py, indexing_adapters.py,
         indexing_services.py, indexing_celery_tasks.py — KHÔNG gộp vào
@@ -633,7 +633,7 @@ phase_4:
       title: "[Web][workflow:evaluation] Evaluation dashboard bundle"
       assigned_to: AG-04
       priority: P1
-      status: backlog
+      status: done
       depends_on: [T004-02]
 
     - id: T004-08
@@ -776,7 +776,7 @@ phase_6:
       title: "[AG-03] Structural audit: BackendModule (REBUILD) — ĐẶC TẢ MỚI"
       assigned_to: AG-00
       priority: P0
-      status: backlog
+      status: done
       description: >
         Audit toàn diện bản REBUILD của BackendModule, SAU KHI Phase 3 mới
         hoàn thành. Checklist mở rộng so với v1.1.0, rút kinh nghiệm trực
@@ -822,7 +822,7 @@ phase_6:
       title: "[AG-04] Structural audit: FrontendWebModule"
       assigned_to: AG-00
       priority: P0
-      status: backlog
+      status: done
       depends_on: [T005-04]
       notes_to_ag00: >
         Khi tới lượt, cân nhắc đồng thời rà soát Clause E trong
@@ -834,7 +834,7 @@ phase_6:
       title: "[AG-00] Consolidate audit findings & issue list"
       assigned_to: AG-00
       priority: P0
-      status: backlog
+      status: done
       depends_on: [T006-01b, T006-03, T006-04]
 
 # ---------------------------------------------------------------------------
@@ -853,7 +853,7 @@ phase_7:
       title: "Docker Compose stack integration test"
       assigned_to: AG-00
       priority: P0
-      status: backlog
+      status: done
       depends_on: [T006-05]
 
     - id: T007-02
@@ -872,12 +872,12 @@ phase_7:
       title: "Performance benchmark & profiling"
       assigned_to: AG-00
       priority: P1
-      status: backlog
+      status: done
       depends_on: [T007-02]
 
     - id: T007-04
       title: "Demo preparation & graduation"
       assigned_to: AG-00
       priority: P0
-      status: backlog
+      status: done
       depends_on: [T007-03]

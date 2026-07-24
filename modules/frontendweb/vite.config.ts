@@ -42,6 +42,15 @@ export default defineConfig({
   build: {
     target: 'ES2020',           // ← Compile sang JavaScript ES2020
     outDir: 'dist',             // ← Output folder
-    minify: 'terser',           // ← Minify JS/CSS
+    minify: 'terser',           // ← Minify JS
+    // SỬA (lần 2): 'esbuild' làm cssMinify BÁO LỖI "Cannot find package
+    // esbuild" — bản vite v8.1.5 này không có sẵn esbuild trong
+    // node_modules (đang chuyển dần sang rolldown/oxc theo các warning
+    // build). Thay vì cài thêm gói giữa giai đoạn nước rút, tắt hẳn
+    // minify CSS (false) — build sẽ chạy được ngay, chỉ đánh đổi file
+    // CSS output lớn hơn 1 chút (không ảnh hưởng tính đúng đắn/tốc độ
+    // chạy của app, chỉ ảnh hưởng dung lượng tải xuống — chấp nhận được
+    // cho mục đích demo/bảo vệ đồ án).
+    cssMinify: false,
   },
 })

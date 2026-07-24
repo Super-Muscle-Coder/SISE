@@ -103,6 +103,15 @@ function normalizeEvalError(error: unknown, fallbackMessage: string): StandardEr
 }
 
 export class EvalAdapter {
+    /**
+     * POST /eval/run — SỬA: response giờ trả ĐẦY ĐỦ (4 chỉ số cốt lõi +
+     * breakdown_by_class + cross_class_confusion_matrix +
+     * misclassified_queries) sau khi AG-03 thiết kế lại ground truth theo
+     * tag-class (trước đây self-retrieval). Kiểu trả về RunEvaluationResponse
+     * đã mở rộng tương ứng trong eval_entities.ts — logic gọi API ở đây
+     * KHÔNG đổi (timeout riêng + skipRetry vẫn giữ nguyên từ lần sửa
+     * trước, vì endpoint vẫn chạy đồng bộ, thời gian xử lý không đổi).
+     */
     async runEvaluation(payload?: RunEvaluationRequest): Promise<RunEvaluationResponse> {
         const body: RunEvaluationRequest = {
             limit: payload?.limit ?? EVAL_CONFIG.runDefaultLimit,

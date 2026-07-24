@@ -63,7 +63,7 @@ info:
 #     AIModule đã đóng — chỉ đổi nội dung phần tử, không đổi field name).
 #     AIModule (Clause C, đã khóa) cần 1 vòng vá nhỏ để trả đúng shape mới.
 
-  version: 1.2.3
+version: 1.2.3
 servers:
   - url: http://localhost:8000
     description: "Local development gateway (FastAPI) — [implemented_by: D]"

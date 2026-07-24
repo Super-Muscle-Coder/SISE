@@ -152,7 +152,16 @@ class EvaluationService:
         self,
         vector: list[float],
         bearer_token: str,
-    ) -> list[str]:
+    ) -> list[dict[str, Any]]:
+        """
+        Trả về list các dict {"image_id": str, "score": float} theo đúng
+        thứ tự rank (vị trí 0 = hạng 1). Giữ lại "score" (cosine similarity,
+        thang 0.0-1.0, đúng field SearchResultItem.score đã dùng nhất
+        quán ở workflow search) — cần cho Frontend vẽ biểu đồ phân bố
+        score trong misclassified_queries.top_k_results (yêu cầu bổ sung
+        từ AG-04, không đổi ý nghĩa/đơn vị score so với các nơi khác
+        trong hệ thống).
+        """
         url = f"{self.vector_service_base_url}/vector/search/hybrid"
         payload = {
             "vector": vector,
@@ -169,12 +178,13 @@ class EvaluationService:
 
         data = resp.json()
         items = data.get("results", [])
-        ranked_ids: list[str] = []
+        ranked_results: list[dict[str, Any]] = []
         for item in items:
             image_id = item.get("image_id")
-            if isinstance(image_id, str):
-                ranked_ids.append(image_id)
-        return ranked_ids
+            score = item.get("score")
+            if isinstance(image_id, str) and isinstance(score, (int, float)):
+                ranked_results.append({"image_id": image_id, "score": float(score)})
+        return ranked_results
 
     # ===== GIỮ NGUYÊN CÔNG THỨC (không đổi theo yêu cầu Project Owner) =====
     def compute_mrr(self, query_results: list[dict[str, Any]], k: int) -> float:
@@ -353,10 +363,20 @@ class EvaluationService:
                     filename=filename,
                     bearer_token=bearer_token,
                 )
-                ranked_ids = await self._search_hybrid(
+                search_results = await self._search_hybrid(
                     vector=vector,
                     bearer_token=bearer_token,
                 )
+                # Tách 2 cấu trúc từ search_results (list[{"image_id","score"}]):
+                #   - ranked_ids: list[str] THUẦN TÚY, giữ đúng thứ tự rank —
+                #     dùng cho compute_mrr/hit_rate/precision/recall (GIỮ
+                #     NGUYÊN không đổi, đúng yêu cầu Project Owner).
+                #   - ranked_scores: dict tra cứu score theo image_id — dùng
+                #     riêng khi build misclassified_queries.top_k_results
+                #     (yêu cầu bổ sung từ AG-04, không ảnh hưởng 4 công thức
+                #     chỉ số cốt lõi).
+                ranked_ids = [r["image_id"] for r in search_results]
+                ranked_scores = {r["image_id"]: r["score"] for r in search_results}
 
                 relevant_ids, metadata_map = await self._build_ground_truth_for_query(
                     query_image_id=image_id,
@@ -408,6 +428,7 @@ class EvaluationService:
                 query_results.append(
                     {
                         "ranked_ids": ranked_ids,
+                        "ranked_scores": ranked_scores,
                         "relevant_ids": relevant_ids,
                         "query_tag_label": query_tag_label,
                         "query_image_id": image_id,
@@ -537,6 +558,7 @@ class EvaluationService:
                             "rank": rank,
                             "image_id": candidate_id,
                             "minio_url": candidate_url,
+                            "score": qr["ranked_scores"].get(candidate_id),
                             "is_relevant": candidate_id in qr["relevant_ids"],
                         }
                     )

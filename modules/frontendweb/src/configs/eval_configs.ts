@@ -41,7 +41,7 @@ export const EVAL_CONFIG = {
      * eval_id mới, retry tự động khi timeout có thể gây benchmark chạy
      * trùng lặp nhiều lần.
      */
-    runTimeoutMs: getEnvNumberWithDefault('VITE_EVAL_RUN_TIMEOUT_MS', 300000),
+    runTimeoutMs: getEnvNumberWithDefault('VITE_EVAL_RUN_TIMEOUT_MS', 600000),
 
     /**
      * [UI-ONLY] /eval/run trả 202 (bất đồng bộ, status "running"). Hợp đồng
