@@ -17,6 +17,7 @@ interface DashboardLayoutProps {
     children: React.ReactNode;
     activeNavItem: DashboardNavItem;
     onNavigate: (item: DashboardNavItem) => void;
+    searchMode: 'text' | 'image' | null;
     searchQuery: string;
     isSearchLoading: boolean;
     searchResults: SearchResultItem[];
@@ -30,6 +31,7 @@ export function DashboardLayout({
     children,
     activeNavItem,
     onNavigate,
+    searchMode,
     searchQuery,
     isSearchLoading,
     searchResults,
@@ -44,6 +46,7 @@ export function DashboardLayout({
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <DashboardHeader
+                    mode={searchMode}
                     query={searchQuery}
                     isLoading={isSearchLoading}
                     results={searchResults}

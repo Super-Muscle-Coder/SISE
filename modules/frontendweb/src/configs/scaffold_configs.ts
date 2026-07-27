@@ -25,9 +25,24 @@ export const SCAFFOLD_CONFIG = {
         baseUrl: getEnvVarWithDefault('VITE_API_BASE_URL', 'http://localhost:8000'),
         // [CONTRACT] data_schema.yaml global_configs.default_timeout_ms
         timeoutMs: getEnvNumberWithDefault('VITE_API_TIMEOUT_MS', 10000),
-        defaultHeaders: {
-            'Content-Type': 'application/json',
-        },
+        // SỬA (Blocking, phát hiện qua debug search-by-image thật):
+        // TRƯỚC ĐÂY defaultHeaders = {'Content-Type': 'application/json'}
+        // ép CỨNG cho MỌI request qua scaffoldAdapter, kể cả khi gửi
+        // FormData (search-by-image, upload). Axios chỉ TỰ ĐỘNG set đúng
+        // Content-Type theo kiểu dữ liệu (JSON → application/json,
+        // FormData → multipart/form-data; boundary=...) KHI header đó
+        // CHƯA bị set sẵn từ nơi khác — nếu đã có giá trị cứng, axios
+        // không ghi đè, dẫn tới FormData bị gửi kèm sai Content-Type
+        // "application/json". Backend nhận request không parse được
+        // multipart, báo lỗi 422 "file field required" dù thực tế file
+        // đã được đính kèm đúng. Đây là 1 dạng khác của bug Content-Type
+        // đã từng gặp ở search_adapters.ts (Nhóm 3, đã sửa header tự set
+        // thủ công thiếu boundary) — lần này nằm ở tầng THẤP HƠN
+        // (axios.create() mặc định toàn cục), ảnh hưởng MỌI request
+        // FormData trong hệ thống, không chỉ riêng search-by-image.
+        // Xóa hẳn defaultHeaders — để axios tự quyết định đúng theo từng
+        // request, không ép cứng ở tầng transport chung.
+        defaultHeaders: {} as Record<string, string>,
     } as const,
 
     /**

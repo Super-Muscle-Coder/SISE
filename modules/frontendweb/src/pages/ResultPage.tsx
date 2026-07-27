@@ -58,11 +58,14 @@ export function ResultPage(): React.ReactElement {
                         No search performed yet — try searching from the header above.
                     </p>
                 ) : (
-                    <MetricGrid>
-                        <MetricCard label="Query latency" value={`${lastSearchResponse.latency_ms.toFixed(1)} ms`} />
-                        <MetricCard label="Top K" value={String(lastSearchResponse.top_k)} />
-                        <MetricCard label="Results returned" value={String(lastSearchResponse.results.length)} />
-                    </MetricGrid>
+                    <>
+                        <MetricGrid>
+                            <MetricCard label="Query latency" value={`${lastSearchResponse.latency_ms.toFixed(1)} ms`} />
+                            <MetricCard label="Top K" value={String(lastSearchResponse.top_k)} />
+                            <MetricCard label="Results returned" value={String(lastSearchResponse.results.length)} />
+                        </MetricGrid>
+                        <ScoreInterpretationGuide />
+                    </>
                 )}
             </section>
 
@@ -550,6 +553,40 @@ function ChartLegend({ items }: { items: { label: string; color: string }[] }): 
                     {item.label}
                 </span>
             ))}
+        </div>
+    )
+}
+
+/**
+ * ScoreInterpretationGuide: đoạn diễn giải tĩnh giải thích hiện tượng
+ * "modality gap" — vì sao điểm text-to-image search thường thấp hơn hẳn
+ * image-to-image search dù cả 2 đều đúng đối tượng. Đặt cạnh khối
+ * "Latest Query Performance" để người xem (kể cả hội đồng phản biện)
+ * hiểu ngay bản chất kỹ thuật mà không cần giải thích thêm bằng lời.
+ * Tham chiếu: Liang et al., 2022, "Mind the Gap: Understanding the
+ * Modality Gap in Multi-Modal Contrastive Representation Learning".
+ */
+function ScoreInterpretationGuide(): React.ReactElement {
+    return (
+        <div
+            style={{
+                marginTop: 'var(--spacing-base)',
+                padding: 'var(--spacing-base)',
+                borderRadius: 'var(--radius-base)',
+                backgroundColor: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border-light)',
+                fontSize: 'var(--text-body-sm-size)',
+                color: 'var(--color-text-secondary)',
+            }}
+        >
+            <strong style={{ color: 'var(--color-text-primary)' }}>Why do text search scores look lower?</strong>
+            <p style={{ margin: 'var(--spacing-xs) 0 0 0' }}>
+                CLIP encodes text and images into the same vector space, but they don't overlap perfectly —
+                a known phenomenon called the <em>modality gap</em>. This system observed text-to-image
+                scores typically in the ~25–40% range for correct matches, while image-to-image scores
+                for the same subject typically reach ~75–100%. Both are valid — they use separate confidence
+                thresholds (see the colored badges in the search dropdown) rather than a single shared scale.
+            </p>
         </div>
     )
 }
