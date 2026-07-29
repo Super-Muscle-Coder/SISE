@@ -74,6 +74,8 @@
     <Compile Include="app\services\__init__.py" />
     <Compile Include="app\__init__.py" />
     <Compile Include="backend_main.py" />
+    <Compile Include="benchmark_external\download_flickr30k.py" />
+    <Compile Include="benchmark_external\run_benchmark.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="app\" />
@@ -91,6 +93,7 @@
     <Folder Include="documents\search_workflow\" />
     <Folder Include="documents\upload_workflow\" />
     <Folder Include="documents\scaffold_workflow\" />
+    <Folder Include="benchmark_external\" />
     <Folder Include="scripts\" />
     <Folder Include="tests\" />
   </ItemGroup>

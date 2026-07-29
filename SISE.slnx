@@ -5,6 +5,8 @@
     <File Path=".context/DOS.md" />
     <File Path=".context/openapi.yaml" />
     <File Path=".context/Tasks.yaml" />
+    <File Path="A.md" />
+    <File Path="B.md" />
   </Folder>
   <Folder Name="/.context/Sessions/">
     <File Path=".context/Sessions/report_template.md" />
