@@ -1,0 +1,321 @@
+{
+  "run_info": {
+    "started_at": "2026-07-29T22:37:52",
+    "ai_service_url": "http://localhost:8001",
+    "top_k_default": 10,
+    "k_values_computed": [
+      1,
+      5,
+      10
+    ]
+  },
+  "dataset_info": {
+    "name": "Flickr30K (subset, Karpathy test split via nlphuji/flickr30k)",
+    "sample_size": 1000,
+    "total_captions": 5000
+  },
+  "image_to_text": {
+    "metrics_by_k": {
+      "1": {
+        "mrr": 0.775,
+        "hit_rate": 0.775,
+        "precision": 0.775,
+        "recall": 0.155
+      },
+      "5": {
+        "mrr": 0.8416,
+        "hit_rate": 0.943,
+        "precision": 0.5738,
+        "recall": 0.5738
+      },
+      "10": {
+        "mrr": 0.8459595238095239,
+        "hit_rate": 0.977,
+        "precision": 0.3594,
+        "recall": 0.7188
+      }
+    },
+    "rank_distribution": {
+      "rank_1": {
+        "count": 775,
+        "percentage": 77.5
+      },
+      "rank_2_5": {
+        "count": 168,
+        "percentage": 16.8
+      },
+      "rank_6_10": {
+        "count": 34,
+        "percentage": 3.4
+      },
+      "rank_11_plus": {
+        "count": 23,
+        "percentage": 2.3
+      },
+      "not_found_in_results": {
+        "count": 0,
+        "percentage": 0.0
+      }
+    },
+    "mrr_std": 0.2976247423800151,
+    "mrr_confidence_interval_95": {
+      "lower": 0.827677380952381,
+      "upper": 0.8637734126984127,
+      "mean": 0.8460340742063492
+    }
+  },
+  "text_to_image": {
+    "metrics_by_k": {
+      "1": {
+        "mrr": 0.569,
+        "hit_rate": 0.569,
+        "precision": 0.569,
+        "recall": 0.569
+      },
+      "5": {
+        "mrr": 0.6731466666666667,
+        "hit_rate": 0.8326,
+        "precision": 0.16652,
+        "recall": 0.8326
+      },
+      "10": {
+        "mrr": 0.6823169047619048,
+        "hit_rate": 0.9,
+        "precision": 0.09,
+        "recall": 0.9
+      }
+    },
+    "rank_distribution": {
+      "rank_1": {
+        "count": 2845,
+        "percentage": 56.9
+      },
+      "rank_2_5": {
+        "count": 1318,
+        "percentage": 26.36
+      },
+      "rank_6_10": {
+        "count": 337,
+        "percentage": 6.74
+      },
+      "rank_11_plus": {
+        "count": 500,
+        "percentage": 10.0
+      },
+      "not_found_in_results": {
+        "count": 0,
+        "percentage": 0.0
+      }
+    },
+    "mrr_std": 0.38651408184701214,
+    "mrr_confidence_interval_95": {
+      "lower": 0.6711046825396826,
+      "upper": 0.6931175396825398,
+      "mean": 0.6821109372222223
+    }
+  },
+  "latency": {
+    "image_embed": {
+      "p50": 554.4955999994272,
+      "p95": 636.7835000000923,
+      "p99": 730.8799000002182,
+      "mean": 482.2881743000489,
+      "std": 159.9491453579536
+    },
+    "text_embed": {
+      "p50": 516.2402000005386,
+      "p95": 573.5357999983535,
+      "p99": 632.8940999992483,
+      "mean": 466.55179614000076,
+      "std": 134.1705686892888
+    },
+    "similarity_computation_ms": {
+      "image_to_text": 135.952,
+      "text_to_image": 65.36
+    }
+  },
+  "own_dataset_comparison": {
+    "mrr": 0.4906,
+    "hit_rate": 0.996,
+    "precision": 0.8127,
+    "recall": 0.996,
+    "query_count": 1000,
+    "top1_cross_class_confusion_rate": 0.053,
+    "note": "1000 ảnh / 20 danh tính. Cập nhật file này sau mỗi lần chạy POST /eval/run mới trên BackendModule — KHÔNG cần sửa code run_benchmark.py.",
+    "breakdown_by_class": {
+      "jack ma": {
+        "n": 50,
+        "mrr": 0.51,
+        "hit_rate": 1.0,
+        "precision": 0.9,
+        "recall": 1.0,
+        "confusion_pct": 0.0
+      },
+      "talor swift": {
+        "n": 50,
+        "mrr": 0.5,
+        "hit_rate": 1.0,
+        "precision": 0.896,
+        "recall": 1.0,
+        "confusion_pct": 0.0
+      },
+      "thomas anders": {
+        "n": 50,
+        "mrr": 0.5,
+        "hit_rate": 1.0,
+        "precision": 0.896,
+        "recall": 1.0,
+        "confusion_pct": 0.0
+      },
+      "cindy kimberly": {
+        "n": 50,
+        "mrr": 0.51,
+        "hit_rate": 1.0,
+        "precision": 0.896,
+        "recall": 1.0,
+        "confusion_pct": 0.0
+      },
+      "steven jobs": {
+        "n": 50,
+        "mrr": 0.5,
+        "hit_rate": 1.0,
+        "precision": 0.894,
+        "recall": 1.0,
+        "confusion_pct": 0.0
+      },
+      "khoai lang thang": {
+        "n": 50,
+        "mrr": 0.52,
+        "hit_rate": 1.0,
+        "precision": 0.892,
+        "recall": 1.0,
+        "confusion_pct": 0.0
+      },
+      "rosé": {
+        "n": 50,
+        "mrr": 0.5,
+        "hit_rate": 1.0,
+        "precision": 0.89,
+        "recall": 1.0,
+        "confusion_pct": 0.0
+      },
+      "elon musk": {
+        "n": 50,
+        "mrr": 0.5,
+        "hit_rate": 1.0,
+        "precision": 0.884,
+        "recall": 1.0,
+        "confusion_pct": 0.0
+      },
+      "christiano ronaldo": {
+        "n": 50,
+        "mrr": 0.5,
+        "hit_rate": 1.0,
+        "precision": 0.876,
+        "recall": 1.0,
+        "confusion_pct": 0.0
+      },
+      "patrick bateman": {
+        "n": 50,
+        "mrr": 0.497,
+        "hit_rate": 1.0,
+        "precision": 0.876,
+        "recall": 1.0,
+        "confusion_pct": 2.0
+      },
+      "lionel messi": {
+        "n": 50,
+        "mrr": 0.483,
+        "hit_rate": 0.98,
+        "precision": 0.868,
+        "recall": 0.98,
+        "confusion_pct": 4.0
+      },
+      "mark zakerberk": {
+        "n": 50,
+        "mrr": 0.5,
+        "hit_rate": 1.0,
+        "precision": 0.868,
+        "recall": 1.0,
+        "confusion_pct": 0.0
+      },
+      "michael jackson": {
+        "n": 50,
+        "mrr": 0.502,
+        "hit_rate": 1.0,
+        "precision": 0.858,
+        "recall": 1.0,
+        "confusion_pct": 4.0
+      },
+      "liu wan": {
+        "n": 50,
+        "mrr": 0.482,
+        "hit_rate": 0.98,
+        "precision": 0.846,
+        "recall": 0.98,
+        "confusion_pct": 6.0
+      },
+      "tom shelby": {
+        "n": 50,
+        "mrr": 0.497,
+        "hit_rate": 1.0,
+        "precision": 0.838,
+        "recall": 1.0,
+        "confusion_pct": 2.0
+      },
+      "lisa": {
+        "n": 50,
+        "mrr": 0.5,
+        "hit_rate": 1.0,
+        "precision": 0.8,
+        "recall": 1.0,
+        "confusion_pct": 4.0
+      },
+      "group of people": {
+        "n": 50,
+        "mrr": 0.492,
+        "hit_rate": 1.0,
+        "precision": 0.706,
+        "recall": 1.0,
+        "confusion_pct": 2.0
+      },
+      "faker": {
+        "n": 50,
+        "mrr": 0.462,
+        "hit_rate": 1.0,
+        "precision": 0.586,
+        "recall": 1.0,
+        "confusion_pct": 20.0
+      },
+      "gumayusi": {
+        "n": 50,
+        "mrr": 0.451,
+        "hit_rate": 1.0,
+        "precision": 0.5,
+        "recall": 1.0,
+        "confusion_pct": 26.0
+      },
+      "keria": {
+        "n": 50,
+        "mrr": 0.408,
+        "hit_rate": 0.96,
+        "precision": 0.484,
+        "recall": 0.96,
+        "confusion_pct": 36.0
+      }
+    }
+  },
+  "reference_benchmarks": {
+    "clip_paper_mscoco_rn50_zeroshot_r1_i2t": 0.4806,
+    "clip_paper_mscoco_rn50_zeroshot_r1_t2i": 0.2831,
+    "andrespmd_flickr30k_zeroshot_r1_i2t": 0.36,
+    "andrespmd_flickr30k_zeroshot_r1_t2i": 0.558,
+    "andrespmd_mscoco1k_zeroshot_r1_i2t": 0.261,
+    "andrespmd_mscoco1k_zeroshot_r1_t2i": 0.48
+  },
+  "evidence_files": {
+    "raw_events_jsonl": "raw_events.jsonl",
+    "embeddings_cache_npz": "embeddings_cache.npz",
+    "docker_stats_log_jsonl": "docker_stats_log.jsonl"
+  }
+}

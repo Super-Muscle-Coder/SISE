@@ -1,0 +1,17 @@
+{
+  "dataset_info": {
+    "name": "Dataset tự thân (1000 ảnh / 20 danh tính)",
+    "sample_size_requested": 1000,
+    "sample_size_actual": 1000,
+    "successful_measurements": 1000,
+    "errors": 0
+  },
+  "latency": {
+    "p50": 571.4866999987862,
+    "p95": 757.7683999988949,
+    "p99": 963.22080000391,
+    "mean": 523.4813297999644,
+    "std": 191.15274119027467
+  },
+  "measured_at": "2026-07-30T09:35:43"
+}

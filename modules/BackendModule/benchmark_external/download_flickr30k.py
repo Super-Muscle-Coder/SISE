@@ -8,21 +8,28 @@ BackendModule). Quyết định kiến trúc: dataset công khai chỉ dùng đ�
 kiểm nghiệm khoa học, không mô phỏng hành vi người dùng thật của hệ
 thống — xem ghi chú bàn bạc với Project Owner.
 
-Nguồn dữ liệu: nlphuji/flickr30k trên Hugging Face — xác nhận cấu trúc
-thật qua tài liệu chính thức (KHÔNG đoán từ trí nhớ):
-  - Chỉ có 1 split "test" (31,014 ảnh) trên Hugging Face Hub.
-  - Field: image (PIL.Image), caption (list[str], nhiều caption/ảnh —
-    thường 5 caption tiếng Anh do con người viết), filename, img_id,
-    sentids, split (cột nội bộ đánh dấu train/val/test theo Karpathy
-    split gốc — KHÁC với HF split, không dùng cột này để lọc).
+Nguồn dữ liệu: nlphuji/flickr30k trên Hugging Face.
+
+LƯU Ý KỸ THUẬT QUAN TRỌNG (đã xác nhận qua thực nghiệm thật, không phải
+suy đoán): kể từ datasets>=4.0.0, thư viện Hugging Face 'datasets' đã
+LOẠI BỎ HOÀN TOÀN cơ chế "dataset loading script" (file flickr30k.py mà
+repo này dùng) — datasets.load_dataset("nlphuji/flickr30k", ...) sẽ
+raise RuntimeError: "Dataset scripts are no longer supported". Đây là
+breaking change vĩnh viễn từ phía Hugging Face, KHÔNG PHẢI lỗi máy/môi
+trường. Giải pháp: tải trực tiếp 2 file thô mà chính repo này cung cấp
+sẵn (xác nhận qua file listing thật của nlphuji/flickr30k):
+  - flickr_annotations_30k.csv (12.9 MB) — chứa caption + tên file ảnh
+  - flickr30k-images.zip (4.39 GB) — toàn bộ ảnh gốc, nén ZIP
+Dùng huggingface_hub.hf_hub_download() để tải 2 file này (không qua
+datasets.load_dataset()), tự giải nén ZIP + parse CSV bằng pandas.
 
 Cách chạy:
-    pip install datasets pillow --break-system-packages
+    pip install huggingface_hub pandas pillow --break-system-packages
     python download_flickr30k.py --sample_size 1000 --seed 42
 
 Output:
     benchmark_external/data/flickr30k_sample/
-        images/<img_id>.jpg          <- ảnh đã lấy mẫu, lưu ra đĩa cục bộ
+        images/<img_id>.jpg          <- ảnh đã lấy mẫu
         metadata.json                 <- {img_id: {filename, captions: [...]}}
 """
 
@@ -32,6 +39,7 @@ import argparse
 import json
 import logging
 import random
+import zipfile
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -40,64 +48,106 @@ logger = logging.getLogger(__name__)
 OUTPUT_DIR = Path(__file__).parent / "data" / "flickr30k_sample"
 IMAGES_DIR = OUTPUT_DIR / "images"
 METADATA_PATH = OUTPUT_DIR / "metadata.json"
+RAW_CACHE_DIR = Path(__file__).parent / "data" / "raw_cache"
+
+REPO_ID = "nlphuji/flickr30k"
+ANNOTATIONS_FILENAME = "flickr_annotations_30k.csv"
+IMAGES_ZIP_FILENAME = "flickr30k-images.zip"
+
+
+def download_raw_files() -> tuple[Path, Path]:
+    """Tải 2 file thô (CSV annotation + ZIP ảnh) trực tiếp từ Hugging
+    Face Hub bằng hf_hub_download() — KHÔNG dùng datasets.load_dataset()
+    vì cơ chế loading script của repo này đã bị deprecated vĩnh viễn."""
+    try:
+        from huggingface_hub import hf_hub_download
+    except ImportError as exc:
+        raise RuntimeError(
+            "Thiếu thư viện 'huggingface_hub'. Cài đặt bằng: "
+            "pip install huggingface_hub pandas pillow --break-system-packages"
+        ) from exc
+
+    RAW_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    logger.info("Đang tải %s (annotation, ~13MB)...", ANNOTATIONS_FILENAME)
+    csv_path = hf_hub_download(
+        repo_id=REPO_ID,
+        filename=ANNOTATIONS_FILENAME,
+        repo_type="dataset",
+        local_dir=str(RAW_CACHE_DIR),
+    )
+
+    logger.info("Đang tải %s (ảnh, ~4.4GB — có thể mất vài phút)...", IMAGES_ZIP_FILENAME)
+    zip_path = hf_hub_download(
+        repo_id=REPO_ID,
+        filename=IMAGES_ZIP_FILENAME,
+        repo_type="dataset",
+        local_dir=str(RAW_CACHE_DIR),
+    )
+
+    return Path(csv_path), Path(zip_path)
 
 
 def download_and_sample(sample_size: int, seed: int) -> None:
     try:
-        from datasets import load_dataset
+        import pandas as pd
     except ImportError as exc:
         raise RuntimeError(
-            "Thiếu thư viện 'datasets'. Cài đặt bằng: "
-            "pip install datasets pillow --break-system-packages"
+            "Thiếu thư viện 'pandas'. Cài đặt bằng: "
+            "pip install huggingface_hub pandas pillow --break-system-packages"
         ) from exc
 
     IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
-    logger.info("Đang tải Flickr30K từ Hugging Face (nlphuji/flickr30k, split=test)...")
-    # streaming=True: KHÔNG tải toàn bộ 31k ảnh (~4GB) về đĩa trước —
-    # chỉ tải đúng số lượng ảnh cần lấy mẫu, tiết kiệm thời gian/dung
-    # lượng đáng kể so với tải nguyên dataset rồi mới lọc.
-    dataset = load_dataset("nlphuji/flickr30k", split="test", streaming=True)
+    csv_path, zip_path = download_raw_files()
 
-    # Vì dataset ở dạng streaming (IterableDataset), không thể random-index
-    # trực tiếp. Dùng reservoir sampling để lấy mẫu ngẫu nhiên KHÔNG cần
-    # duyệt hết 31k ảnh trước (dừng sớm sau khi đã thu đủ 1 buffer lớn
-    # hơn sample_size, đảm bảo tính ngẫu nhiên đồng đều qua toàn bộ dataset).
+    logger.info("Đang đọc annotation CSV...")
+    df = pd.read_csv(csv_path)
+    # Xác nhận cấu trúc cột thật của flickr_annotations_30k.csv trước khi
+    # dùng — file này có cột "raw" (chuỗi list caption dạng string hoặc
+    # JSON-like) và "filename". Parse phòng thủ cả 2 khả năng.
+    logger.info("Các cột có trong CSV: %s", list(df.columns))
+
     random.seed(seed)
-    reservoir: list[dict] = []
-    scan_limit = max(sample_size * 5, 3000)  # quét đủ rộng để đảm bảo tính ngẫu nhiên
+    total_rows = len(df)
+    sample_indices = random.sample(range(total_rows), min(sample_size, total_rows))
+    df_sample = df.iloc[sample_indices]
 
-    for idx, item in enumerate(dataset):
-        if idx >= scan_limit:
-            break
-        if len(reservoir) < sample_size:
-            reservoir.append(item)
-        else:
-            replace_idx = random.randint(0, idx)
-            if replace_idx < sample_size:
-                reservoir[replace_idx] = item
-        if (idx + 1) % 1000 == 0:
-            logger.info("Đã quét %d/%d ảnh...", idx + 1, scan_limit)
+    logger.info("Đang giải nén %d ảnh cần thiết từ ZIP (%s)...", len(df_sample), zip_path)
+    filenames_needed = set(df_sample["filename"].astype(str))
 
-    if len(reservoir) < sample_size:
-        logger.warning(
-            "Chỉ lấy được %d/%d ảnh (dataset có thể ít hơn scan_limit).",
-            len(reservoir), sample_size,
-        )
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        zip_namelist = zf.namelist()
+        # Ảnh trong ZIP thường nằm trong 1 thư mục con (ví dụ
+        # "flickr30k-images/xxxx.jpg") — tìm đúng đường dẫn thật bằng
+        # cách khớp phần đuôi tên file, không giả định cấu trúc thư mục.
+        name_lookup = {Path(n).name: n for n in zip_namelist if not n.endswith("/")}
 
-    logger.info("Đã lấy mẫu %d ảnh. Đang lưu ra đĩa...", len(reservoir))
+        extracted_count = 0
+        for fname in filenames_needed:
+            zip_internal_name = name_lookup.get(fname)
+            if zip_internal_name is None:
+                logger.warning("Không tìm thấy %s trong ZIP, bỏ qua.", fname)
+                continue
+            target_path = IMAGES_DIR / fname
+            with zf.open(zip_internal_name) as src, open(target_path, "wb") as dst:
+                dst.write(src.read())
+            extracted_count += 1
+            if extracted_count % 100 == 0:
+                logger.info("  Đã giải nén %d/%d ảnh...", extracted_count, len(filenames_needed))
 
+    logger.info("Đã giải nén %d ảnh.", extracted_count)
+
+    logger.info("Đang xây dựng metadata.json...")
     metadata: dict[str, dict] = {}
-    for item in reservoir:
-        img_id = str(item["img_id"])
-        image = item["image"]
-        captions = list(item["caption"])
-        filename = f"{img_id}.jpg"
+    for _, row in df_sample.iterrows():
+        filename = str(row["filename"])
+        if not (IMAGES_DIR / filename).exists():
+            continue
 
-        image_path = IMAGES_DIR / filename
-        if image.mode != "RGB":
-            image = image.convert("RGB")
-        image.save(image_path, format="JPEG", quality=90)
+        img_id = Path(filename).stem
+        raw_captions = row.get("raw", row.get("caption", row.get("captions", "")))
+        captions = _parse_captions(raw_captions)
 
         metadata[img_id] = {
             "filename": filename,
@@ -114,6 +164,41 @@ def download_and_sample(sample_size: int, seed: int) -> None:
         "Tổng số ảnh: %d, tổng số caption: %d",
         len(metadata), sum(len(v["captions"]) for v in metadata.values()),
     )
+
+
+def _parse_captions(raw_value) -> list[str]:
+    """
+    Cột caption trong flickr_annotations_30k.csv có thể ở nhiều định
+    dạng tùy phiên bản file (chuỗi Python-list-literal, JSON array, hoặc
+    đã là list thật nếu pandas tự parse) — xử lý phòng thủ cả 3 trường
+    hợp thay vì giả định 1 định dạng cố định.
+    """
+    if isinstance(raw_value, list):
+        return [str(c) for c in raw_value]
+
+    text = str(raw_value).strip()
+    if not text:
+        return []
+
+    # Thử parse như Python literal list trước (ví dụ "['a caption', 'b caption']")
+    try:
+        import ast
+        parsed = ast.literal_eval(text)
+        if isinstance(parsed, list):
+            return [str(c) for c in parsed]
+    except (ValueError, SyntaxError):
+        pass
+
+    # Thử parse như JSON
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return [str(c) for c in parsed]
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: coi toàn bộ chuỗi là 1 caption duy nhất
+    return [text]
 
 
 def main() -> None:
