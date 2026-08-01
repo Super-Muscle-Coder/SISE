@@ -37,6 +37,10 @@ EMBEDDINGS_CACHE_PATH = OUTPUT_DIR / "embeddings_cache.npz"
 DOCKER_STATS_PATH = OUTPUT_DIR / "docker_stats_log.jsonl"
 REPORT_HTML_PATH = OUTPUT_DIR / "report.html"
 
+# Dataset tự thân — file do measure_own_dataset_latency.py sinh ra
+OWN_DATASET_LATENCY_PATH = OUTPUT_DIR / "own_dataset_latency.json"
+OWN_DATASET_DOCKER_STATS_PATH = OUTPUT_DIR / "own_dataset_docker_stats.jsonl"
+
 
 def load_all_data() -> dict[str, Any]:
     if not RESULTS_PATH.exists():
@@ -59,7 +63,24 @@ def load_all_data() -> dict[str, Any]:
                 if line.strip():
                     docker_stats.append(json.loads(line))
 
-    return {"results": results, "raw_events": raw_events, "docker_stats": docker_stats}
+    own_dataset_latency = None
+    if OWN_DATASET_LATENCY_PATH.exists():
+        own_dataset_latency = json.loads(OWN_DATASET_LATENCY_PATH.read_text(encoding="utf-8"))
+
+    own_dataset_docker_stats = []
+    if OWN_DATASET_DOCKER_STATS_PATH.exists():
+        with open(OWN_DATASET_DOCKER_STATS_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    own_dataset_docker_stats.append(json.loads(line))
+
+    return {
+        "results": results,
+        "raw_events": raw_events,
+        "docker_stats": docker_stats,
+        "own_dataset_latency": own_dataset_latency,
+        "own_dataset_docker_stats": own_dataset_docker_stats,
+    }
 
 
 def build_charts(data: dict[str, Any]) -> dict[str, str]:
@@ -102,12 +123,26 @@ def build_charts(data: dict[str, Any]) -> dict[str, str]:
     fig2.update_layout(title="Phân phối vị trí (rank) của kết quả đúng đầu tiên", showlegend=False)
     charts["rank_distribution"] = fig2.to_html(full_html=False, include_plotlyjs=False)
 
-    # ===== Biểu đồ 3: Latency percentiles =====
+    # ===== Biểu đồ 3: Latency percentiles — SO SÁNH CẢ 2 DATASET =====
     lat = results["latency"]
+    own_lat = data.get("own_dataset_latency")
+
     fig3 = go.Figure()
-    for name, stats in [("Embed ảnh", lat["image_embed"]), ("Embed văn bản", lat["text_embed"])]:
-        fig3.add_trace(go.Bar(name=name, x=["P50", "P95", "P99", "Mean"], y=[stats["p50"], stats["p95"], stats["p99"], stats["mean"]]))
-    fig3.update_layout(title="Phân vị Latency (mili-giây)", barmode="group", yaxis_title="ms")
+    fig3.add_trace(go.Bar(
+        name="Flickr30K — Embed ảnh", x=["P50", "P95", "P99", "Mean"],
+        y=[lat["image_embed"]["p50"], lat["image_embed"]["p95"], lat["image_embed"]["p99"], lat["image_embed"]["mean"]],
+    ))
+    fig3.add_trace(go.Bar(
+        name="Flickr30K — Embed văn bản", x=["P50", "P95", "P99", "Mean"],
+        y=[lat["text_embed"]["p50"], lat["text_embed"]["p95"], lat["text_embed"]["p99"], lat["text_embed"]["mean"]],
+    ))
+    if own_lat:
+        own_l = own_lat["latency"]
+        fig3.add_trace(go.Bar(
+            name="Dataset tự thân — Embed ảnh (qua MinIO)", x=["P50", "P95", "P99", "Mean"],
+            y=[own_l["p50"], own_l["p95"], own_l["p99"], own_l["mean"]],
+        ))
+    fig3.update_layout(title="Phân vị Latency (mili-giây) — So sánh 2 Dataset", barmode="group", yaxis_title="ms")
     charts["latency"] = fig3.to_html(full_html=False, include_plotlyjs=False)
 
     # ===== Biểu đồ 4: Breakdown theo danh tính =====
@@ -120,20 +155,30 @@ def build_charts(data: dict[str, Any]) -> dict[str, str]:
         fig4.update_layout(title="Breakdown theo danh tính — Dataset tự thân", barmode="group", xaxis_tickangle=-45)
         charts["own_breakdown"] = fig4.to_html(full_html=False, include_plotlyjs=False)
 
-    # ===== Biểu đồ 5: Docker stats =====
-    if data["docker_stats"]:
-        stats = data["docker_stats"]
-        timestamps = [s["timestamp_iso"] for s in stats]
-        cpu_values = []
-        for s in stats:
-            cpu_str = (s.get("cpu_perc") or "0%").replace("%", "")
-            try:
-                cpu_values.append(float(cpu_str))
-            except ValueError:
-                cpu_values.append(0.0)
+    # ===== Biểu đồ 5: Docker stats — SO SÁNH CẢ 2 DATASET =====
+    own_docker_stats = data.get("own_dataset_docker_stats", [])
+    if data["docker_stats"] or own_docker_stats:
         fig5 = go.Figure()
-        fig5.add_trace(go.Scatter(x=timestamps, y=cpu_values, mode="lines+markers", name="CPU % (container AIModule)"))
-        fig5.update_layout(title="Resource Usage theo thời gian — Container AIModule", xaxis_title="Thời gian", yaxis_title="CPU %")
+
+        def cpu_series(stats_list):
+            timestamps, cpu_values = [], []
+            for s in stats_list:
+                cpu_str = (s.get("cpu_perc") or "0%").replace("%", "")
+                try:
+                    cpu_values.append(float(cpu_str))
+                    timestamps.append(s["timestamp_iso"])
+                except ValueError:
+                    continue
+            return timestamps, cpu_values
+
+        if data["docker_stats"]:
+            ts, cpu = cpu_series(data["docker_stats"])
+            fig5.add_trace(go.Scatter(x=ts, y=cpu, mode="lines+markers", name="Flickr30K — CPU % (AIModule)"))
+        if own_docker_stats:
+            ts2, cpu2 = cpu_series(own_docker_stats)
+            fig5.add_trace(go.Scatter(x=ts2, y=cpu2, mode="lines+markers", name="Dataset tự thân — CPU % (AIModule)"))
+
+        fig5.update_layout(title="Resource Usage theo thời gian — Container AIModule (cả 2 Dataset)", xaxis_title="Thời gian", yaxis_title="CPU %")
         charts["docker_stats"] = fig5.to_html(full_html=False, include_plotlyjs=False)
 
     return charts
@@ -141,8 +186,22 @@ def build_charts(data: dict[str, Any]) -> dict[str, str]:
 
 def build_evidence_summary(data: dict[str, Any]) -> str:
     events = data["raw_events"]
+    own_lat = data.get("own_dataset_latency")
+
+    own_html = ""
+    if own_lat:
+        info = own_lat["dataset_info"]
+        own_html = f"""
+        <h3>Bằng chứng đo đạc — Dataset tự thân</h3>
+        <ul>
+            <li>Số ảnh đo latency thành công: <b>{info['successful_measurements']}/{info['sample_size_actual']}</b> (lỗi: {info['errors']})</li>
+            <li>Thời điểm đo: <b>{own_lat['measured_at']}</b></li>
+            <li>Phương pháp: tải ảnh thật qua GET /media (BackendModule) + presigned URL MinIO, đo latency gọi trực tiếp AIModule</li>
+        </ul>
+        """
+
     if not events:
-        return "<p><em>Không có dữ liệu raw_events.jsonl.</em></p>"
+        return own_html + "<p><em>Không có dữ liệu raw_events.jsonl (Flickr30K).</em></p>"
 
     started = next((e for e in events if e["event_type"] == "benchmark_started"), None)
     completed = next((e for e in events if e["event_type"] == "benchmark_completed"), None)
@@ -158,7 +217,7 @@ def build_evidence_summary(data: dict[str, Any]) -> str:
     )
 
     html = f"""
-    <h3>Bằng chứng vận hành thật (raw_events.jsonl)</h3>
+    <h3>Bằng chứng vận hành thật — Flickr30K (raw_events.jsonl)</h3>
     <ul>
         <li>Tổng số request đã ghi log: <b>{len(embed_events)}</b></li>
         <li>Thời điểm bắt đầu: <b>{started['timestamp_iso'] if started else 'N/A'}</b></li>
@@ -176,7 +235,7 @@ def build_evidence_summary(data: dict[str, Any]) -> str:
     Vector CLIP thật (512 chiều) cho mọi ảnh/caption được lưu đầy đủ trong embeddings_cache.npz,
     cho phép kiểm chứng độc lập bằng cách tự tính lại cosine similarity.</em></p>
     """
-    return html
+    return own_html + html
 
 
 def build_metrics_table_html(results: dict[str, Any]) -> str:
