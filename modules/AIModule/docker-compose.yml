@@ -56,7 +56,7 @@ services:
     # Environment variables injected via env_file — NOT hardcoded here,
     # NOT baked into the image (see .dockerignore + Dockerfile: no COPY configs).
     env_file:
-      - ./configs/ai.env.local
+      - ./modules/AIModule/configs/ai.env.local
 
     # Volume mounts for model caching
     volumes:
