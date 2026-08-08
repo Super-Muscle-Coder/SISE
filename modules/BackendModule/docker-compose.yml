@@ -50,7 +50,7 @@ services:
       dockerfile: Dockerfile
 
     env_file:
-      - ./modules/BackendModule/configs/backend.env.local
+      - ../BackendModule/configs/backend.env.local
 
     ports:
       - "${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
