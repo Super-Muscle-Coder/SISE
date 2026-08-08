@@ -117,6 +117,42 @@ services:
       - sise_network
     restart: unless-stopped
 
+  # ===== Khởi tạo schema — chạy MỖI LẦN "up" (idempotent, đã xác nhận
+  # an toàn với AG-02: dùng toàn DDL "IF NOT EXISTS", tự thoát nhanh
+  # không làm gì nếu DB đã ở đúng trạng thái head). Đây chính là bước
+  # từng bị thiếu, gây lỗi "pgvector extension is not installed" khi
+  # chạy trên volume Postgres hoàn toàn mới. =====
+  storage-init:
+    build:
+      context: ../StorageModule
+      dockerfile: Dockerfile
+    image: sise-storage:v1.2.3
+    container_name: sise-storage-init
+    command: ["python", "storage_main.py", "init"]
+    env_file:
+      - ./configs/storage.env.local
+    environment:
+      # Override tường minh — KHÔNG dùng ${POSTGRES_USER} kiểu Compose
+      # thay thế biến (đã xác nhận qua thực nghiệm thật lần thứ 2 trong
+      # cùng dự án: cú pháp ${VAR} trong environment: KHÔNG đọc được
+      # biến đã nạp từ env_file của CHÍNH service đó — nó chỉ đọc biến
+      # cấp shell/session máy host, không có thì rơi về chuỗi rỗng,
+      # gây lỗi "connection to server ... failed"). Viết thẳng giá trị
+      # cố định khớp đúng storage.env.local — đây là giá trị hằng số
+      # của dự án, không phải bí mật cần tham số hóa runtime.
+      DATABASE_URL: "postgresql+psycopg://SISE_POSTGRES_ADMIN:Daucatmoi12345@postgres:5432/sise"
+      MINIO_ENDPOINT: "http://minio:9000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - sise_network
+    # Job chạy 1 lần rồi thoát (exit code 0) — "no" tránh Docker liên
+    # tục restart nó dù đã chạy xong thành công.
+    restart: "no"
+
 volumes:
   postgres_data:
     driver: local

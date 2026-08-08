@@ -51,6 +51,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
 
   backend:
     depends_on:
@@ -62,6 +64,8 @@ services:
         condition: service_healthy
       ai-service:
         condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
 
 networks:
   sise_network:
