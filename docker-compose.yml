@@ -10,44 +10,39 @@
 #          Everything else (image, build, healthcheck, volumes, ports, env_file)
 #          is inherited unchanged from each module's own compose file.
 #
-# Responsibility split:
-#   - This file:            create network + startup order. Nothing else.
-#   - modules/*/*.yml:      define/build/run that module's own services,
-#                           join "sise_network" via external: true.
+# [APPEND — Fix ngay sau su co mat du lieu ngay 08/08/2026]
+# THEM DONG "name: sise" O DAU FILE — LY DO BAT BUOC PHAI CO:
+#   Neu khong khai "name:" tuong minh, Docker Compose tu dat project
+#   name theo TEN THU MUC CHUA FILE -f DAU TIEN trong lenh (o day la
+#   "modules/StorageModule/", vi infra_compose_storage.yml luon dung
+#   dau theo quy uoc lenh chuan cua du an) -> project name tu dong
+#   thanh "storagemodule". He qua: BAT KY ban clone nao khac cua repo
+#   nay chay dung lenh multi-file -f nay SE TU DONG RA CUNG PROJECT
+#   NAME "storagemodule", va do do TRO VAO CHUNG CAC VOLUME VAT LY Y
+#   HET NHAU (postgres_data, minio_data, redis_data) — du 2 ban clone
+#   nam o 2 duong dan hoan toan khac nhau tren o dia. Mot lenh
+#   "down -v" chay o ban clone test se XOA LUON du lieu that cua ban
+#   chinh. Khai "name: sise" co dinh dut diem van de nay.
 #
-# Startup order (per data_schema.yaml transaction_semantics + openapi.yaml
-# cross-module calls): Storage -> AI -> Backend.
-#   Backend calls AIModule (/embed/image, /embed/text) during upload/search,
-#   so backend must wait until ai-service is healthy.
+# LUU Y QUAN TRONG CON LAI (khong tu dong giai quyet boi "name:"):
+#   Neu van co tinh chay dung project name "sise" o 2 thu muc khac
+#   nhau, 2 noi do VAN se share chung volume, vi ten volume chi phu
+#   thuoc project name, khong phu thuoc duong dan thu muc nguon. Luon
+#   luon "stop" (khong "down -v") moi truong khong can dung truoc khi
+#   chay "up" o moi truong con lai.
 #
 # Usage (Compose merges files left-to-right, base first):
 #   docker compose \
 #     -f modules/StorageModule/infra_compose_storage.yml \
-#     -f modules/AIModule/infra_compose_ai.yml \
+#     -f modules/AIModule/docker-compose.yml \
 #     -f modules/BackendModule/docker-compose.yml \
 #     -f docker-compose.yml \
 #     up -d
-#
-#   (Optional) wrap the command above into a start_all.cmd script at root
-#   for convenience, so nobody has to remember the -f order by hand.
-#
-# NOTE: BackendModule's compose currently has NO healthcheck defined on the
-#   "backend" service itself. This file only makes backend WAIT for its
-#   dependencies (postgres/minio/redis/ai-service) to be healthy — it does
-#   NOT yet make anything wait for backend to be healthy, since backend
-#   has no healthcheck to depend on. Must be added before FrontendModule
-#   joins this root compose later — tracked as TODO.
 # =============================================================================
 
-services:
-  # ---------------------------------------------------------------------
-  # Ordering overrides only — service definitions live in module-level
-  # compose files (modules/*/*.yml), merged in via multiple -f layers.
-  # Compose merges by service name: fields not repeated here are inherited
-  # unchanged from the base files (image/build/env_file/healthcheck/...).
-  # We only ADD depends_on here to express cross-module startup order.
-  # ---------------------------------------------------------------------
+name: sise
 
+services:
   ai-service:
     depends_on:
       postgres:
@@ -68,7 +63,6 @@ services:
       ai-service:
         condition: service_healthy
 
-# Network definition: create a single shared network for all modules to join.
 networks:
   sise_network:
     name: sise_network
