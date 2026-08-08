@@ -74,9 +74,18 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    # LƯU Ý QUAN TRỌNG: dùng $$VAR (2 dấu $, không phải ${VAR:-default})
+    # để buộc CHÍNH SHELL BÊN TRONG CONTAINER đọc biến môi trường tại
+    # thời điểm nó thực thi (lúc đó env_file đã được nạp vào process),
+    # thay vì để Docker Compose tự thay thế ${VAR} TRƯỚC KHI container
+    # khởi động — tại bước đó Compose chỉ biết biến cấp shell/session
+    # của máy host, hoàn toàn chưa biết nội dung env_file, nên luôn rơi
+    # về giá trị mặc định sai (đã xác nhận qua lỗi thật: mc báo "Access
+    # Key Id does not exist" vì nhận nhầm "minioadmin" thay vì giá trị
+    # thật SISE_MINIO_ADMIN).
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc alias set minio http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin} &&
+      /usr/bin/mc alias set minio http://minio:9000 \$$MINIO_ACCESS_KEY \$$MINIO_SECRET_KEY &&
       /usr/bin/mc mb --ignore-existing minio/raw-images &&
       /usr/bin/mc mb --ignore-existing minio/thumbnails &&
       echo 'MinIO buckets initialized successfully'
