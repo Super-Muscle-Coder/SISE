@@ -45,8 +45,12 @@ services:
   backend:
     container_name: sise-backend
     image: sise-backend:v1.1.0
+    # LƯU Ý QUAN TRỌNG VỀ ĐƯỜNG DẪN TƯƠNG ĐỐI (đã audit và sửa):
+    # Xem chú thích đầy đủ trong modules/AIModule/docker-compose.yml —
+    # cùng nguyên tắc: mọi đường dẫn tương đối tính từ modules/StorageModule/
+    # (file -f đầu tiên theo quy ước lệnh chuẩn của dự án).
     build:
-      context: .
+      context: ../BackendModule
       dockerfile: Dockerfile
 
     env_file:
@@ -55,11 +59,6 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
 
-    # Health check configuration — this is what the root compose's
-    # future "condition: service_healthy" (for FrontendModule's
-    # depends_on: backend) will rely on. Uses liveness (process alive),
-    # NOT readiness (external dependencies) — readiness failures should
-    # surface via monitoring, not flap the container's health state.
     healthcheck:
       test:
         - CMD
@@ -71,21 +70,15 @@ services:
       retries: 3
       start_period: 30s
 
-    # Join the shared network — created and owned EXCLUSIVELY by the root
-    # docker-compose.yml. This module does NOT define/own it.
     networks:
       - sise_network
 
     restart: unless-stopped
 
-# Network definition: JOIN ONLY. Do not add driver/subnet/ipam here —
-# that would make this file a second, conflicting "owner" of the same
-# network name. Ownership lives solely in the root docker-compose.yml.
 networks:
   sise_network:
     external: true
     name: sise_network
-
 # =============================================================================
 # INTEGRATION NOTES
 # =============================================================================

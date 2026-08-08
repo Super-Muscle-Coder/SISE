@@ -41,29 +41,33 @@
 services:
   ai-service:
     # Build from the Dockerfile in this directory
+    #
+    # LƯU Ý QUAN TRỌNG VỀ ĐƯỜNG DẪN TƯƠNG ĐỐI (đã audit và sửa):
+    # Khi chạy bằng nhiều cờ -f (multi-file), Docker Compose tính TOÀN BỘ
+    # đường dẫn tương đối (context, env_file, volumes) dựa trên thư mục
+    # chứa FILE -f ĐẦU TIÊN trong lệnh, KHÔNG PHẢI theo thư mục chứa
+    # chính file YAML này. Theo đúng quy ước lệnh chuẩn của dự án
+    # (infra_compose_storage.yml luôn là file -f đầu tiên), mọi đường dẫn
+    # dưới đây được viết tương đối TỪ modules/StorageModule/ đi ra, dùng
+    # "../AIModule/...". Điều này khiến file KHÔNG CÒN chạy standalone
+    # đúng nếu gọi trực tiếp "cd modules/AIModule && docker-compose up"
+    # — chỉ hỗ trợ đúng cách chạy multi-file -f từ thư mục gốc dự án.
     build:
-      context: ./modules/AIModule
+      context: ../AIModule
       dockerfile: Dockerfile
 
-    # Service configuration
     container_name: sise-ai
     image: sise-ai:v1.1.0
 
-    # Port mapping: container:host
     ports:
       - "8001:8001"
 
-    # Environment variables injected via env_file — NOT hardcoded here,
-    # NOT baked into the image (see .dockerignore + Dockerfile: no COPY configs).
     env_file:
       - ../AIModule/configs/ai.env.local
 
-    # Volume mounts for model caching
     volumes:
-      - ./models:/app/ai-service/model_cache
+      - ../AIModule/models:/app/ai-service/model_cache
 
-    # Health check configuration — this is what the root compose's
-    # "condition: service_healthy" (used by backend's depends_on) relies on.
     healthcheck:
       test:
         - CMD
@@ -75,40 +79,22 @@ services:
       retries: 3
       start_period: 60s
 
-    # Restart policy
     restart: unless-stopped
 
-    # Logging configuration
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-    # Join the shared network — created and owned EXCLUSIVELY by the root
-    # docker-compose.yml. This module does NOT define/own it (see Changelog).
     networks:
       - sise_network
 
-    # Resource limits (optional, adjust based on available CPU/RAM)
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: '2'
-    #       memory: 4G
-    #     reservations:
-    #       cpus: '1'
-    #       memory: 2G
-
-# Network definition: JOIN ONLY. Do not add driver/subnet/ipam here —
-# that would make this file a second, conflicting "owner" of the same
-# network name. Ownership lives solely in the root docker-compose.yml.
 networks:
   sise_network:
     external: true
     name: sise_network
 
-# Volume for persistent model cache (local to this module only)
 volumes:
   models:
     driver: local
