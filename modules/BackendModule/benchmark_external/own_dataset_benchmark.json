@@ -1,8 +1,8 @@
 {
-  "mrr": 0.4906,
-  "hit_rate": 0.9960,
-  "precision": 0.8127,
-  "recall": 0.9960,
+  "mrr": 0.9675,
+  "hit_rate": 0.9970,
+  "precision": 0.8963,
+  "recall": 0.1829,
   "query_count": 1000,
   "top1_cross_class_confusion_rate": 0.053,
   "latency": {
@@ -12,166 +12,166 @@
     "mean": 523.4813297999644,
     "std": 191.15274119027467
   },
-  "note": "1000 ảnh / 20 danh tính. Cập nhật file này sau mỗi lần chạy POST /eval/run mới trên BackendModule — KHÔNG cần sửa code run_benchmark.py.",
+  "note": "1000 anh / 20 danh tinh. So lieu sau khi va A1 (loai self-match khoi ranked_ids truoc khi tinh metric) va A2 (Recall dung total_relevant_count toan cuc lam mau so thay vi len(relevant_ids) gioi han trong top-k) - ngay 09/08/2026. Latency giu nguyen so lieu cu, CHUA do lai - cap nhat rieng neu da chay lai measure_own_dataset_latency.py.",
   "breakdown_by_class": {
     "jack ma": {
       "n": 50,
-      "mrr": 0.510,
+      "mrr": 1.000,
       "hit_rate": 1.000,
-      "precision": 0.900,
-      "recall": 1.000,
-      "confusion_pct": 0.0
-    },
-    "talor swift": {
-      "n": 50,
-      "mrr": 0.500,
-      "hit_rate": 1.000,
-      "precision": 0.896,
-      "recall": 1.000,
+      "precision": 1.000,
+      "recall": 0.204,
       "confusion_pct": 0.0
     },
     "thomas anders": {
       "n": 50,
-      "mrr": 0.500,
+      "mrr": 1.000,
       "hit_rate": 1.000,
-      "precision": 0.896,
-      "recall": 1.000,
+      "precision": 0.998,
+      "recall": 0.204,
+      "confusion_pct": 0.0
+    },
+    "taylor swift": {
+      "n": 50,
+      "mrr": 1.000,
+      "hit_rate": 1.000,
+      "precision": 0.996,
+      "recall": 0.203,
       "confusion_pct": 0.0
     },
     "cindy kimberly": {
       "n": 50,
-      "mrr": 0.510,
+      "mrr": 1.000,
       "hit_rate": 1.000,
-      "precision": 0.896,
-      "recall": 1.000,
+      "precision": 0.992,
+      "recall": 0.202,
       "confusion_pct": 0.0
     },
-    "steven jobs": {
+    "steve jobs": {
       "n": 50,
-      "mrr": 0.500,
+      "mrr": 1.000,
       "hit_rate": 1.000,
-      "precision": 0.894,
-      "recall": 1.000,
+      "precision": 0.992,
+      "recall": 0.202,
       "confusion_pct": 0.0
     },
     "khoai lang thang": {
       "n": 50,
-      "mrr": 0.520,
+      "mrr": 1.000,
       "hit_rate": 1.000,
-      "precision": 0.892,
-      "recall": 1.000,
+      "precision": 0.992,
+      "recall": 0.202,
       "confusion_pct": 0.0
     },
     "rosé": {
       "n": 50,
-      "mrr": 0.500,
+      "mrr": 1.000,
       "hit_rate": 1.000,
-      "precision": 0.890,
-      "recall": 1.000,
+      "precision": 0.988,
+      "recall": 0.202,
       "confusion_pct": 0.0
     },
     "elon musk": {
       "n": 50,
-      "mrr": 0.500,
+      "mrr": 1.000,
       "hit_rate": 1.000,
-      "precision": 0.884,
-      "recall": 1.000,
-      "confusion_pct": 0.0
-    },
-    "christiano ronaldo": {
-      "n": 50,
-      "mrr": 0.500,
-      "hit_rate": 1.000,
-      "precision": 0.876,
-      "recall": 1.000,
+      "precision": 0.984,
+      "recall": 0.201,
       "confusion_pct": 0.0
     },
     "patrick bateman": {
       "n": 50,
-      "mrr": 0.497,
+      "mrr": 0.990,
       "hit_rate": 1.000,
-      "precision": 0.876,
-      "recall": 1.000,
+      "precision": 0.970,
+      "recall": 0.198,
       "confusion_pct": 2.0
+    },
+    "christiano ronaldo": {
+      "n": 50,
+      "mrr": 1.000,
+      "hit_rate": 1.000,
+      "precision": 0.962,
+      "recall": 0.196,
+      "confusion_pct": 0.0
     },
     "lionel messi": {
       "n": 50,
-      "mrr": 0.483,
+      "mrr": 0.963,
       "hit_rate": 0.980,
-      "precision": 0.868,
-      "recall": 0.980,
+      "precision": 0.960,
+      "recall": 0.196,
       "confusion_pct": 4.0
     },
-    "mark zakerberk": {
+    "mark zuckerberg": {
       "n": 50,
-      "mrr": 0.500,
+      "mrr": 1.000,
       "hit_rate": 1.000,
-      "precision": 0.868,
-      "recall": 1.000,
+      "precision": 0.960,
+      "recall": 0.196,
       "confusion_pct": 0.0
-    },
-    "michael jackson": {
-      "n": 50,
-      "mrr": 0.502,
-      "hit_rate": 1.000,
-      "precision": 0.858,
-      "recall": 1.000,
-      "confusion_pct": 4.0
     },
     "liu wan": {
       "n": 50,
-      "mrr": 0.482,
+      "mrr": 0.957,
       "hit_rate": 0.980,
-      "precision": 0.846,
-      "recall": 0.980,
+      "precision": 0.930,
+      "recall": 0.190,
       "confusion_pct": 6.0
     },
-    "tom shelby": {
+    "tommy shelby": {
       "n": 50,
-      "mrr": 0.497,
+      "mrr": 0.990,
       "hit_rate": 1.000,
-      "precision": 0.838,
-      "recall": 1.000,
+      "precision": 0.922,
+      "recall": 0.188,
       "confusion_pct": 2.0
+    },
+    "michael jackson": {
+      "n": 50,
+      "mrr": 0.977,
+      "hit_rate": 1.000,
+      "precision": 0.916,
+      "recall": 0.187,
+      "confusion_pct": 4.0
     },
     "lisa": {
       "n": 50,
-      "mrr": 0.500,
+      "mrr": 0.974,
       "hit_rate": 1.000,
-      "precision": 0.800,
-      "recall": 1.000,
+      "precision": 0.878,
+      "recall": 0.179,
       "confusion_pct": 4.0
     },
     "group of people": {
       "n": 50,
-      "mrr": 0.492,
+      "mrr": 0.982,
       "hit_rate": 1.000,
-      "precision": 0.706,
-      "recall": 1.000,
+      "precision": 0.772,
+      "recall": 0.158,
       "confusion_pct": 2.0
     },
     "faker": {
       "n": 50,
-      "mrr": 0.462,
+      "mrr": 0.890,
       "hit_rate": 1.000,
-      "precision": 0.586,
-      "recall": 1.000,
+      "precision": 0.644,
+      "recall": 0.131,
       "confusion_pct": 20.0
     },
     "gumayusi": {
       "n": 50,
-      "mrr": 0.451,
+      "mrr": 0.860,
       "hit_rate": 1.000,
-      "precision": 0.500,
-      "recall": 1.000,
+      "precision": 0.548,
+      "recall": 0.112,
       "confusion_pct": 26.0
     },
     "keria": {
       "n": 50,
-      "mrr": 0.408,
-      "hit_rate": 0.960,
-      "precision": 0.484,
-      "recall": 0.960,
+      "mrr": 0.768,
+      "hit_rate": 0.980,
+      "precision": 0.522,
+      "recall": 0.107,
       "confusion_pct": 36.0
     }
   }

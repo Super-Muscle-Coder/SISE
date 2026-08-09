@@ -1,0 +1,42 @@
+{
+  "run_info": {
+    "n_queries": 100,
+    "seed": 42,
+    "top_k": 10,
+    "measured_at": "2026-08-09T10:13:15.492565+00:00"
+  },
+  "hnsw_config": {
+    "m": 16,
+    "ef_construction": 200
+  },
+  "results": [
+    {
+      "config": "exact",
+      "recall_vs_exact": 1.0,
+      "latency_p50_ms": 6.563,
+      "latency_p95_ms": 14.414,
+      "latency_p99_ms": 22.542
+    },
+    {
+      "config": "hnsw_ef40",
+      "recall_vs_exact": 1.0,
+      "latency_p50_ms": 7.916,
+      "latency_p95_ms": 15.939,
+      "latency_p99_ms": 26.28
+    },
+    {
+      "config": "hnsw_ef64",
+      "recall_vs_exact": 1.0,
+      "latency_p50_ms": 7.369,
+      "latency_p95_ms": 15.343,
+      "latency_p99_ms": 21.396
+    },
+    {
+      "config": "hnsw_ef128",
+      "recall_vs_exact": 1.0,
+      "latency_p50_ms": 7.403,
+      "latency_p95_ms": 21.512,
+      "latency_p99_ms": 33.445
+    }
+  ]
+}
