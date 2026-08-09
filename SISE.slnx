@@ -7,9 +7,8 @@
     <File Path=".context/Tasks.yaml" />
     <File Path="A.md" />
     <File Path="B.md" />
-  </Folder>
-  <Folder Name="/.context/Sessions/">
-    <File Path=".context/Sessions/report_template.md" />
+    <File Path="Huongdan.md" />
+    <File Path="Nhanxet.md" />
   </Folder>
   <Folder Name="/.github/" />
   <Folder Name="/.github/agents/">

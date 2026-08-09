@@ -159,6 +159,59 @@ class EvaluationAdapter:
             for r in rows
         }
 
+    async def fetch_all_ready_image_identity_metadata(self) -> list[dict[str, Any]]:
+        """
+        Lấy metadata định danh của TOÀN BỘ ảnh có thể tham gia search
+        (index_status='ready', chưa soft-delete) để service tính mẫu số
+        Recall toàn cục theo đúng định nghĩa IR.
+        """
+        stmt = text(
+            """
+            SELECT
+                id AS image_id,
+                album_id,
+                tags
+            FROM images
+            WHERE index_status = 'ready'
+              AND deleted_at IS NULL
+            """
+        )
+        result = await self.db_session.execute(stmt)
+        rows = result.mappings().all()
+        return [
+            {
+                "image_id": str(r["image_id"]),
+                "album_id": r["album_id"],
+                "tags": r["tags"] if r["tags"] is not None else [],
+            }
+            for r in rows
+        ]
+
+    async def fetch_all_ready_image_tags(self) -> list[dict[str, Any]]:
+        """
+        Lấy toàn bộ image_id + tags của ảnh ready, chưa soft-delete.
+        Dùng để build bảng đếm total relevant theo tag (1 lần duy nhất).
+        """
+        stmt = text(
+            """
+            SELECT
+                id AS image_id,
+                tags
+            FROM images
+            WHERE deleted_at IS NULL
+              AND index_status = 'ready'
+            """
+        )
+        result = await self.db_session.execute(stmt)
+        rows = result.mappings().all()
+        return [
+            {
+                "image_id": str(r["image_id"]),
+                "tags": r["tags"] if r["tags"] is not None else [],
+            }
+            for r in rows
+        ]
+
     async def complete_evaluation_run(
         self,
         eval_id: str,

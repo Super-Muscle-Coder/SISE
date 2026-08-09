@@ -161,11 +161,13 @@ class EvaluationService:
         score trong misclassified_queries.top_k_results (yêu cầu bổ sung
         từ AG-04, không đổi ý nghĩa/đơn vị score so với các nơi khác
         trong hệ thống).
+
+        Lấy dư 1 phần tử (top_k + 1) để bù self-match có thể chiếm slot #1.
         """
         url = f"{self.vector_service_base_url}/vector/search/hybrid"
         payload = {
             "vector": vector,
-            "top_k": self.top_k,
+            "top_k": self.top_k + 1,
             "metric": "COSINE",
             "filter": None,
         }
@@ -234,11 +236,16 @@ class EvaluationService:
         for result in query_results:
             ranked_ids = result.get("ranked_ids", [])[:k]
             relevant_ids = set(result.get("relevant_ids", set()))
-            if not relevant_ids:
+            total_relevant = result.get("total_relevant_count")
+            if total_relevant is None:
+                # Tương thích ngược cho dataset/flow chưa có total_relevant_count.
+                total_relevant = len(relevant_ids)
+            total_relevant = int(total_relevant or 0)
+            if not total_relevant:
                 recalls.append(0.0)
                 continue
             hit_count = sum(1 for candidate_id in ranked_ids if candidate_id in relevant_ids)
-            recalls.append(hit_count / len(relevant_ids))
+            recalls.append(hit_count / total_relevant)
         return float(sum(recalls) / len(recalls))
 
     def compute_metrics_from_queries(
@@ -344,6 +351,24 @@ class EvaluationService:
                 seed=seed,
             )
 
+            # Đếm 1 lần theo tag cho mẫu số Recall (nhánh chính).
+            all_ready = await self.evaluation_adapter.fetch_all_ready_image_tags()
+            tag_total_count: dict[str, int] = {}
+            for row in all_ready:
+                for tag in normalize_tag_set(row["tags"]):
+                    tag_total_count[tag] = tag_total_count.get(tag, 0) + 1
+
+            # Fallback album_id cho query "(no_tag)".
+            all_ready_identity_metadata = (
+                await self.evaluation_adapter.fetch_all_ready_image_identity_metadata()
+            )
+            album_total_count: dict[int, int] = {}
+            for meta in all_ready_identity_metadata:
+                album_id = meta.get("album_id")
+                if album_id is None:
+                    continue
+                album_total_count[album_id] = album_total_count.get(album_id, 0) + 1
+
             query_results: list[dict[str, Any]] = []
 
             for src in sources:
@@ -367,6 +392,12 @@ class EvaluationService:
                     vector=vector,
                     bearer_token=bearer_token,
                 )
+
+                # Lọc self trước, rồi mới cắt về đúng top_k.
+                filtered_search_results = [
+                    r for r in search_results if r["image_id"] != image_id
+                ][: self.top_k]
+
                 # Tách 2 cấu trúc từ search_results (list[{"image_id","score"}]):
                 #   - ranked_ids: list[str] THUẦN TÚY, giữ đúng thứ tự rank —
                 #     dùng cho compute_mrr/hit_rate/precision/recall (GIỮ
@@ -375,8 +406,8 @@ class EvaluationService:
                 #     riêng khi build misclassified_queries.top_k_results
                 #     (yêu cầu bổ sung từ AG-04, không ảnh hưởng 4 công thức
                 #     chỉ số cốt lõi).
-                ranked_ids = [r["image_id"] for r in search_results]
-                ranked_scores = {r["image_id"]: r["score"] for r in search_results}
+                ranked_ids = [r["image_id"] for r in filtered_search_results]
+                ranked_scores = {r["image_id"]: r["score"] for r in filtered_search_results}
 
                 relevant_ids, metadata_map = await self._build_ground_truth_for_query(
                     query_image_id=image_id,
@@ -385,20 +416,19 @@ class EvaluationService:
                     ranked_ids=ranked_ids,
                 )
 
-                # Ảnh mẫu bị loại khỏi ranked_ids khi tính relevant_ids đã
-                # xử lý ở _build_ground_truth_for_query(), nhưng ranked_ids
-                # dùng cho compute_mrr/hit_rate/precision/recall (thứ hạng
-                # thật của kết quả search) GIỮ NGUYÊN đầy đủ — nếu chính
-                # ảnh mẫu xuất hiện lại trong kết quả search (tự tìm thấy
-                # chính nó), nó sẽ không được tính relevant (đã loại khỏi
-                # relevant_ids) nên không ảnh hưởng gian lận điểm số.
-
                 # Nhãn class cho breakdown: dùng tag định danh đã chuẩn
                 # hóa nếu có, fallback về "(no_tag)" nếu ảnh mẫu không có
                 # tag nào (trường hợp hiếm, dùng album fallback ở ground
                 # truth nhưng vẫn cần 1 nhãn để group breakdown).
                 normalized_query_tags = normalize_tag_set(query_tags_raw)
                 query_tag_label = next(iter(normalized_query_tags), "(no_tag)")
+
+                if query_tag_label != "(no_tag)":
+                    total_relevant_count = max(tag_total_count.get(query_tag_label, 1) - 1, 0)
+                elif query_album_id is not None:
+                    total_relevant_count = max(album_total_count.get(query_album_id, 1) - 1, 0)
+                else:
+                    total_relevant_count = 0
 
                 # ===== TOP-1 CROSS-CLASS CONFUSION TRACKING =====
                 # Xác định class thật của ảnh xếp hạng #1 trong kết quả
@@ -430,6 +460,7 @@ class EvaluationService:
                         "ranked_ids": ranked_ids,
                         "ranked_scores": ranked_scores,
                         "relevant_ids": relevant_ids,
+                        "total_relevant_count": total_relevant_count,
                         "query_tag_label": query_tag_label,
                         "query_image_id": image_id,
                         "top1_image_id": top1_image_id,

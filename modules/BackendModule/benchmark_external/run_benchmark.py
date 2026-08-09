@@ -54,6 +54,7 @@ import numpy as np
 
 from report_utils import (
     bootstrap_confidence_interval,
+    compute_latency_distribution_detail,
     compute_latency_percentiles,
     compute_metrics,
     compute_metrics_multi_k,
@@ -410,6 +411,8 @@ def main() -> None:
         # ===== B: latency percentiles =====
         image_latency_stats = compute_latency_percentiles(image_embed_latencies)
         caption_latency_stats = compute_latency_percentiles(caption_latencies)
+        image_latency_detail = compute_latency_distribution_detail(image_embed_latencies)
+        caption_latency_detail = compute_latency_distribution_detail(caption_latencies)
 
         # ===== Đọc benchmark dataset tự thân từ file riêng =====
         own_dataset_benchmark: dict[str, Any] = {}
@@ -450,6 +453,8 @@ def main() -> None:
             "latency": {
                 "image_embed": image_latency_stats,
                 "text_embed": caption_latency_stats,
+                "image_embed_detail": image_latency_detail,
+                "text_embed_detail": caption_latency_detail,
                 "similarity_computation_ms": {
                     "image_to_text": round(sim_i2t_latency_ms, 3),
                     "text_to_image": round(sim_t2i_latency_ms, 3),

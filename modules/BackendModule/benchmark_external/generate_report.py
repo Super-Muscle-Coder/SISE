@@ -40,6 +40,9 @@ REPORT_HTML_PATH = OUTPUT_DIR / "report.html"
 # Dataset tự thân — file do measure_own_dataset_latency.py sinh ra
 OWN_DATASET_LATENCY_PATH = OUTPUT_DIR / "own_dataset_latency.json"
 OWN_DATASET_DOCKER_STATS_PATH = OUTPUT_DIR / "own_dataset_docker_stats.jsonl"
+OWN_DATASET_BENCHMARK_PATH = Path(__file__).parent / "own_dataset_benchmark.json"
+ANN_HNSW_PATH = OUTPUT_DIR / "ann_hnsw_benchmark.json"
+ANN_HNSW_SCALE_PATH = OUTPUT_DIR / "ann_hnsw_scale_benchmark.json"
 
 
 def load_all_data() -> dict[str, Any]:
@@ -74,12 +77,30 @@ def load_all_data() -> dict[str, Any]:
                 if line.strip():
                     own_dataset_docker_stats.append(json.loads(line))
 
+    # Đọc TRỰC TIẾP own_dataset_benchmark.json (nguồn mới nhất) thay vì
+    # chỉ dựa vào results["own_dataset_comparison"] (bản đã "đóng băng"
+    # từ lần chạy run_benchmark.py trước đó, có thể là số liệu cũ).
+    own_dataset_benchmark = None
+    if OWN_DATASET_BENCHMARK_PATH.exists():
+        own_dataset_benchmark = json.loads(OWN_DATASET_BENCHMARK_PATH.read_text(encoding="utf-8"))
+
+    ann_hnsw = None
+    if ANN_HNSW_PATH.exists():
+        ann_hnsw = json.loads(ANN_HNSW_PATH.read_text(encoding="utf-8"))
+
+    ann_hnsw_scale = None
+    if ANN_HNSW_SCALE_PATH.exists():
+        ann_hnsw_scale = json.loads(ANN_HNSW_SCALE_PATH.read_text(encoding="utf-8"))
+
     return {
         "results": results,
         "raw_events": raw_events,
         "docker_stats": docker_stats,
         "own_dataset_latency": own_dataset_latency,
         "own_dataset_docker_stats": own_dataset_docker_stats,
+        "own_dataset_benchmark": own_dataset_benchmark,
+        "ann_hnsw": ann_hnsw,
+        "ann_hnsw_scale": ann_hnsw_scale,
     }
 
 
@@ -101,7 +122,7 @@ def build_charts(data: dict[str, Any]) -> dict[str, str]:
     i2t = i2t_by_k.get(str(top_k_default)) or i2t_by_k.get(top_k_default) or list(i2t_by_k.values())[-1]
     t2i = t2i_by_k.get(str(top_k_default)) or t2i_by_k.get(top_k_default) or list(t2i_by_k.values())[-1]
 
-    own = results.get("own_dataset_comparison", {})
+    own = data.get("own_dataset_benchmark") or {}
 
     # ===== Biểu đồ 1: So sánh 4 chỉ số =====
     metric_names = ["mrr", "hit_rate", "precision", "recall"]
@@ -184,58 +205,75 @@ def build_charts(data: dict[str, Any]) -> dict[str, str]:
     return charts
 
 
+def build_own_dataset_table_html(own: dict[str, Any] | None) -> str:
+    if not own:
+        return "<p><em>Không có own_dataset_benchmark.json</em></p>"
+
+    summary_html = f"""
+    <table border="1" cellpadding="6" style="border-collapse: collapse;">
+        <tr><th>MRR</th><th>HitRate</th><th>Precision</th><th>Recall</th><th>Query Count</th><th>Cross-Class Confusion</th></tr>
+        <tr>
+            <td>{own.get('mrr', 0):.4f}</td>
+            <td>{own.get('hit_rate', 0):.4f}</td>
+            <td>{own.get('precision', 0):.4f}</td>
+            <td>{own.get('recall', 0):.4f}</td>
+            <td>{own.get('query_count', 0)}</td>
+            <td>{own.get('top1_cross_class_confusion_rate', 0) * 100:.1f}%</td>
+        </tr>
+    </table>
+    """
+
+    breakdown = own.get("breakdown_by_class", {})
+    rows = "".join(
+        f"<tr><td>{cls}</td><td>{v.get('n', v.get('query_count', ''))}</td>"
+        f"<td>{v.get('mrr', 0):.3f}</td><td>{v.get('hit_rate', 0):.3f}</td>"
+        f"<td>{v.get('precision', 0):.3f}</td><td>{v.get('recall', 0):.3f}</td>"
+        f"<td>{v.get('confusion_pct', v.get('top1_cross_class_confusion_rate', 0)):.1f}%</td></tr>"
+        for cls, v in breakdown.items()
+    )
+    breakdown_html = f"""
+    <table border="1" cellpadding="6" style="border-collapse: collapse;">
+        <tr><th>Class</th><th>N</th><th>MRR</th><th>HitRate</th><th>Precision</th><th>Recall</th><th>Confusion %</th></tr>
+        {rows}
+    </table>
+    """
+    return summary_html + breakdown_html
+
+
+def build_ann_hnsw_table_html(ann: dict[str, Any] | None) -> str:
+    if not ann:
+        return "<p><em>Không có ann_hnsw_benchmark.json — chạy benchmark_ann_hnsw.py trước.</em></p>"
+
+    run_info = ann.get("run_info", {})
+    rows = "".join(
+        f"<tr><td>{r['config']}</td><td>{r['recall_vs_exact']:.3f}</td>"
+        f"<td>{r['latency_p50_ms']:.2f}</td><td>{r['latency_p95_ms']:.2f}</td>"
+        f"<td>{r['latency_p99_ms']:.2f}</td></tr>"
+        for r in ann.get("results", [])
+    )
+    return f"""
+    <p>N truy vấn: {run_info.get('n_queries')}, seed: {run_info.get('seed')}, top_k: {run_info.get('top_k')}</p>
+    <table border="1" cellpadding="6" style="border-collapse: collapse;">
+        <tr><th>Cấu hình</th><th>Recall@10 vs Exact</th><th>P50 (ms)</th><th>P95 (ms)</th><th>P99 (ms)</th></tr>
+        {rows}
+    </table>
+    """
+
+
 def build_evidence_summary(data: dict[str, Any]) -> str:
     events = data["raw_events"]
-    own_lat = data.get("own_dataset_latency")
-
-    own_html = ""
-    if own_lat:
-        info = own_lat["dataset_info"]
-        own_html = f"""
-        <h3>Bằng chứng đo đạc — Dataset tự thân</h3>
-        <ul>
-            <li>Số ảnh đo latency thành công: <b>{info['successful_measurements']}/{info['sample_size_actual']}</b> (lỗi: {info['errors']})</li>
-            <li>Thời điểm đo: <b>{own_lat['measured_at']}</b></li>
-            <li>Phương pháp: tải ảnh thật qua GET /media (BackendModule) + presigned URL MinIO, đo latency gọi trực tiếp AIModule</li>
-        </ul>
-        """
-
     if not events:
-        return own_html + "<p><em>Không có dữ liệu raw_events.jsonl (Flickr30K).</em></p>"
+        return "<p><em>Không có raw_events.jsonl</em></p>"
 
-    started = next((e for e in events if e["event_type"] == "benchmark_started"), None)
-    completed = next((e for e in events if e["event_type"] == "benchmark_completed"), None)
     embed_events = [e for e in events if e["event_type"] in ("embed_image", "embed_text")]
-    sample_hashes = embed_events[:3]
-
     cache_size_mb = EMBEDDINGS_CACHE_PATH.stat().st_size / 1024 / 1024 if EMBEDDINGS_CACHE_PATH.exists() else 0
 
-    rows_html = "".join(
-        f"<tr><td>{e['timestamp_iso']}</td><td>{e['event_type']}</td>"
-        f"<td>{e['latency_ms']}</td><td><code>{e['response_sha256'][:16]}...</code></td></tr>"
-        for e in sample_hashes
-    )
-
-    html = f"""
-    <h3>Bằng chứng vận hành thật — Flickr30K (raw_events.jsonl)</h3>
-    <ul>
-        <li>Tổng số request đã ghi log: <b>{len(embed_events)}</b></li>
-        <li>Thời điểm bắt đầu: <b>{started['timestamp_iso'] if started else 'N/A'}</b></li>
-        <li>Thời điểm hoàn tất: <b>{completed['timestamp_iso'] if completed else 'N/A'}</b></li>
-        <li>File vector CLIP thật (embeddings_cache.npz): <b>{'Có' if EMBEDDINGS_CACHE_PATH.exists() else 'Không tìm thấy'}</b>
-            ({cache_size_mb:.1f} MB)</li>
-    </ul>
-    <h4>Mẫu 3 request đầu tiên (kèm SHA256 hash của response thật từ AIModule):</h4>
+    return f"""
     <table border="1" cellpadding="6" style="border-collapse: collapse;">
-        <tr><th>Timestamp</th><th>Loại</th><th>Latency (ms)</th><th>SHA256 (16 ký tự đầu)</th></tr>
-        {rows_html}
+        <tr><th>Requests logged</th><th>embeddings_cache.npz</th></tr>
+        <tr><td>{len(embed_events)}</td><td>{cache_size_mb:.1f} MB</td></tr>
     </table>
-    <p><em>Ghi chú: mỗi dòng trong raw_events.jsonl được ghi VÀ FLUSH XUỐNG ĐĨA ngay khi request hoàn thành
-    (không phải ghi 1 lần lúc cuối) — kèm mã băm SHA256 của toàn bộ response body thật nhận từ AIModule.
-    Vector CLIP thật (512 chiều) cho mọi ảnh/caption được lưu đầy đủ trong embeddings_cache.npz,
-    cho phép kiểm chứng độc lập bằng cách tự tính lại cosine similarity.</em></p>
     """
-    return own_html + html
 
 
 def build_metrics_table_html(results: dict[str, Any]) -> str:
@@ -256,16 +294,38 @@ def build_metrics_table_html(results: dict[str, Any]) -> str:
     """
 
 
+def build_ann_hnsw_scale_table_html(ann_scale: dict[str, Any] | None) -> str:
+    if not ann_scale:
+        return "<p><em>Không có ann_hnsw_scale_benchmark.json — chạy benchmark_ann_hnsw_scale.py trước.</em></p>"
+
+    disclaimer = ann_scale.get("disclaimer", "")
+    rows = "".join(
+        f"<tr><td>{r['n_vectors']:,}</td><td>{r['recall_vs_exact']:.3f}</td>"
+        f"<td>{r['latency_p50_ms']:.2f}</td><td>{r['latency_p95_ms']:.2f}</td>"
+        f"<td>{r['latency_p99_ms']:.2f}</td></tr>"
+        for r in ann_scale.get("results_by_scale", [])
+    )
+    return f"""
+    <p style="font-size:0.85em;color:#666;"><em>{disclaimer}</em></p>
+    <table border="1" cellpadding="6" style="border-collapse: collapse;">
+        <tr><th>N vectors</th><th>Recall@10 vs Exact</th><th>P50 (ms)</th><th>P95 (ms)</th><th>P99 (ms)</th></tr>
+        {rows}
+    </table>
+    """
+
+
 def main() -> None:
-    logger.info("Đang đọc dữ liệu đã lưu từ lần chạy benchmark trước...")
+    logger.info("Đang đọc dữ liệu...")
     data = load_all_data()
 
     logger.info("Đang sinh biểu đồ...")
     charts = build_charts(data)
 
-    logger.info("Đang sinh bảng bằng chứng...")
-    evidence_html = build_evidence_summary(data)
     metrics_table_html = build_metrics_table_html(data["results"])
+    own_dataset_table_html = build_own_dataset_table_html(data.get("own_dataset_benchmark"))
+    ann_hnsw_table_html = build_ann_hnsw_table_html(data.get("ann_hnsw"))
+    ann_hnsw_scale_table_html = build_ann_hnsw_scale_table_html(data.get("ann_hnsw_scale"))
+    evidence_html = build_evidence_summary(data)
 
     run_info = data["results"]["run_info"]
     dataset_info = data["results"]["dataset_info"]
@@ -281,50 +341,47 @@ def main() -> None:
     h2 {{ color: #283593; margin-top: 40px; }}
     table {{ width: 100%; margin: 15px 0; }}
     th {{ background: #e8eaf6; }}
-    .info-box {{ background: #f5f5f5; padding: 15px; border-left: 4px solid #1a237e; margin: 15px 0; }}
+    .info-box {{ background: #f5f5f5; padding: 10px; border-left: 4px solid #1a237e; margin: 10px 0; font-size: 0.9em; }}
 </style>
 </head>
 <body>
-    <h1>Báo cáo Benchmark CLIP — Hệ thống SISE</h1>
+    <h1>Báo cáo Benchmark CLIP — SISE</h1>
     <div class="info-box">
-        <b>Dataset:</b> {dataset_info['name']}<br>
-        <b>Quy mô:</b> {dataset_info['sample_size']} ảnh, {dataset_info['total_captions']} caption<br>
-        <b>Thời điểm chạy:</b> {run_info['started_at']}<br>
-        <b>AI Service:</b> {run_info['ai_service_url']}
+        {dataset_info['name']} — {dataset_info['sample_size']} ảnh, {dataset_info['total_captions']} caption — {run_info['started_at']}
     </div>
 
-    <h2>1. So sánh tổng quan các thực nghiệm</h2>
+    <h2>1. So sánh tổng quan</h2>
     {charts.get('comparison_bar', '')}
 
-    <h2>2. Bảng chỉ số chi tiết theo nhiều mức Top-K</h2>
+    <h2>2. Flickr30K — Chỉ số theo Top-K</h2>
     {metrics_table_html}
 
-    <h2>3. Phân phối vị trí kết quả đúng (Rank Distribution)</h2>
+    <h2>3. Flickr30K — Phân phối rank</h2>
     {charts.get('rank_distribution', '')}
 
     <h2>4. Latency</h2>
     {charts.get('latency', '')}
 
-    <h2>5. Breakdown theo danh tính — Dataset tự thân</h2>
-    {charts.get('own_breakdown', '<p><em>Không có dữ liệu breakdown.</em></p>')}
+    <h2>5. Dataset tự thân — Kết quả đầy đủ</h2>
+    {own_dataset_table_html}
+    {charts.get('own_breakdown', '')}
 
-    <h2>6. Resource Usage — Container AIModule</h2>
-    {charts.get('docker_stats', '<p><em>Không có dữ liệu docker stats.</em></p>')}
+    <h2>6. ANN/HNSW vs Exact Search (N=1000, dữ liệu CLIP thật)</h2>
+    {ann_hnsw_table_html}
 
-    <h2>7. Bằng chứng vận hành (Evidence)</h2>
+    <h2>6b. ANN/HNSW theo quy mô (N=1k/10k/50k, vector tổng hợp)</h2>
+    {ann_hnsw_scale_table_html}
+
+    <h2>7. Resource Usage</h2>
+    {charts.get('docker_stats', '<p><em>Không có dữ liệu.</em></p>')}
+
+    <h2>8. Bằng chứng vận hành</h2>
     {evidence_html}
-
-    <p style="margin-top: 60px; color: #888; font-size: 0.9em;">
-        Báo cáo này được sinh tự động bởi generate_report.py, đọc trực tiếp từ dữ liệu thô
-        đã lưu trong lần chạy run_benchmark.py trước đó. Có thể chạy lại script này bất kỳ
-        lúc nào (chỉ mất vài giây) để tái tạo báo cáo, không cần chạy lại benchmark.
-    </p>
 </body>
 </html>"""
 
     REPORT_HTML_PATH.write_text(report_html, encoding="utf-8")
     logger.info("Đã sinh báo cáo: %s", REPORT_HTML_PATH)
-    logger.info("Mở file này bằng trình duyệt để xem báo cáo đầy đủ.")
 
 
 if __name__ == "__main__":

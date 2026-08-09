@@ -216,6 +216,38 @@ def compute_latency_percentiles(latencies_ms: list[float]) -> dict[str, float]:
     }
 
 
+def compute_latency_distribution_detail(latencies_ms: list[float]) -> dict[str, Any]:
+    """
+    Trả về dữ liệu chi tiết phục vụ điều tra hiện tượng thống kê bất thường:
+    - sorted_latencies_ms: toàn bộ latency đã sort tăng dần
+    - fastest_10: 10 giá trị nhanh nhất
+    - slowest_10: 10 giá trị chậm nhất
+    - below_1std_count / below_1std_percentage:
+      số lượng / tỷ lệ điểm đo nhỏ hơn (mean - std)
+    """
+    if not latencies_ms:
+        return {
+            "sorted_latencies_ms": [],
+            "fastest_10": [],
+            "slowest_10": [],
+            "below_1std_count": 0,
+            "below_1std_percentage": 0.0,
+        }
+
+    sorted_lat = sorted(latencies_ms)
+    mean_val = sum(latencies_ms) / len(latencies_ms)
+    std_val = compute_std(latencies_ms)
+    below_1std = sum(1 for v in latencies_ms if v < (mean_val - std_val))
+
+    return {
+        "sorted_latencies_ms": sorted_lat,
+        "fastest_10": sorted_lat[:10],
+        "slowest_10": sorted_lat[-10:],
+        "below_1std_count": below_1std,
+        "below_1std_percentage": round(below_1std / len(latencies_ms) * 100, 2),
+    }
+
+
 __all__ = [
     "compute_mrr",
     "compute_hit_rate",
@@ -228,4 +260,5 @@ __all__ = [
     "compute_std",
     "bootstrap_confidence_interval",
     "compute_latency_percentiles",
+    "compute_latency_distribution_detail",
 ]

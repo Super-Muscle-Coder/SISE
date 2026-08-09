@@ -17,10 +17,10 @@ chi tiết trong response, đã audit). Thay vào đó:
   6. Xóa ảnh tạm sau khi đo xong (không để lại rác trên đĩa).
 
 Cách chạy:
-    python measure_own_dataset_latency.py \\
-        --backend_url http://localhost:8000 \\
-        --ai_service_url http://localhost:8001 \\
-        --username testuser1 --password testpass123 \\
+    python measure_own_dataset_latency.py \
+        --backend_url http://localhost:8000 \
+        --ai_service_url http://localhost:8001 \
+        --username testuser1 --password testpass123 \
         --sample_size 200
 
 Output:
@@ -41,7 +41,7 @@ from pathlib import Path
 
 import httpx
 
-from report_utils import compute_latency_percentiles
+from report_utils import compute_latency_distribution_detail, compute_latency_percentiles
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s.%(msecs)03d [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger(__name__)
@@ -220,6 +220,7 @@ def main() -> None:
                     continue
 
         latency_stats = compute_latency_percentiles(latencies_ms)
+        latency_detail = compute_latency_distribution_detail(latencies_ms)
 
         result = {
             "dataset_info": {
@@ -230,6 +231,7 @@ def main() -> None:
                 "errors": errors,
             },
             "latency": latency_stats,
+            "latency_detail": latency_detail,
             "measured_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
 

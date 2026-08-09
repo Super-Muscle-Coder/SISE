@@ -74,6 +74,7 @@
     <Compile Include="app\services\__init__.py" />
     <Compile Include="app\__init__.py" />
     <Compile Include="backend_main.py" />
+    <Compile Include="benchmark_external\benchmark_ann_hnsw.py" />
     <Compile Include="benchmark_external\download_flickr30k.py" />
     <Compile Include="benchmark_external\generate_report.py" />
     <Compile Include="benchmark_external\measure_own_dataset_latency.py" />
@@ -102,6 +103,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include=".dockerignore" />
+    <Content Include="benchmark_external\benchmark_ann_hnsw_scale.py" />
     <Content Include="benchmark_external\own_dataset_benchmark.json" />
     <Content Include="configs\backend.env.local" />
     <Content Include="configs\backend.env.example" />

@@ -327,6 +327,20 @@ database_spec:
           precision:    REAL NOT NULL
           recall:       REAL NOT NULL
           computed_at:  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          # ---- [APPEND, CLAUSE B — migration schema, dù bảng owner: D] ----
+          top_k:        INTEGER
+          # Ngưỡng cắt (top-K) dùng khi tính toán lần chạy benchmark này.
+          # Nullable — bản ghi cũ trước migration này không có giá trị.
+          top1_cross_class_confusion_rate: REAL
+          # Tỷ lệ % model xếp sai hoàn toàn đối tượng ở vị trí #1 (nhầm
+          # lẫn liên-class thật, khác "nhiễu nội tại" trong cùng class).
+          # Trước đây chỉ tồn tại trong response POST /eval/run, không lưu
+          # DB — bổ sung để đảm bảo tính tái lập của thực nghiệm (GVHD
+          # review finding A3). Nullable — bản ghi cũ không có giá trị.
+          # Lý do bổ sung: kết quả benchmark trong báo cáo cần tái lập
+          # được từ chính dữ liệu hệ thống, không chỉ từ response API
+          # tại thời điểm chạy (vốn không được lưu trữ lâu dài).
+
   # ---------------------------------------------------------------------
   # [CLAUSE B — KHÓA HOÀN TOÀN, KHÔNG THAY ĐỔI GÌ SO VỚI v1.1.0]
   # pgvector (thay thế Milvus — vector store nằm ngay trong PostgreSQL)
