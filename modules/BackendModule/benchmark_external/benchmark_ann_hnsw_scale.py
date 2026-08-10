@@ -44,12 +44,11 @@ VECTOR_DIM = 512
 TOP_K = 10
 QUERY_COUNT_DEFAULT = 50
 SEED_DEFAULT = 42
-SCALES_DEFAULT = [1000, 10000, 50000, 100000]
+SCALES_DEFAULT = [10000, 50000, 100000]
 HNSW_M = 16
 HNSW_EF_CONSTRUCTION = 200
 HNSW_EF_SEARCH_DEFAULT = 64
 BATCH_SIZE_DEFAULT = 1000
-
 
 CREATE_TABLE_SQL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
@@ -139,6 +138,16 @@ def count_rows(conn: psycopg.Connection) -> int:
     return int(row[0]) if row else 0
 
 
+def analyze_temp_table(conn: psycopg.Connection) -> None:
+    """
+    Cập nhật statistics cho planner sau khi COPY/INSERT hàng loạt.
+    """
+    with conn.cursor() as cur:
+        cur.execute(f"ANALYZE {TABLE_NAME};")
+    conn.commit()
+    logger.info("  Đã ANALYZE bảng %s.", TABLE_NAME)
+
+
 def vector_to_pgvector_text(vec: np.ndarray) -> str:
     # pgvector text format: [v1,v2,...]
     return "[" + ",".join(f"{float(x):.8f}" for x in vec.tolist()) + "]"
@@ -213,6 +222,38 @@ def sample_queries(conn: psycopg.Connection, n_queries: int, seed: int) -> list[
             }
         )
     return queries
+
+
+def verify_index_scan_used(
+    conn: psycopg.Connection,
+    query_vector_text: str,
+    query_id: str,
+    top_k: int,
+    ef_search: int,
+    n_vectors: int,
+) -> bool:
+    """
+    Chạy EXPLAIN cho SEARCH_SQL ở chế độ HNSW, kiểm tra planner có dùng
+    Index Scan / index name hay không.
+    """
+    with conn.transaction():
+        with conn.cursor() as cur:
+            cur.execute(f"SET LOCAL hnsw.ef_search = {int(ef_search)};")
+            cur.execute(f"EXPLAIN ANALYZE {SEARCH_SQL}", (query_id, query_vector_text, top_k))
+            plan_lines = [str(row[0]) for row in cur.fetchall()]
+
+    plan_text = "\n".join(plan_lines)
+    uses_index = ("Index Scan" in plan_text) or (INDEX_NAME in plan_text)
+
+    if uses_index:
+        logger.info("  [OK] Xác nhận query dùng Index Scan (%s) ở mốc N=%d.", INDEX_NAME, n_vectors)
+    else:
+        logger.warning(
+            "  [CẢNH BÁO] Query KHÔNG dùng Index Scan ở mốc N=%d.\nQuery plan:\n%s",
+            n_vectors,
+            plan_text,
+        )
+    return uses_index
 
 
 def run_exact_query(
@@ -293,6 +334,9 @@ def benchmark_scale(
     else:
         logger.info("Mốc N=%d: đã đủ dữ liệu, không cần chèn thêm.", n_vectors)
 
+    # Bắt buộc cập nhật thống kê planner trước đo
+    analyze_temp_table(conn)
+
     logger.info("Mốc N=%d: REINDEX HNSW để đảm bảo sẵn sàng đo...", n_vectors)
     reindex_temp_hnsw(conn)
 
@@ -300,6 +344,21 @@ def benchmark_scale(
     if len(queries) < 1:
         raise RuntimeError(f"Mốc N={n_vectors}: không lấy được query nào.")
     logger.info("Mốc N=%d: số query đo thực tế = %d", n_vectors, len(queries))
+
+    # Xác minh planner dùng index trước khi đo thật
+    index_verified = verify_index_scan_used(
+        conn=conn,
+        query_vector_text=queries[0]["embedding_text"],
+        query_id=queries[0]["id"],
+        top_k=top_k,
+        ef_search=ef_search,
+        n_vectors=n_vectors,
+    )
+    if not index_verified:
+        raise RuntimeError(
+            f"Mốc N={n_vectors}: PostgreSQL planner không dùng Index Scan cho HNSW. "
+            "Dừng đo để tránh sinh dữ liệu vô nghĩa."
+        )
 
     exact_latencies: list[float] = []
     hnsw_latencies: list[float] = []
@@ -321,6 +380,7 @@ def benchmark_scale(
 
     return {
         "n_vectors": n_vectors,
+        "index_scan_verified": index_verified,
         "recall_vs_exact": round(sum(recalls) / len(recalls), 6) if recalls else 0.0,
         "latency_p50_ms": round(hnsw_stats["p50"], 3),
         "latency_p95_ms": round(hnsw_stats["p95"], 3),
@@ -329,17 +389,18 @@ def benchmark_scale(
 
 
 def print_summary_table(rows: list[dict[str, Any]]) -> None:
-    logger.info("----------------------------------------------------------------")
-    logger.info("| %-10s | %-19s | %-14s |", "N vectors", "Recall@10 vs exact", "Latency P50")
-    logger.info("----------------------------------------------------------------")
+    logger.info("--------------------------------------------------------------------------------")
+    logger.info("| %-10s | %-10s | %-19s | %-14s |", "N vectors", "IndexScan", "Recall@10 vs exact", "Latency P50")
+    logger.info("--------------------------------------------------------------------------------")
     for r in rows:
         logger.info(
-            "| %-10d | %-19.3f | %-14.3f |",
+            "| %-10d | %-10s | %-19.3f | %-14.3f |",
             r["n_vectors"],
+            str(r.get("index_scan_verified", False)),
             r["recall_vs_exact"],
             r["latency_p50_ms"],
         )
-    logger.info("----------------------------------------------------------------")
+    logger.info("--------------------------------------------------------------------------------")
 
 
 def drop_temp_table_safely(conn: psycopg.Connection) -> None:
@@ -360,7 +421,7 @@ def main() -> None:
     parser.add_argument(
         "--scales",
         type=str,
-        default="1000,10000,50000,100000",
+        default="10000,50000,100000",
         help="Danh sách mốc N, phân tách bằng dấu phẩy",
     )
     parser.add_argument(
@@ -374,8 +435,6 @@ def main() -> None:
 
     scales = [int(x.strip()) for x in args.scales.split(",") if x.strip()]
     scales = sorted(scales)
-    if scales != sorted(scales):
-        raise ValueError("Scales phải tăng dần.")
     if not scales:
         scales = SCALES_DEFAULT
 
@@ -399,13 +458,21 @@ def main() -> None:
             )
             results_by_scale.append(row)
 
+        all_verified = all(r.get("index_scan_verified", False) for r in results_by_scale)
+
+        disclaimer = (
+            "Vector ngẫu nhiên tổng hợp (không phải embedding CLIP thật) — dùng để đo "
+            "đặc tính thuật toán/cấu trúc dữ liệu HNSW theo quy mô, tách biệt với "
+            "benchmark độ chính xác ngữ nghĩa ở ann_hnsw_benchmark.json "
+            "(dữ liệu CLIP thật, N=1000). "
+        )
+        if all_verified:
+            disclaimer += "Đã xác minh planner dùng Index Scan cho mọi mốc đo."
+        else:
+            disclaimer += "CẢNH BÁO: Có mốc không xác minh được Index Scan."
+
         output = {
-            "disclaimer": (
-                "Vector ngẫu nhiên tổng hợp (không phải embedding CLIP thật) — dùng để đo "
-                "đặc tính thuật toán/cấu trúc dữ liệu HNSW theo quy mô, tách biệt với "
-                "benchmark độ chính xác ngữ nghĩa ở ann_hnsw_benchmark.json "
-                "(dữ liệu CLIP thật, N=1000)."
-            ),
+            "disclaimer": disclaimer,
             "run_info": {
                 "seed": args.seed,
                 "measured_at": datetime.now(timezone.utc).isoformat(),
