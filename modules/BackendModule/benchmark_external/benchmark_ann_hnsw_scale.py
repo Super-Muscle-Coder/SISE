@@ -73,7 +73,17 @@ ORDER BY random()
 LIMIT %s;
 """
 
-SEARCH_SQL = f"""
+SEARCH_SQL_EXACT = f"""
+-- exact_search_variant
+SELECT id
+FROM {TABLE_NAME}
+WHERE id != %s
+ORDER BY embedding <=> %s::vector
+LIMIT %s;
+"""
+
+SEARCH_SQL_HNSW = f"""
+-- hnsw_search_variant
 SELECT id
 FROM {TABLE_NAME}
 WHERE id != %s
@@ -239,7 +249,7 @@ def verify_index_scan_used(
     with conn.transaction():
         with conn.cursor() as cur:
             cur.execute(f"SET LOCAL hnsw.ef_search = {int(ef_search)};")
-            cur.execute(f"EXPLAIN ANALYZE {SEARCH_SQL}", (query_id, query_vector_text, top_k))
+            cur.execute(f"EXPLAIN ANALYZE {SEARCH_SQL_HNSW}", (query_id, query_vector_text, top_k))
             plan_lines = [str(row[0]) for row in cur.fetchall()]
 
     plan_text = "\n".join(plan_lines)
@@ -269,9 +279,10 @@ def run_exact_query(
         with conn.cursor() as cur:
             cur.execute("SET LOCAL enable_indexscan = off;")
             cur.execute("SET LOCAL enable_bitmapscan = off;")
+            cur.execute("SET LOCAL plan_cache_mode = force_custom_plan;")
 
             start = time.perf_counter()
-            cur.execute(SEARCH_SQL, (query_id, query_vector_text, top_k))
+            cur.execute(SEARCH_SQL_EXACT, (query_id, query_vector_text, top_k))
             rows = cur.fetchall()
             latency_ms = (time.perf_counter() - start) * 1000.0
 
@@ -292,9 +303,10 @@ def run_hnsw_query(
     with conn.transaction():
         with conn.cursor() as cur:
             cur.execute(f"SET LOCAL hnsw.ef_search = {int(ef_search)};")
+            cur.execute("SET LOCAL plan_cache_mode = force_custom_plan;")
 
             start = time.perf_counter()
-            cur.execute(SEARCH_SQL, (query_id, query_vector_text, top_k))
+            cur.execute(SEARCH_SQL_HNSW, (query_id, query_vector_text, top_k))
             rows = cur.fetchall()
             latency_ms = (time.perf_counter() - start) * 1000.0
 
@@ -443,7 +455,7 @@ def main() -> None:
 
     conn: psycopg.Connection | None = None
     try:
-        conn = psycopg.connect(dsn)
+        conn = psycopg.connect(dsn, prepare_threshold=None)
         ensure_temp_table_and_index(conn)
 
         results_by_scale: list[dict[str, Any]] = []

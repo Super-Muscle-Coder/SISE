@@ -2,7 +2,7 @@
   "disclaimer": "Vector ngẫu nhiên tổng hợp (không phải embedding CLIP thật) — dùng để đo đặc tính thuật toán/cấu trúc dữ liệu HNSW theo quy mô, tách biệt với benchmark độ chính xác ngữ nghĩa ở ann_hnsw_benchmark.json (dữ liệu CLIP thật, N=1000). Đã xác minh planner dùng Index Scan cho mọi mốc đo.",
   "run_info": {
     "seed": 42,
-    "measured_at": "2026-08-10T01:37:52.618151+00:00",
+    "measured_at": "2026-08-10T02:51:08.956702+00:00",
     "hnsw_config": {
       "m": 16,
       "ef_construction": 200,
@@ -16,25 +16,25 @@
       "n_vectors": 10000,
       "index_scan_verified": true,
       "recall_vs_exact": 1.0,
-      "latency_p50_ms": 20.053,
-      "latency_p95_ms": 32.736,
-      "latency_p99_ms": 36.578
+      "latency_p50_ms": 20.396,
+      "latency_p95_ms": 24.54,
+      "latency_p99_ms": 45.628
     },
     {
       "n_vectors": 50000,
       "index_scan_verified": true,
       "recall_vs_exact": 1.0,
-      "latency_p50_ms": 123.341,
-      "latency_p95_ms": 142.693,
-      "latency_p99_ms": 181.707
+      "latency_p50_ms": 126.492,
+      "latency_p95_ms": 154.441,
+      "latency_p99_ms": 185.295
     },
     {
       "n_vectors": 100000,
       "index_scan_verified": true,
       "recall_vs_exact": 1.0,
-      "latency_p50_ms": 262.713,
-      "latency_p95_ms": 282.747,
-      "latency_p99_ms": 322.416
+      "latency_p50_ms": 257.88,
+      "latency_p95_ms": 340.465,
+      "latency_p99_ms": 383.026
     }
   ]
 }

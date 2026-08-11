@@ -2,13 +2,10 @@
   <Folder Name="/.context/">
     <File Path=".context/agent_boundaries.yaml" />
     <File Path=".context/data_schema.yaml" />
-    <File Path=".context/DOS.md" />
     <File Path=".context/openapi.yaml" />
     <File Path=".context/Tasks.yaml" />
     <File Path="A.md" />
     <File Path="B.md" />
-    <File Path="Huongdan.md" />
-    <File Path="Nhanxet.md" />
   </Folder>
   <Folder Name="/.github/" />
   <Folder Name="/.github/agents/">
@@ -57,9 +54,7 @@
     <File Path=".knowledge/agent05/Log_05.md" />
     <File Path=".knowledge/agent05/Skill_05.md" />
   </Folder>
-  <Folder Name="/.knowledge/shared/">
-    <File Path=".knowledge/shared/Workflow_Centric_Architecture.md" />
-  </Folder>
+  <Folder Name="/.knowledge/shared/" />
   <Folder Name="/.knowledge/shared/template/">
     <File Path=".knowledge/shared/template/KnowledgeBase_template.md" />
     <File Path=".knowledge/shared/template/Log_template.md" />
