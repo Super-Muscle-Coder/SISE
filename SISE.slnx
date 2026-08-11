@@ -3,6 +3,7 @@
     <File Path=".context/agent_boundaries.yaml" />
     <File Path=".context/data_schema.yaml" />
     <File Path=".context/openapi.yaml" />
+    <File Path=".context/Summary_Final_Report.md" />
     <File Path=".context/Tasks.yaml" />
     <File Path="A.md" />
     <File Path="B.md" />
