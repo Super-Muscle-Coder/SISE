@@ -93,27 +93,32 @@ Trong thư mục mã nguồn của mỗi project (thường là `app/` cho Pytho
 ### Minh hoạ cấu trúc thư mục
 **Áp dụng cho Python (Backend/AI)**
 ```text
-project_root/
+module_root/
 ├── configs
-│	├── backend.env.local
-│	├── backend.env.staging
-│	└── backend.env.example  
+│	├── backend.env.local # Chứa key-value thật, KHÔNG đưa lên Github, dùng trong quá trình phát triển cục bộ
+│	├── backend.env.staging # Chứa key-value thật, KHÔNG đưa lên Github, dùng trong quá trình staging
+│	└── backend.env.example  # Lưu trữ cấu hình key-only, không chứa value, cái này đưa lên Github được
 ├── app/
 │   ├── entities/
 │   │    ├── search_entities.py    
-│   │    └── __init__.py
+│   │    ├── (...Các workflow khác...)
+│   │    └── __init__.py # export cục bộ của entities, để các workflow khác import từ đây
 │   ├── adapters/
 │   │    ├── search_adapters.py   
-│   │    └── __init__.py
+│   │    ├── (...Các workflow khác...)
+│   │    └── __init__.py # export cục bộ của adapters, để các workflow khác import từ đây
 │   ├── services/
 │   │    ├── search_services.py    
-│   │    └── __init__.py
-│   └── routers/
-│        ├── search_routers.py   
-│        └── __init__.py
-├── backend_main.py    
-├── backend_dependencies.py (hoặc backend_requirements.txt)
-(...)
+│   │    ├── (...Các workflow khác...)
+│   │    └── __init__.py # export cục bộ của services, để các workflow khác import từ đây
+│   ├── routers/
+│   │     ├── search_routers.py   
+│   │     ├── (...Các workflow khác...)
+│   │     └── __init__.py # export cục bộ của routers, để các workflow khác import từ đây
+│   └── __init__.py # export cục bộ của app, để các workflow khác import từ đây
+├── [module_name]_main.py  # Entry point chính của Module, nơi include tất cả routers
+├── [module_name]_dependencies.py (hoặc [module_name]_requirements.txt)
+(...những tệp khác được đặt trong root...)
 ```
 ### 1.2 Quyền lực của "Bộ tệp Workflow"
 
